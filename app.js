@@ -279,6 +279,9 @@ function bindEvents() {
 
   document.getElementById('form-ordem').addEventListener('submit', saveOrdem);
   document.getElementById('form-despesa').addEventListener('submit', saveDespesa);
+  document.getElementById('btn-senha').addEventListener('click', openSenha);
+  document.getElementById('form-senha').addEventListener('submit', saveSenha);
+  document.getElementById('senha-nova').addEventListener('input', e => updatePwMeter(e.target.value));
 
   document.querySelectorAll('#tbl-tickets th[data-sort]').forEach(th =>
     th.addEventListener('click', () => sortTickets(th.dataset.sort)));
@@ -386,6 +389,58 @@ function openDespesa(d) {
 }
 function closeAllModals() {
   document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('open'));
+}
+
+// === ALTERAR SENHA ===========================================
+
+const PW_RULES = {
+  len:   s => s.length >= 8,
+  upper: s => /[A-Z]/.test(s),
+  lower: s => /[a-z]/.test(s),
+  num:   s => /[0-9]/.test(s),
+};
+
+function openSenha() {
+  const f = document.getElementById('form-senha');
+  f.reset();
+  document.getElementById('senha-error').textContent = '';
+  updatePwMeter('');
+  document.getElementById('modal-senha').classList.add('open');
+}
+
+function pwScore(s) {
+  return Object.values(PW_RULES).reduce((n, fn) => n + (fn(s) ? 1 : 0), 0);
+}
+
+function updatePwMeter(s) {
+  const score = pwScore(s);
+  const fill = document.getElementById('pw-meter-fill');
+  const pct = (score / 4) * 100;
+  const cls = score <= 1 ? 'weak' : score === 2 ? 'mid' : score === 3 ? 'ok' : 'strong';
+  fill.style.width = pct + '%';
+  fill.className = 'pw-meter-fill ' + cls;
+  document.querySelectorAll('#pw-rules li').forEach(li => {
+    li.classList.toggle('ok', PW_RULES[li.dataset.rule](s));
+  });
+}
+
+async function saveSenha(e) {
+  e.preventDefault();
+  const senha = document.getElementById('senha-nova').value;
+  const confirma = document.getElementById('senha-confirma').value;
+  const errEl = document.getElementById('senha-error');
+  errEl.textContent = '';
+
+  if (pwScore(senha) < 4) { errEl.textContent = 'A senha não atende a todos os requisitos.'; return; }
+  if (senha !== confirma) { errEl.textContent = 'As senhas não coincidem.'; return; }
+
+  const btn = e.target.querySelector('.btn-primary');
+  btn.disabled = true; btn.textContent = 'Salvando...';
+  const { error } = await sb.auth.updateUser({ password: senha });
+  btn.disabled = false; btn.textContent = 'Salvar';
+  if (error) { errEl.textContent = 'Erro: ' + error.message; return; }
+  closeAllModals();
+  toast('Senha alterada com sucesso.');
 }
 
 function confirmDialog(msg) {

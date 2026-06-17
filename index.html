@@ -39,6 +39,7 @@
       <div class="header-right">
         <span class="user-email" id="user-email"></span>
         <button class="btn-icon" id="btn-theme" title="Alternar tema">☀</button>
+        <button class="btn-text-sm" id="btn-senha">Alterar senha</button>
         <button class="btn-text-sm" id="btn-logout">Sair</button>
       </div>
     </header>
@@ -284,6 +285,37 @@
           </div>
           <div class="form-group"><label>Descrição</label><input type="text" name="descricao" placeholder="Ex.: Compra de EPIs"></div>
           <div class="form-group"><label>Valor (R$) *</label><input type="number" name="valor" step="0.01" min="0" required></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary btn-cancel-modal">Cancelar</button>
+          <button type="submit" class="btn-primary">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Alterar senha -->
+  <div class="modal-overlay" id="modal-senha">
+    <div class="modal" style="max-width:420px">
+      <div class="modal-header"><h2>Alterar Senha</h2></div>
+      <form id="form-senha">
+        <div class="modal-body">
+          <div class="form-group">
+            <label>Nova senha</label>
+            <input type="password" name="senha" id="senha-nova" autocomplete="new-password" placeholder="••••••••">
+            <div class="pw-meter"><div class="pw-meter-fill" id="pw-meter-fill"></div></div>
+            <ul class="pw-rules" id="pw-rules">
+              <li data-rule="len">Mínimo 8 caracteres</li>
+              <li data-rule="upper">Uma letra maiúscula</li>
+              <li data-rule="lower">Uma letra minúscula</li>
+              <li data-rule="num">Um número</li>
+            </ul>
+          </div>
+          <div class="form-group">
+            <label>Confirmar nova senha</label>
+            <input type="password" name="confirma" id="senha-confirma" autocomplete="new-password" placeholder="••••••••">
+          </div>
+          <p class="login-error" id="senha-error"></p>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn-secondary btn-cancel-modal">Cancelar</button>

@@ -663,6 +663,38 @@ header h1 { font-size: 1.25rem; letter-spacing: -0.01em; }
 }
 .btn-secondary:hover { border-color: var(--tinta-soft); color: var(--tinta); }
 
+/* === PASSWORD METER ========================================= */
+.pw-meter {
+  height: 5px; background: var(--borda-light);
+  border-radius: 3px; overflow: hidden;
+  margin-top: 0.5rem;
+}
+.pw-meter-fill {
+  height: 100%; width: 0; border-radius: 3px;
+  transition: width 0.25s ease, background 0.25s ease;
+  background: var(--erro);
+}
+.pw-meter-fill.weak   { background: var(--erro); }
+.pw-meter-fill.mid    { background: var(--laranja); }
+.pw-meter-fill.ok     { background: var(--amarelo); }
+.pw-meter-fill.strong { background: var(--verde); }
+
+.pw-rules {
+  list-style: none; margin: 0.6rem 0 0; padding: 0;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 0.2rem 0.8rem;
+}
+.pw-rules li {
+  font-family: var(--font-text); font-size: 0.72rem;
+  color: var(--tinta-soft); position: relative;
+  padding-left: 1.1rem; transition: color var(--transition);
+}
+.pw-rules li::before {
+  content: '○'; position: absolute; left: 0;
+  font-size: 0.7rem;
+}
+.pw-rules li.ok { color: var(--verde); }
+.pw-rules li.ok::before { content: '✓'; }
+
 /* === CHART (Canvas) ========================================= */
 .chart-container { position: relative; width: 100%; height: 260px; }
 .chart-container canvas { width: 100% !important; height: 100% !important; }
