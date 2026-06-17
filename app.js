@@ -2,9 +2,8 @@
 // Build Brasil — App principal
 // ============================================================
 
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
 // --- Estado global ---
+let sb = null;
 let currentUser = null;
 let ordens = [];
 let despesasGerais = [];
@@ -13,16 +12,34 @@ let filters = { regiao: '', equipe: '', linha: '', dataInicio: '', dataFim: '', 
 let ticketsPage = 1;
 const TICKETS_PER_PAGE = 10;
 
+function initSupabase() {
+  const lib = window.supabase;
+  if (!lib || !lib.createClient) {
+    console.error('Supabase JS não carregou. Verifique a conexão.');
+    return null;
+  }
+  return lib.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+}
+
 // --- Inicialização ---
 document.addEventListener('DOMContentLoaded', async () => {
   loadTheme();
-  const { data: { session } } = await supabase.auth.getSession();
-  if (session) {
-    await enterApp(session.user);
-  } else {
+  try {
+    sb = initSupabase();
+    if (!sb) throw new Error('Supabase indisponível');
+    const { data, error } = await sb.auth.getSession();
+    if (error) throw error;
+    if (data.session) {
+      await enterApp(data.session.user);
+    } else {
+      showLogin();
+    }
+    setupEventListeners();
+  } catch (err) {
+    console.error('Erro na inicialização:', err);
     showLogin();
+    setupEventListeners();
   }
-  setupEventListeners();
   hideLoading();
 });
 
@@ -162,7 +179,7 @@ async function handleLogin() {
     return;
   }
 
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  const { data, error } = await sb.auth.signInWithPassword({ email, password });
   if (error) {
     errorEl.textContent = 'Credenciais inválidas.';
     return;
@@ -171,7 +188,7 @@ async function handleLogin() {
 }
 
 async function handleLogout() {
-  await supabase.auth.signOut();
+  await sb.auth.signOut();
   currentUser = null;
   showLogin();
 }
@@ -182,9 +199,9 @@ async function handleLogout() {
 
 async function loadLookups() {
   const [eq, rg, ls] = await Promise.all([
-    supabase.from('equipes').select('nome').order('nome'),
-    supabase.from('regioes').select('nome').order('nome'),
-    supabase.from('linhas_servico').select('nome').order('nome'),
+    sb.from('equipes').select('nome').order('nome'),
+    sb.from('regioes').select('nome').order('nome'),
+    sb.from('linhas_servico').select('nome').order('nome'),
   ]);
   lookups.equipes = (eq.data || []).map(r => r.nome);
   lookups.regioes = (rg.data || []).map(r => r.nome);
@@ -193,8 +210,8 @@ async function loadLookups() {
 
 async function loadData() {
   const [ord, desp] = await Promise.all([
-    supabase.from('ordens').select('*').order('data', { ascending: false }),
-    supabase.from('despesas_gerais').select('*').order('data', { ascending: false }),
+    sb.from('ordens').select('*').order('data', { ascending: false }),
+    sb.from('despesas_gerais').select('*').order('data', { ascending: false }),
   ]);
   ordens = ord.data || [];
   despesasGerais = desp.data || [];
@@ -396,10 +413,10 @@ async function handleSaveOrdem(e) {
 
   let error;
   if (id) {
-    ({ error } = await supabase.from('ordens').update(record).eq('id', id));
+    ({ error } = await sb.from('ordens').update(record).eq('id', id));
   } else {
     record.created_by = currentUser.id;
-    ({ error } = await supabase.from('ordens').insert([record]));
+    ({ error } = await sb.from('ordens').insert([record]));
   }
 
   btn.disabled = false;
@@ -432,10 +449,10 @@ async function handleSaveDespesa(e) {
 
   let error;
   if (id) {
-    ({ error } = await supabase.from('despesas_gerais').update(record).eq('id', id));
+    ({ error } = await sb.from('despesas_gerais').update(record).eq('id', id));
   } else {
     record.created_by = currentUser.id;
-    ({ error } = await supabase.from('despesas_gerais').insert([record]));
+    ({ error } = await sb.from('despesas_gerais').insert([record]));
   }
 
   btn.disabled = false;
@@ -451,7 +468,7 @@ async function handleSaveDespesa(e) {
 }
 
 async function deleteOrdem(id) {
-  const { error } = await supabase.from('ordens').delete().eq('id', id);
+  const { error } = await sb.from('ordens').delete().eq('id', id);
   if (error) { toast('Erro ao excluir: ' + error.message, true); return; }
   await loadData();
   renderAll();
@@ -459,7 +476,7 @@ async function deleteOrdem(id) {
 }
 
 async function deleteDespesa(id) {
-  const { error } = await supabase.from('despesas_gerais').delete().eq('id', id);
+  const { error } = await sb.from('despesas_gerais').delete().eq('id', id);
   if (error) { toast('Erro ao excluir: ' + error.message, true); return; }
   await loadData();
   renderAll();
