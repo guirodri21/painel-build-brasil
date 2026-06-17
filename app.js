@@ -10,6 +10,7 @@ let lookups = { equipes: [], regioes: [], linhas: [] };
 let filters = { regiao: '', equipe: '', linha: '', de: '', ate: '', busca: '' };
 let ticketsPage = 1;
 let ticketsSort = { col: 'data', asc: false };
+let realtimeChannel = null;
 const PER_PAGE = 12;
 
 // === INIT ====================================================
@@ -24,6 +25,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (error) throw error;
     if (data.session) await enterApp(data.session.user);
     else showLogin();
+    watchAuth();
   } catch (e) {
     console.error('Init:', e);
     showLogin();
@@ -31,6 +33,24 @@ document.addEventListener('DOMContentLoaded', async () => {
   bindEvents();
   hideLoading();
 });
+
+// === AUTH STATE ==============================================
+
+function watchAuth() {
+  sb.auth.onAuthStateChange((event, session) => {
+    if (event === 'SIGNED_OUT' || (!session && event !== 'INITIAL_SESSION')) {
+      // Sessão expirada ou logout (possivelmente em outra aba)
+      if (user) toast('Sua sessão expirou. Faça login novamente.', true);
+      teardownRealtime();
+      user = null;
+      showLogin();
+    }
+  });
+}
+
+function teardownRealtime() {
+  if (realtimeChannel) { sb.removeChannel(realtimeChannel); realtimeChannel = null; }
+}
 
 function hideLoading() {
   const el = document.getElementById('loading-overlay');
@@ -80,10 +100,85 @@ async function enterApp(u) {
   document.getElementById('app').classList.remove('hidden');
   document.getElementById('user-email').textContent = u.email;
   document.getElementById('stamp-date').textContent = todayBR();
-  await loadLookups();
-  populateDropdowns();
-  await loadData();
-  renderAll();
+  await reloadAll();
+}
+
+function showSkeletons() {
+  // Apenas containers que são totalmente reescritos no render (seguro):
+  // KPIs e gráficos de barra. Tabelas e canvas são preservados.
+  document.querySelectorAll('.kpi-strip').forEach(el => {
+    el.innerHTML = Array(4).fill('<div class="skeleton skel-kpi"></div>').join('');
+  });
+  ['chart-vendas-regiao','chart-vendas-equipe','chart-vendas-linha','chart-tempo','chart-qualidade']
+    .forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.innerHTML = '<div class="skeleton skel-row w90"></div>' +
+        '<div class="skeleton skel-row w60"></div>' +
+        '<div class="skeleton skel-row w80"></div>';
+    });
+}
+
+async function reloadAll() {
+  clearLoadError();
+  showSkeletons();
+  try {
+    await loadLookups();
+    populateDropdowns();
+    restoreFilters();
+    await loadData();
+    renderAll();
+    restoreTab();
+    setupRealtime();
+  } catch (e) {
+    console.error('Carregamento:', e);
+    showLoadError(e);
+  }
+}
+
+// === REALTIME ================================================
+
+function setupRealtime() {
+  if (realtimeChannel) return; // já inscrito
+  realtimeChannel = sb.channel('painel-changes')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'ordens' }, silentReload)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'despesas_gerais' }, silentReload)
+    .subscribe();
+}
+
+const silentReload = debounce(async () => {
+  try {
+    await loadData();
+    renderAll();
+  } catch (e) {
+    console.error('Realtime reload:', e);
+  }
+}, 600);
+
+async function manualRefresh() {
+  const btn = document.getElementById('btn-refresh');
+  btn.disabled = true; btn.classList.add('spinning');
+  try {
+    await loadData();
+    renderAll();
+    toast('Dados atualizados.');
+  } catch (e) {
+    toast('Erro ao atualizar: ' + (e?.message || ''), true);
+  } finally {
+    btn.disabled = false; btn.classList.remove('spinning');
+  }
+}
+
+function showLoadError(e) {
+  const bar = document.getElementById('load-error');
+  if (!bar) return;
+  bar.querySelector('.load-error-msg').textContent =
+    'Não foi possível carregar os dados. Verifique sua conexão e tente novamente.';
+  bar.classList.remove('hidden');
+  toast('Erro ao carregar dados: ' + (e?.message || 'desconhecido'), true);
+}
+function clearLoadError() {
+  const bar = document.getElementById('load-error');
+  if (bar) bar.classList.add('hidden');
 }
 
 async function handleLogin() {
@@ -110,6 +205,8 @@ async function loadLookups() {
     sb.from('regioes').select('nome').order('nome'),
     sb.from('linhas_servico').select('nome').order('nome'),
   ]);
+  const err = eq.error || rg.error || ls.error;
+  if (err) throw err;
   lookups.equipes = (eq.data || []).map(r => r.nome);
   lookups.regioes = (rg.data || []).map(r => r.nome);
   lookups.linhas  = (ls.data || []).map(r => r.nome);
@@ -120,6 +217,7 @@ async function loadData() {
     sb.from('ordens').select('*').order('data', { ascending: false }),
     sb.from('despesas_gerais').select('*').order('data', { ascending: false }),
   ]);
+  if (o.error || d.error) throw (o.error || d.error);
   ordens = o.data || [];
   despesas = d.data || [];
 }
@@ -163,6 +261,8 @@ function bindEvents() {
     document.getElementById(id).addEventListener('keydown', e => { if (e.key === 'Enter') handleLogin(); }));
   document.getElementById('btn-logout').addEventListener('click', async () => { await sb.auth.signOut(); user = null; showLogin(); });
   document.getElementById('btn-theme').addEventListener('click', toggleTheme);
+  document.getElementById('btn-retry-load').addEventListener('click', reloadAll);
+  document.getElementById('btn-refresh').addEventListener('click', manualRefresh);
 
   document.querySelectorAll('.tab-btn').forEach(b => b.addEventListener('click', () => switchTab(b.dataset.tab)));
 
@@ -198,6 +298,7 @@ function applyFilters() {
   filters.ate    = document.getElementById('filter-ate').value;
   filters.busca  = document.getElementById('filter-busca').value;
   ticketsPage = 1;
+  saveFilters();
   renderAll();
 }
 function clearFilters() {
@@ -205,7 +306,24 @@ function clearFilters() {
     .forEach(id => document.getElementById(id).value = '');
   filters = { regiao:'', equipe:'', linha:'', de:'', ate:'', busca:'' };
   ticketsPage = 1;
+  saveFilters();
   renderAll();
+}
+
+function saveFilters() {
+  localStorage.setItem('bb-filters', JSON.stringify(filters));
+}
+function restoreFilters() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('bb-filters') || '{}');
+    filters = { regiao:'', equipe:'', linha:'', de:'', ate:'', busca:'', ...saved };
+    const map = { regiao:'filter-regiao', equipe:'filter-equipe', linha:'filter-linha',
+                  de:'filter-de', ate:'filter-ate', busca:'filter-busca' };
+    Object.entries(map).forEach(([k, id]) => {
+      const el = document.getElementById(id);
+      if (el) el.value = filters[k] || '';
+    });
+  } catch { /* ignora json inválido */ }
 }
 window.applyFilterFromBar = function(field, val) {
   const map = { regiao:'filter-regiao', equipe:'filter-equipe', linha:'filter-linha' };
@@ -216,10 +334,18 @@ window.applyFilterFromBar = function(field, val) {
 // === TABS ====================================================
 
 function switchTab(id) {
+  const btn = document.querySelector(`.tab-btn[data-tab="${id}"]`);
+  if (!btn) return;
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-  document.querySelector(`.tab-btn[data-tab="${id}"]`).classList.add('active');
+  btn.classList.add('active');
   document.getElementById('tab-' + id).classList.add('active');
+  localStorage.setItem('bb-tab', id);
+}
+
+function restoreTab() {
+  const id = localStorage.getItem('bb-tab');
+  if (id && document.querySelector(`.tab-btn[data-tab="${id}"]`)) switchTab(id);
 }
 
 // === MODALS ==================================================
@@ -687,7 +813,7 @@ function renderBalanco(data) {
 // === KPI HELPER ==============================================
 
 function kpi(items) {
-  return items.map(i => `<div class="kpi-item"><div class="kpi-val ${i.cls}">${i.val}</div><div class="kpi-lbl">${i.lbl}</div></div>`).join('');
+  return items.map(i => `<div class="kpi-item"><div class="kpi-lbl">${i.lbl}</div><div class="kpi-val ${i.cls}">${i.val}</div></div>`).join('');
 }
 
 function qualityBar(val) {

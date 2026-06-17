@@ -44,6 +44,12 @@
     </header>
     <div class="scale-ruler"></div>
 
+    <!-- Erro de carregamento -->
+    <div id="load-error" class="load-error hidden">
+      <span class="load-error-msg"></span>
+      <button id="btn-retry-load">Tentar novamente</button>
+    </div>
+
     <!-- Toolbar: filtros + ações -->
     <div class="toolbar">
       <span class="section-label">Filtros</span>
@@ -72,6 +78,7 @@
         <input type="text" id="filter-busca" placeholder="Cliente, resumo…">
       </div>
       <div class="toolbar-actions">
+        <button class="btn-toolbar" id="btn-refresh" title="Atualizar dados">↻ Atualizar</button>
         <button class="btn-toolbar" id="btn-limpar">Limpar</button>
         <button class="btn-toolbar accent" id="btn-export">CSV</button>
       </div>
