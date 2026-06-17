@@ -74,7 +74,9 @@ function toggleTheme() {
 }
 function updateThemeBtn(t) {
   const b = document.getElementById('btn-theme');
-  if (b) b.textContent = t === 'dark' ? '☀' : '☾';
+  if (b) b.innerHTML = t === 'dark'
+    ? '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>'
+    : '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
 }
 
 // === TOAST ===================================================
@@ -527,7 +529,7 @@ function sortTickets(col) {
   else { ticketsSort.col = col; ticketsSort.asc = true; }
   document.querySelectorAll('#tbl-tickets th').forEach(th => th.classList.remove('sorted'));
   const th = document.querySelector(`#tbl-tickets th[data-sort="${col}"]`);
-  if (th) { th.classList.add('sorted'); th.querySelector('.sort-arrow').textContent = ticketsSort.asc ? '▲' : '▼'; }
+  if (th) { th.classList.add('sorted'); th.querySelector('.sort-arrow').textContent = ticketsSort.asc ? '^' : 'v'; }
   renderOps(filteredOrdens());
 }
 
@@ -618,16 +620,16 @@ function renderGeral(d) {
   const entries = Object.entries(res).filter(([,v]) => v.n > 0);
   if (entries.length) {
     const lider = entries.sort((a,b) => b[1].saldo - a[1].saldo)[0];
-    alerts.push({ t: `Equipe líder: ${lider[0]} (${cur(lider[1].saldo)})`, c: 'positivo', i: '▲' });
+    alerts.push({ t: `Equipe líder: ${lider[0]} (${cur(lider[1].saldo)})`, c: 'positivo', i: '+' });
     entries.forEach(([eq,x]) => { if (x.saldo < 0) alerts.push({ t: `${eq}: saldo negativo (${cur(x.saldo)})`, c: 'critico', i: '!' }); });
   }
-  if (op.qualMedia > 0 && op.qualMedia < 80) alerts.push({ t: `Qualidade geral abaixo de 80 (${op.qualMedia.toFixed(0)})`, c: 'atencao', i: '⚠' });
-  if (op.tempoMedio > 80) alerts.push({ t: `Tempo médio alto: ${op.tempoMedio.toFixed(1)}h`, c: 'atencao', i: '⚠' });
-  if (op.andamento > 3) alerts.push({ t: `${op.andamento} ordens em aberto`, c: 'atencao', i: '⚠' });
+  if (op.qualMedia > 0 && op.qualMedia < 80) alerts.push({ t: `Qualidade geral abaixo de 80 (${op.qualMedia.toFixed(0)})`, c: 'atencao', i: '!' });
+  if (op.tempoMedio > 80) alerts.push({ t: `Tempo médio alto: ${op.tempoMedio.toFixed(1)}h`, c: 'atencao', i: '!' });
+  if (op.andamento > 3) alerts.push({ t: `${op.andamento} ordens em aberto`, c: 'atencao', i: '!' });
   const byEqQ = groupBy(d.filter(o => o.qualidade != null), 'equipe');
   Object.entries(byEqQ).forEach(([eq, items]) => {
     const m = items.reduce((s,o) => s + +o.qualidade, 0) / items.length;
-    if (m < 80) alerts.push({ t: `${eq}: qualidade ${m.toFixed(0)}/100`, c: 'atencao', i: '⚠' });
+    if (m < 80) alerts.push({ t: `${eq}: qualidade ${m.toFixed(0)}/100`, c: 'atencao', i: '!' });
   });
 
   document.getElementById('alerts-container').innerHTML = alerts.length
@@ -718,9 +720,9 @@ function renderOps(d) {
     : '<tr><td colspan="9" class="empty-state">Nenhuma ordem encontrada.</td></tr>';
 
   document.getElementById('pag-tickets').innerHTML = pages > 1
-    ? `<button onclick="setTicketsPage(${ticketsPage-1})" ${ticketsPage<=1?'disabled':''}>◀</button>
+    ? `<button onclick="setTicketsPage(${ticketsPage-1})" ${ticketsPage<=1?'disabled':''}>&lt; Ant.</button>
        <span class="page-info">${ticketsPage} / ${pages}</span>
-       <button onclick="setTicketsPage(${ticketsPage+1})" ${ticketsPage>=pages?'disabled':''}>▶</button>`
+       <button onclick="setTicketsPage(${ticketsPage+1})" ${ticketsPage>=pages?'disabled':''}>Próx. &gt;</button>`
     : '';
 }
 

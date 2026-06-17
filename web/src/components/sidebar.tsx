@@ -11,6 +11,7 @@ import {
   Database,
   FileText,
   Building2,
+  MonitorPlay,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -89,7 +90,18 @@ export function Sidebar({
           })}
         </nav>
 
-        <div className="p-4 border-t border-border">
+        <div className="p-3 border-t border-border">
+          <a
+            href="/tv"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-primary bg-primary-soft hover:opacity-90 transition-opacity"
+          >
+            <MonitorPlay size={18} className="shrink-0" />
+            Modo TV
+          </a>
+        </div>
+        <div className="px-4 pb-4">
           <p className="text-[11px] text-muted leading-relaxed">
             Build Brasil Engenharia
             <br />
