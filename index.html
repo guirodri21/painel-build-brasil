@@ -5,50 +5,48 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="Build Brasil — Painel de Resultados Interno">
   <meta name="theme-color" content="#14202E">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' fill='%2314202E'/><text x='4' y='24' font-size='22' fill='%23E7ECF1'>B</text></svg>">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='0' fill='%2314202E'/><text x='6' y='23' font-size='20' font-family='monospace' font-weight='700' fill='%23E8ECF0'>B</text></svg>">
   <title>Build Brasil — Painel de Resultados</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
-  <!-- ============ LOADING ============ -->
+  <!-- LOADING -->
   <div id="loading-overlay">
-    <div class="spinner"></div>
-    <span class="spinner-text">Carregando...</span>
+    <div class="spinner-ring"></div>
+    <span class="spinner-text">Carregando painel...</span>
   </div>
 
-  <!-- ============ TELA DE LOGIN ============ -->
+  <!-- LOGIN -->
   <div id="login-screen" class="hidden">
     <div class="login-box">
       <h1>BUILD BRASIL</h1>
       <p class="subtitle">Painel de Resultados</p>
+      <hr class="divider">
       <label for="login-email">E-mail</label>
-      <input type="email" id="login-email" placeholder="seu@email.com">
+      <input type="email" id="login-email" placeholder="seu@email.com" autocomplete="email">
       <label for="login-password">Senha</label>
-      <input type="password" id="login-password" placeholder="••••••••">
+      <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password">
       <button id="btn-login">Entrar</button>
       <p class="login-error" id="login-error"></p>
     </div>
   </div>
 
-  <!-- ============ APP PRINCIPAL ============ -->
+  <!-- APP -->
   <div id="app" class="hidden">
-
-    <!-- Cabeçalho -->
     <header>
       <h1>BUILD BRASIL</h1>
       <div class="header-right">
         <span class="user-email" id="user-email"></span>
-        <button class="btn-theme" id="btn-theme" title="Alternar tema">☀</button>
-        <button class="btn-logout" id="btn-logout">Sair</button>
+        <button class="btn-icon" id="btn-theme" title="Alternar tema">☀</button>
+        <button class="btn-text-sm" id="btn-logout">Sair</button>
       </div>
     </header>
-
-    <!-- Régua de escala -->
     <div class="scale-ruler"></div>
 
-    <!-- Filtros globais -->
-    <div class="global-filters">
+    <!-- Toolbar: filtros + ações -->
+    <div class="toolbar">
+      <span class="section-label">Filtros</span>
       <div class="filter-group">
         <label>Região</label>
         <select id="filter-regiao"><option value="">Todas</option></select>
@@ -63,57 +61,58 @@
       </div>
       <div class="filter-group">
         <label>De</label>
-        <input type="date" id="filter-data-inicio">
+        <input type="date" id="filter-de">
       </div>
       <div class="filter-group">
         <label>Até</label>
-        <input type="date" id="filter-data-fim">
+        <input type="date" id="filter-ate">
       </div>
       <div class="filter-group">
         <label>Busca</label>
-        <input type="text" id="filter-busca" placeholder="Cliente, resumo...">
+        <input type="text" id="filter-busca" placeholder="Cliente, resumo…">
       </div>
-      <button class="btn-clear-filters" id="btn-clear-filters">Limpar</button>
-      <button class="btn-export" id="btn-export-csv">Exportar CSV</button>
+      <div class="toolbar-actions">
+        <button class="btn-toolbar" id="btn-limpar">Limpar</button>
+        <button class="btn-toolbar accent" id="btn-export">CSV</button>
+      </div>
     </div>
 
-    <!-- Botões de ação -->
-    <div class="action-buttons">
+    <div class="action-bar">
       <button class="btn-action" id="btn-nova-ordem">+ Nova Ordem</button>
-      <button class="btn-action secondary" id="btn-nova-despesa">+ Nova Despesa</button>
+      <button class="btn-action alt" id="btn-nova-despesa">+ Nova Despesa</button>
     </div>
 
-    <!-- Abas -->
+    <!-- Tabs -->
     <div class="tabs">
       <button class="tab-btn active" data-tab="visao-geral">Visão Geral</button>
       <button class="tab-btn" data-tab="vendas">Vendas</button>
-      <button class="tab-btn" data-tab="operacoes">Operações</button>
+      <button class="tab-btn" data-tab="operacoes">Operações<span class="badge hidden" id="badge-andamento"></span></button>
       <button class="tab-btn" data-tab="financeiro">Financeiro</button>
     </div>
 
-    <!-- ===== ABA: VISÃO GERAL ===== -->
+    <!-- TAB: Visão Geral -->
     <div class="tab-content active" id="tab-visao-geral">
       <div class="kpi-strip" id="kpi-geral"></div>
-      <div class="exec-summary" id="exec-summary">
-        <h3>Resumo Executivo</h3>
-        <div id="alerts-container"></div>
+      <div class="exec-summary">
+        <div class="exec-summary-head">Resumo Executivo</div>
+        <div class="exec-summary-body" id="alerts-container"></div>
       </div>
       <div class="panel">
-        <div class="panel-header">Resultado por Equipe</div>
+        <div class="panel-head">
+          <span class="panel-title"><span class="ref-num">01</span>Resultado por Equipe</span>
+        </div>
         <div class="panel-body">
-          <div class="table-wrapper">
-            <table class="data-table" id="table-equipe-geral">
-              <thead>
-                <tr>
-                  <th>Equipe</th>
-                  <th class="text-right">Receita</th>
-                  <th class="text-right">Desp. Direta</th>
-                  <th class="text-right">Desp. Rateada</th>
-                  <th class="text-right">Saldo</th>
-                  <th class="text-right">Ordens</th>
-                  <th class="text-right">Qualidade</th>
-                </tr>
-              </thead>
+          <div class="table-wrap">
+            <table class="data-table" id="tbl-equipe-geral">
+              <thead><tr>
+                <th>Equipe</th>
+                <th class="text-right">Receita</th>
+                <th class="text-right">Desp. Direta</th>
+                <th class="text-right">Desp. Rateada</th>
+                <th class="text-right">Saldo</th>
+                <th class="text-right">Ordens</th>
+                <th class="text-right">Qualidade</th>
+              </tr></thead>
               <tbody></tbody>
             </table>
           </div>
@@ -121,217 +120,184 @@
       </div>
     </div>
 
-    <!-- ===== ABA: VENDAS ===== -->
+    <!-- TAB: Vendas -->
     <div class="tab-content" id="tab-vendas">
       <div class="kpi-strip" id="kpi-vendas"></div>
       <div class="panel">
-        <div class="panel-header">Vendas por Região</div>
+        <div class="panel-head"><span class="panel-title"><span class="ref-num">02</span>Vendas por Região</span></div>
         <div class="panel-body" id="chart-vendas-regiao"></div>
       </div>
       <div class="panel">
-        <div class="panel-header">Vendas por Equipe</div>
+        <div class="panel-head"><span class="panel-title"><span class="ref-num">03</span>Vendas por Equipe</span></div>
         <div class="panel-body" id="chart-vendas-equipe"></div>
       </div>
       <div class="panel">
-        <div class="panel-header">Vendas por Linha de Serviço</div>
+        <div class="panel-head"><span class="panel-title"><span class="ref-num">04</span>Vendas por Linha de Serviço</span></div>
         <div class="panel-body" id="chart-vendas-linha"></div>
       </div>
     </div>
 
-    <!-- ===== ABA: OPERAÇÕES ===== -->
+    <!-- TAB: Operações -->
     <div class="tab-content" id="tab-operacoes">
-      <div class="kpi-strip" id="kpi-operacoes"></div>
+      <div class="kpi-strip" id="kpi-ops"></div>
       <div class="panel">
-        <div class="panel-header">Tempo Médio de Execução por Equipe (h)</div>
-        <div class="panel-body" id="chart-tempo-equipe"></div>
+        <div class="panel-head"><span class="panel-title"><span class="ref-num">05</span>Tempo Médio de Execução por Equipe (h)</span></div>
+        <div class="panel-body" id="chart-tempo"></div>
       </div>
       <div class="panel">
-        <div class="panel-header">Qualidade Técnica Média por Equipe (0–100)</div>
-        <div class="panel-body" id="chart-qualidade-equipe"></div>
+        <div class="panel-head"><span class="panel-title"><span class="ref-num">06</span>Qualidade Técnica por Equipe (0–100)</span></div>
+        <div class="panel-body" id="chart-qualidade"></div>
       </div>
       <div class="panel">
-        <div class="panel-header">Tickets Recentes</div>
+        <div class="panel-head"><span class="panel-title"><span class="ref-num">07</span>Registro de Ordens</span></div>
         <div class="panel-body">
-          <div class="table-wrapper">
-            <table class="data-table" id="table-tickets">
-              <thead>
-                <tr>
-                  <th>Data</th>
-                  <th>Equipe</th>
-                  <th>Região</th>
-                  <th>Cliente</th>
-                  <th>Status</th>
-                  <th>Resumo</th>
-                  <th>Ações</th>
-                </tr>
-              </thead>
+          <div class="table-wrap">
+            <table class="data-table" id="tbl-tickets">
+              <thead><tr>
+                <th data-sort="data">Data <span class="sort-arrow">▼</span></th>
+                <th data-sort="equipe">Equipe <span class="sort-arrow">▼</span></th>
+                <th data-sort="regiao">Região <span class="sort-arrow">▼</span></th>
+                <th>Cliente</th>
+                <th data-sort="valor_venda">Valor <span class="sort-arrow">▼</span></th>
+                <th data-sort="status">Status <span class="sort-arrow">▼</span></th>
+                <th>Qualid.</th>
+                <th>Resumo</th>
+                <th>Ações</th>
+              </tr></thead>
               <tbody></tbody>
             </table>
           </div>
-          <div class="pagination" id="pagination-tickets"></div>
-          <p class="mono" style="font-size:0.7rem; color:#607D8B; margin-top:0.5rem;">
-            Nota: obras grandes seguem cronograma próprio — os tempos aqui são estimativas registradas.
-          </p>
+          <div class="pagination" id="pag-tickets"></div>
+          <p class="footnote">Nota: obras grandes seguem cronograma próprio — tempos são estimativas registradas.</p>
         </div>
       </div>
     </div>
 
-    <!-- ===== ABA: FINANCEIRO ===== -->
+    <!-- TAB: Financeiro -->
     <div class="tab-content" id="tab-financeiro">
-      <div class="kpi-strip" id="kpi-financeiro"></div>
+      <div class="kpi-strip" id="kpi-fin"></div>
       <div class="panel">
-        <div class="panel-header">Balanço Mensal</div>
+        <div class="panel-head"><span class="panel-title"><span class="ref-num">08</span>Balanço Mensal</span></div>
         <div class="panel-body">
-          <div class="chart-container">
-            <canvas id="canvas-balanco"></canvas>
-          </div>
+          <div class="chart-container"><canvas id="canvas-balanco"></canvas></div>
         </div>
       </div>
       <div class="panel">
-        <div class="panel-header">Resultado por Equipe (com rateio de despesas gerais)</div>
+        <div class="panel-head"><span class="panel-title"><span class="ref-num">09</span>Resultado por Equipe (Rateio)</span></div>
         <div class="panel-body">
-          <div class="table-wrapper">
-            <table class="data-table" id="table-financeiro-equipe">
-              <thead>
-                <tr>
-                  <th>Equipe</th>
-                  <th class="text-right">Receita</th>
-                  <th class="text-right">Desp. Direta</th>
-                  <th class="text-right">Desp. Rateada</th>
-                  <th class="text-right">Saldo</th>
-                </tr>
-              </thead>
+          <div class="table-wrap">
+            <table class="data-table" id="tbl-fin-equipe">
+              <thead><tr>
+                <th>Equipe</th>
+                <th class="text-right">Receita</th>
+                <th class="text-right">Desp. Direta</th>
+                <th class="text-right">Desp. Rateada</th>
+                <th class="text-right">Saldo</th>
+                <th class="text-right">Margem</th>
+              </tr></thead>
               <tbody></tbody>
             </table>
           </div>
-          <p class="mono" style="font-size:0.7rem; color:#607D8B; margin-top:0.5rem;">
-            Rateio: despesas diretas vão para a equipe da ordem; despesas gerais são rateadas proporcionalmente à receita.
-          </p>
+          <p class="footnote">Rateio: despesas diretas por equipe; despesas gerais proporcionais à receita. Validar com financeiro.</p>
         </div>
       </div>
     </div>
 
-    <!-- Selo de prancha (rodapé) -->
+    <!-- Stamp -->
     <div class="stamp">
       <div class="stamp-row">
-        <div class="stamp-cell" style="flex:2"><span class="label">Projeto</span><br><span class="value">Painel de Resultados</span></div>
-        <div class="stamp-cell" style="flex:2"><span class="label">Cliente</span><br><span class="value">Build Brasil</span></div>
-        <div class="stamp-cell" style="flex:1"><span class="label">Escopo</span><br><span class="value">Gestão Interna</span></div>
-        <div class="stamp-cell" style="flex:1"><span class="label">Revisão</span><br><span class="value" id="stamp-rev">02</span></div>
+        <div class="stamp-cell" style="flex:2"><span class="lbl">Projeto</span><br><span class="val">Painel de Resultados</span></div>
+        <div class="stamp-cell" style="flex:2"><span class="lbl">Cliente</span><br><span class="val">Build Brasil Engenharia</span></div>
+        <div class="stamp-cell" style="flex:1"><span class="lbl">Escopo</span><br><span class="val">Gestão Interna</span></div>
+        <div class="stamp-cell" style="flex:1"><span class="lbl">Revisão</span><br><span class="val">03</span></div>
+        <div class="stamp-cell" style="flex:1"><span class="lbl">Data</span><br><span class="val" id="stamp-date"></span></div>
       </div>
     </div>
+  </div>
 
-  </div><!-- /app -->
-
-  <!-- ============ MODAL: NOVA/EDITAR ORDEM ============ -->
+  <!-- Modal: Ordem -->
   <div class="modal-overlay" id="modal-ordem">
     <div class="modal">
-      <h2 id="modal-ordem-title">Nova Ordem</h2>
+      <div class="modal-header"><h2 id="modal-ordem-title">Nova Ordem</h2></div>
       <form id="form-ordem">
-        <input type="hidden" name="id" value="">
-        <div class="form-row">
-          <div class="form-group">
-            <label>Data *</label>
-            <input type="date" name="data" required>
+        <div class="modal-body">
+          <input type="hidden" name="id">
+          <div class="form-row">
+            <div class="form-group"><label>Data *</label><input type="date" name="data" required></div>
+            <div class="form-group"><label>Status *</label>
+              <select name="status" required>
+                <option value="">Selecione</option>
+                <option value="em_andamento">Em andamento</option>
+                <option value="execucao_parcial">Execução parcial</option>
+                <option value="concluido">Concluído</option>
+              </select>
+            </div>
           </div>
-          <div class="form-group">
-            <label>Status *</label>
-            <select name="status" required>
-              <option value="">Selecione</option>
-              <option value="em_andamento">Em andamento</option>
-              <option value="execucao_parcial">Execução parcial</option>
-              <option value="concluido">Concluído</option>
-            </select>
+          <div class="form-row">
+            <div class="form-group"><label>Região *</label><select name="regiao" required></select></div>
+            <div class="form-group"><label>Equipe *</label><select name="equipe" required></select></div>
           </div>
+          <div class="form-group"><label>Linha de Serviço *</label><select name="linha_servico" required></select></div>
+          <div class="form-group"><label>Cliente</label><input type="text" name="cliente" placeholder="(opcional)"></div>
+          <div class="form-row">
+            <div class="form-group"><label>Valor Venda (R$) *</label><input type="number" name="valor_venda" step="0.01" min="0" required></div>
+            <div class="form-group"><label>Despesa Direta (R$) *</label><input type="number" name="despesa_direta" step="0.01" min="0" required></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>Tempo Exec. (h)</label><input type="number" name="tempo_execucao_h" step="0.5" min="0" placeholder="se concluído"></div>
+            <div class="form-group"><label>Qualidade (0–100)</label><input type="number" name="qualidade" min="0" max="100" placeholder="se avaliado"></div>
+          </div>
+          <div class="form-group"><label>Resumo</label><textarea name="resumo" placeholder="Descrição breve"></textarea></div>
         </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label>Região *</label>
-            <select name="regiao" required></select>
-          </div>
-          <div class="form-group">
-            <label>Equipe *</label>
-            <select name="equipe" required></select>
-          </div>
-        </div>
-        <div class="form-group">
-          <label>Linha de Serviço *</label>
-          <select name="linha_servico" required></select>
-        </div>
-        <div class="form-group">
-          <label>Cliente</label>
-          <input type="text" name="cliente" placeholder="(opcional)">
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label>Valor da Venda (R$) *</label>
-            <input type="number" name="valor_venda" step="0.01" min="0" required>
-          </div>
-          <div class="form-group">
-            <label>Despesa Direta (R$) *</label>
-            <input type="number" name="despesa_direta" step="0.01" min="0" required>
-          </div>
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label>Tempo Execução (h)</label>
-            <input type="number" name="tempo_execucao_h" step="0.5" min="0" placeholder="(se concluído)">
-          </div>
-          <div class="form-group">
-            <label>Qualidade (0–100)</label>
-            <input type="number" name="qualidade" min="0" max="100" placeholder="(se avaliado)">
-          </div>
-        </div>
-        <div class="form-group">
-          <label>Resumo</label>
-          <textarea name="resumo" placeholder="Descrição breve do serviço"></textarea>
-        </div>
-        <div class="modal-actions">
-          <button type="button" class="btn-cancel" id="btn-cancel-ordem">Cancelar</button>
-          <button type="submit" class="btn-save">Salvar</button>
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary btn-cancel-modal">Cancelar</button>
+          <button type="submit" class="btn-primary">Salvar</button>
         </div>
       </form>
     </div>
   </div>
 
-  <!-- ============ MODAL: NOVA/EDITAR DESPESA ============ -->
+  <!-- Modal: Despesa -->
   <div class="modal-overlay" id="modal-despesa">
     <div class="modal">
-      <h2 id="modal-despesa-title">Nova Despesa Geral</h2>
+      <div class="modal-header"><h2 id="modal-despesa-title">Nova Despesa Geral</h2></div>
       <form id="form-despesa">
-        <input type="hidden" name="id" value="">
-        <div class="form-row">
-          <div class="form-group">
-            <label>Data *</label>
-            <input type="date" name="data" required>
+        <div class="modal-body">
+          <input type="hidden" name="id">
+          <div class="form-row">
+            <div class="form-group"><label>Data *</label><input type="date" name="data" required></div>
+            <div class="form-group"><label>Categoria *</label>
+              <select name="categoria" required>
+                <option value="">Selecione</option>
+                <option value="suprimentos">Suprimentos</option>
+                <option value="contas">Contas</option>
+                <option value="outros">Outros</option>
+              </select>
+            </div>
           </div>
-          <div class="form-group">
-            <label>Categoria *</label>
-            <select name="categoria" required>
-              <option value="">Selecione</option>
-              <option value="suprimentos">Suprimentos</option>
-              <option value="contas">Contas</option>
-              <option value="outros">Outros</option>
-            </select>
-          </div>
+          <div class="form-group"><label>Descrição</label><input type="text" name="descricao" placeholder="Ex.: Compra de EPIs"></div>
+          <div class="form-group"><label>Valor (R$) *</label><input type="number" name="valor" step="0.01" min="0" required></div>
         </div>
-        <div class="form-group">
-          <label>Descrição</label>
-          <input type="text" name="descricao" placeholder="Ex.: Compra de EPIs">
-        </div>
-        <div class="form-group">
-          <label>Valor (R$) *</label>
-          <input type="number" name="valor" step="0.01" min="0" required>
-        </div>
-        <div class="modal-actions">
-          <button type="button" class="btn-cancel" id="btn-cancel-despesa">Cancelar</button>
-          <button type="submit" class="btn-save">Salvar</button>
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary btn-cancel-modal">Cancelar</button>
+          <button type="submit" class="btn-primary">Salvar</button>
         </div>
       </form>
     </div>
   </div>
 
-  <!-- Scripts -->
+  <!-- Confirm dialog -->
+  <div class="modal-overlay" id="modal-confirm">
+    <div class="modal" style="max-width:380px">
+      <div class="modal-header"><h2>Confirmar</h2></div>
+      <div class="modal-body"><p id="confirm-msg"></p></div>
+      <div class="modal-footer">
+        <button class="btn-secondary" id="confirm-no">Cancelar</button>
+        <button class="btn-primary" id="confirm-yes" style="background:var(--erro)">Confirmar</button>
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="config.js"></script>
   <script src="app.js"></script>

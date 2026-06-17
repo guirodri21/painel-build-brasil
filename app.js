@@ -1,201 +1,108 @@
 // ============================================================
-// Build Brasil — App principal
+// Build Brasil — Painel de Resultados v3
 // ============================================================
 
-// --- Estado global ---
 let sb = null;
-let currentUser = null;
+let user = null;
 let ordens = [];
-let despesasGerais = [];
+let despesas = [];
 let lookups = { equipes: [], regioes: [], linhas: [] };
-let filters = { regiao: '', equipe: '', linha: '', dataInicio: '', dataFim: '', busca: '' };
+let filters = { regiao: '', equipe: '', linha: '', de: '', ate: '', busca: '' };
 let ticketsPage = 1;
-const TICKETS_PER_PAGE = 10;
+let ticketsSort = { col: 'data', asc: false };
+const PER_PAGE = 12;
 
-function initSupabase() {
-  const lib = window.supabase;
-  if (!lib || !lib.createClient) {
-    console.error('Supabase JS não carregou. Verifique a conexão.');
-    return null;
-  }
-  return lib.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-}
+// === INIT ====================================================
 
-// --- Inicialização ---
 document.addEventListener('DOMContentLoaded', async () => {
   loadTheme();
   try {
-    sb = initSupabase();
-    if (!sb) throw new Error('Supabase indisponível');
+    const lib = window.supabase;
+    if (!lib || !lib.createClient) throw new Error('SDK não carregou');
+    sb = lib.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     const { data, error } = await sb.auth.getSession();
     if (error) throw error;
-    if (data.session) {
-      await enterApp(data.session.user);
-    } else {
-      showLogin();
-    }
-    setupEventListeners();
-  } catch (err) {
-    console.error('Erro na inicialização:', err);
+    if (data.session) await enterApp(data.session.user);
+    else showLogin();
+  } catch (e) {
+    console.error('Init:', e);
     showLogin();
-    setupEventListeners();
   }
+  bindEvents();
   hideLoading();
 });
-
-// ============================================================
-// LOADING
-// ============================================================
 
 function hideLoading() {
   const el = document.getElementById('loading-overlay');
   el.classList.add('fade-out');
-  setTimeout(() => el.style.display = 'none', 400);
+  setTimeout(() => el.style.display = 'none', 500);
 }
 
-// ============================================================
-// TEMA (claro/escuro)
-// ============================================================
+// === THEME ===================================================
 
 function loadTheme() {
-  const saved = localStorage.getItem('bb-theme') || 'light';
-  document.documentElement.setAttribute('data-theme', saved);
-  updateThemeIcon(saved);
+  const t = localStorage.getItem('bb-theme') || 'light';
+  document.documentElement.setAttribute('data-theme', t);
+  updateThemeBtn(t);
 }
-
 function toggleTheme() {
-  const current = document.documentElement.getAttribute('data-theme');
-  const next = current === 'dark' ? 'light' : 'dark';
+  const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
   document.documentElement.setAttribute('data-theme', next);
   localStorage.setItem('bb-theme', next);
-  updateThemeIcon(next);
-  const data = filteredOrdens();
-  renderBalancoChart(data);
+  updateThemeBtn(next);
+  if (!document.getElementById('app').classList.contains('hidden')) renderBalanco(filteredOrdens());
+}
+function updateThemeBtn(t) {
+  const b = document.getElementById('btn-theme');
+  if (b) b.textContent = t === 'dark' ? '☀' : '☾';
 }
 
-function updateThemeIcon(theme) {
-  const btn = document.getElementById('btn-theme');
-  if (btn) btn.textContent = theme === 'dark' ? '☀' : '☾';
-}
+// === TOAST ===================================================
 
-// ============================================================
-// TOAST
-// ============================================================
-
-function toast(msg, isError) {
+function toast(msg, err) {
   const el = document.createElement('div');
-  el.className = 'toast' + (isError ? ' error' : '');
+  el.className = 'toast' + (err ? ' error' : '');
   el.textContent = msg;
   document.body.appendChild(el);
-  setTimeout(() => el.remove(), 3000);
+  setTimeout(() => el.remove(), 3200);
 }
 
-// ============================================================
-// AUTENTICAÇÃO
-// ============================================================
+// === AUTH ====================================================
 
 function showLogin() {
   document.getElementById('login-screen').classList.remove('hidden');
   document.getElementById('app').classList.add('hidden');
 }
 
-async function enterApp(user) {
-  currentUser = user;
+async function enterApp(u) {
+  user = u;
   document.getElementById('login-screen').classList.add('hidden');
   document.getElementById('app').classList.remove('hidden');
-  document.getElementById('user-email').textContent = user.email;
+  document.getElementById('user-email').textContent = u.email;
+  document.getElementById('stamp-date').textContent = todayBR();
   await loadLookups();
-  populateFilterDropdowns();
-  populateFormDropdowns();
+  populateDropdowns();
   await loadData();
   renderAll();
 }
 
-function setupEventListeners() {
-  // Login
-  document.getElementById('btn-login').addEventListener('click', handleLogin);
-  document.getElementById('login-email').addEventListener('keydown', e => {
-    if (e.key === 'Enter') handleLogin();
-  });
-  document.getElementById('login-password').addEventListener('keydown', e => {
-    if (e.key === 'Enter') handleLogin();
-  });
-  document.getElementById('btn-logout').addEventListener('click', handleLogout);
-
-  // Tema
-  document.getElementById('btn-theme').addEventListener('click', toggleTheme);
-
-  // Abas
-  document.querySelectorAll('.tab-btn').forEach(btn => {
-    btn.addEventListener('click', () => switchTab(btn.dataset.tab));
-  });
-
-  // Filtros
-  document.getElementById('filter-regiao').addEventListener('change', applyFilters);
-  document.getElementById('filter-equipe').addEventListener('change', applyFilters);
-  document.getElementById('filter-linha').addEventListener('change', applyFilters);
-  document.getElementById('filter-data-inicio').addEventListener('change', applyFilters);
-  document.getElementById('filter-data-fim').addEventListener('change', applyFilters);
-  document.getElementById('filter-busca').addEventListener('input', debounce(applyFilters, 300));
-  document.getElementById('btn-clear-filters').addEventListener('click', clearFilters);
-
-  // Exportar
-  document.getElementById('btn-export-csv').addEventListener('click', exportCSV);
-
-  // Modais
-  document.getElementById('btn-nova-ordem').addEventListener('click', () => openOrdemModal());
-  document.getElementById('btn-nova-despesa').addEventListener('click', () => openDespesaModal());
-  document.getElementById('btn-cancel-ordem').addEventListener('click', () => closeModal('modal-ordem'));
-  document.getElementById('btn-cancel-despesa').addEventListener('click', () => closeModal('modal-despesa'));
-
-  // Forms
-  document.getElementById('form-ordem').addEventListener('submit', handleSaveOrdem);
-  document.getElementById('form-despesa').addEventListener('submit', handleSaveDespesa);
-
-  // Fechar modal com Esc
-  document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') {
-      closeModal('modal-ordem');
-      closeModal('modal-despesa');
-    }
-  });
-
-  // Redimensionar gráfico canvas
-  window.addEventListener('resize', () => {
-    if (!document.getElementById('app').classList.contains('hidden')) {
-      renderBalancoChart(filteredOrdens());
-    }
-  });
-}
-
 async function handleLogin() {
   const email = document.getElementById('login-email').value.trim();
-  const password = document.getElementById('login-password').value;
-  const errorEl = document.getElementById('login-error');
-  errorEl.textContent = '';
+  const pw = document.getElementById('login-password').value;
+  const errEl = document.getElementById('login-error');
+  errEl.textContent = '';
+  if (!email || !pw) { errEl.textContent = 'Preencha e-mail e senha.'; return; }
 
-  if (!email || !password) {
-    errorEl.textContent = 'Preencha e-mail e senha.';
-    return;
-  }
+  const btn = document.getElementById('btn-login');
+  btn.disabled = true; btn.textContent = 'Entrando...';
 
-  const { data, error } = await sb.auth.signInWithPassword({ email, password });
-  if (error) {
-    errorEl.textContent = 'Credenciais inválidas.';
-    return;
-  }
+  const { data, error } = await sb.auth.signInWithPassword({ email, password: pw });
+  btn.disabled = false; btn.textContent = 'Entrar';
+  if (error) { errEl.textContent = 'Credenciais inválidas.'; return; }
   await enterApp(data.user);
 }
 
-async function handleLogout() {
-  await sb.auth.signOut();
-  currentUser = null;
-  showLogin();
-}
-
-// ============================================================
-// DADOS
-// ============================================================
+// === DATA ====================================================
 
 async function loadLookups() {
   const [eq, rg, ls] = await Promise.all([
@@ -209,12 +116,12 @@ async function loadLookups() {
 }
 
 async function loadData() {
-  const [ord, desp] = await Promise.all([
+  const [o, d] = await Promise.all([
     sb.from('ordens').select('*').order('data', { ascending: false }),
     sb.from('despesas_gerais').select('*').order('data', { ascending: false }),
   ]);
-  ordens = ord.data || [];
-  despesasGerais = desp.data || [];
+  ordens = o.data || [];
+  despesas = d.data || [];
 }
 
 function filteredOrdens() {
@@ -223,777 +130,579 @@ function filteredOrdens() {
     if (filters.regiao && o.regiao !== filters.regiao) return false;
     if (filters.equipe && o.equipe !== filters.equipe) return false;
     if (filters.linha && o.linha_servico !== filters.linha) return false;
-    if (filters.dataInicio && o.data < filters.dataInicio) return false;
-    if (filters.dataFim && o.data > filters.dataFim) return false;
-    if (q) {
-      const haystack = [o.cliente, o.resumo, o.equipe, o.regiao, o.linha_servico]
-        .filter(Boolean).join(' ').toLowerCase();
-      if (!haystack.includes(q)) return false;
-    }
+    if (filters.de && o.data < filters.de) return false;
+    if (filters.ate && o.data > filters.ate) return false;
+    if (q && ![o.cliente, o.resumo, o.equipe, o.regiao, o.linha_servico]
+      .filter(Boolean).join(' ').toLowerCase().includes(q)) return false;
     return true;
   });
 }
 
-// ============================================================
-// DROPDOWNS
-// ============================================================
+// === DROPDOWNS ===============================================
 
-function populateFilterDropdowns() {
-  fillSelect('filter-regiao', lookups.regioes, 'Todas');
-  fillSelect('filter-equipe', lookups.equipes, 'Todas');
-  fillSelect('filter-linha', lookups.linhas, 'Todas');
+function populateDropdowns() {
+  fill('filter-regiao', lookups.regioes, 'Todas');
+  fill('filter-equipe', lookups.equipes, 'Todas');
+  fill('filter-linha', lookups.linhas, 'Todas');
+  const f = document.getElementById('form-ordem');
+  fill(f.querySelector('[name="regiao"]'), lookups.regioes, 'Selecione');
+  fill(f.querySelector('[name="equipe"]'), lookups.equipes, 'Selecione');
+  fill(f.querySelector('[name="linha_servico"]'), lookups.linhas, 'Selecione');
 }
 
-function populateFormDropdowns() {
-  const formOrdem = document.getElementById('form-ordem');
-  fillSelect(formOrdem.querySelector('[name="regiao"]'), lookups.regioes, 'Selecione');
-  fillSelect(formOrdem.querySelector('[name="equipe"]'), lookups.equipes, 'Selecione');
-  fillSelect(formOrdem.querySelector('[name="linha_servico"]'), lookups.linhas, 'Selecione');
+function fill(el, items, ph) {
+  el = typeof el === 'string' ? document.getElementById(el) : el;
+  el.innerHTML = `<option value="">${ph}</option>` + items.map(i => `<option value="${esc(i)}">${esc(i)}</option>`).join('');
 }
 
-function fillSelect(elOrId, items, placeholder) {
-  const el = typeof elOrId === 'string' ? document.getElementById(elOrId) : elOrId;
-  el.innerHTML = `<option value="">${placeholder}</option>` +
-    items.map(i => `<option value="${esc(i)}">${esc(i)}</option>`).join('');
+// === EVENTS ==================================================
+
+function bindEvents() {
+  document.getElementById('btn-login').addEventListener('click', handleLogin);
+  ['login-email', 'login-password'].forEach(id =>
+    document.getElementById(id).addEventListener('keydown', e => { if (e.key === 'Enter') handleLogin(); }));
+  document.getElementById('btn-logout').addEventListener('click', async () => { await sb.auth.signOut(); user = null; showLogin(); });
+  document.getElementById('btn-theme').addEventListener('click', toggleTheme);
+
+  document.querySelectorAll('.tab-btn').forEach(b => b.addEventListener('click', () => switchTab(b.dataset.tab)));
+
+  ['filter-regiao', 'filter-equipe', 'filter-linha', 'filter-de', 'filter-ate'].forEach(id =>
+    document.getElementById(id).addEventListener('change', applyFilters));
+  document.getElementById('filter-busca').addEventListener('input', debounce(applyFilters, 250));
+  document.getElementById('btn-limpar').addEventListener('click', clearFilters);
+  document.getElementById('btn-export').addEventListener('click', exportCSV);
+
+  document.getElementById('btn-nova-ordem').addEventListener('click', () => openOrdem());
+  document.getElementById('btn-nova-despesa').addEventListener('click', () => openDespesa());
+  document.querySelectorAll('.btn-cancel-modal').forEach(b => b.addEventListener('click', () => closeAllModals()));
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAllModals(); });
+
+  document.getElementById('form-ordem').addEventListener('submit', saveOrdem);
+  document.getElementById('form-despesa').addEventListener('submit', saveDespesa);
+
+  document.querySelectorAll('#tbl-tickets th[data-sort]').forEach(th =>
+    th.addEventListener('click', () => sortTickets(th.dataset.sort)));
+
+  window.addEventListener('resize', () => {
+    if (!document.getElementById('app').classList.contains('hidden')) renderBalanco(filteredOrdens());
+  });
 }
 
-// ============================================================
-// FILTROS
-// ============================================================
+// === FILTERS =================================================
 
 function applyFilters() {
-  filters.regiao     = document.getElementById('filter-regiao').value;
-  filters.equipe     = document.getElementById('filter-equipe').value;
-  filters.linha      = document.getElementById('filter-linha').value;
-  filters.dataInicio = document.getElementById('filter-data-inicio').value;
-  filters.dataFim    = document.getElementById('filter-data-fim').value;
-  filters.busca      = document.getElementById('filter-busca').value;
+  filters.regiao = document.getElementById('filter-regiao').value;
+  filters.equipe = document.getElementById('filter-equipe').value;
+  filters.linha  = document.getElementById('filter-linha').value;
+  filters.de     = document.getElementById('filter-de').value;
+  filters.ate    = document.getElementById('filter-ate').value;
+  filters.busca  = document.getElementById('filter-busca').value;
   ticketsPage = 1;
   renderAll();
 }
-
 function clearFilters() {
-  document.getElementById('filter-regiao').value = '';
-  document.getElementById('filter-equipe').value = '';
-  document.getElementById('filter-linha').value = '';
-  document.getElementById('filter-data-inicio').value = '';
-  document.getElementById('filter-data-fim').value = '';
-  document.getElementById('filter-busca').value = '';
-  filters = { regiao: '', equipe: '', linha: '', dataInicio: '', dataFim: '', busca: '' };
+  ['filter-regiao','filter-equipe','filter-linha','filter-de','filter-ate','filter-busca']
+    .forEach(id => document.getElementById(id).value = '');
+  filters = { regiao:'', equipe:'', linha:'', de:'', ate:'', busca:'' };
   ticketsPage = 1;
   renderAll();
 }
+window.applyFilterFromBar = function(field, val) {
+  const map = { regiao:'filter-regiao', equipe:'filter-equipe', linha:'filter-linha' };
+  document.getElementById(map[field]).value = val;
+  applyFilters();
+};
 
-function applyFilterFromBar(field, value) {
-  const map = { regiao: 'filter-regiao', equipe: 'filter-equipe', linha: 'filter-linha' };
-  const el = document.getElementById(map[field]);
-  if (el) {
-    el.value = value;
-    applyFilters();
-  }
-}
+// === TABS ====================================================
 
-// ============================================================
-// EXPORTAR CSV
-// ============================================================
-
-function exportCSV() {
-  const data = filteredOrdens();
-  if (data.length === 0) { toast('Nenhum dado para exportar.', true); return; }
-
-  const headers = ['Data','Região','Equipe','Linha de Serviço','Cliente','Valor Venda','Despesa Direta','Status','Tempo (h)','Qualidade','Resumo'];
-  const rows = data.map(o => [
-    o.data, o.regiao, o.equipe, o.linha_servico, o.cliente || '',
-    o.valor_venda, o.despesa_direta, statusLabel(o.status),
-    o.tempo_execucao_h ?? '', o.qualidade ?? '', (o.resumo || '').replace(/"/g, '""'),
-  ]);
-
-  const csv = [headers.join(';'), ...rows.map(r => r.map(v => `"${v}"`).join(';'))].join('\n');
-  const bom = '﻿';
-  const blob = new Blob([bom + csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `build-brasil-ordens-${todayISO()}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
-  toast('CSV exportado.');
-}
-
-// ============================================================
-// ABAS
-// ============================================================
-
-function switchTab(tabId) {
+function switchTab(id) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-  document.querySelector(`.tab-btn[data-tab="${tabId}"]`).classList.add('active');
-  document.getElementById('tab-' + tabId).classList.add('active');
+  document.querySelector(`.tab-btn[data-tab="${id}"]`).classList.add('active');
+  document.getElementById('tab-' + id).classList.add('active');
 }
 
-// ============================================================
-// MODAIS
-// ============================================================
+// === MODALS ==================================================
 
-function openOrdemModal(existingOrdem) {
-  const form = document.getElementById('form-ordem');
-  form.reset();
-  form.querySelector('[name="id"]').value = '';
+function openOrdem(o) {
+  const f = document.getElementById('form-ordem');
+  f.reset();
+  f.querySelector('[name="id"]').value = '';
   document.getElementById('modal-ordem-title').textContent = 'Nova Ordem';
-
-  if (existingOrdem) {
+  if (o) {
     document.getElementById('modal-ordem-title').textContent = 'Editar Ordem';
-    form.querySelector('[name="id"]').value = existingOrdem.id;
-    form.querySelector('[name="data"]').value = existingOrdem.data;
-    form.querySelector('[name="status"]').value = existingOrdem.status;
-    form.querySelector('[name="regiao"]').value = existingOrdem.regiao;
-    form.querySelector('[name="equipe"]').value = existingOrdem.equipe;
-    form.querySelector('[name="linha_servico"]').value = existingOrdem.linha_servico;
-    form.querySelector('[name="cliente"]').value = existingOrdem.cliente || '';
-    form.querySelector('[name="valor_venda"]').value = existingOrdem.valor_venda;
-    form.querySelector('[name="despesa_direta"]').value = existingOrdem.despesa_direta;
-    form.querySelector('[name="tempo_execucao_h"]').value = existingOrdem.tempo_execucao_h ?? '';
-    form.querySelector('[name="qualidade"]').value = existingOrdem.qualidade ?? '';
-    form.querySelector('[name="resumo"]').value = existingOrdem.resumo || '';
+    f.querySelector('[name="id"]').value = o.id;
+    for (const k of ['data','status','regiao','equipe','linha_servico','cliente','valor_venda','despesa_direta','resumo'])
+      if (f.querySelector(`[name="${k}"]`)) f.querySelector(`[name="${k}"]`).value = o[k] ?? '';
+    f.querySelector('[name="tempo_execucao_h"]').value = o.tempo_execucao_h ?? '';
+    f.querySelector('[name="qualidade"]').value = o.qualidade ?? '';
   } else {
-    form.querySelector('[name="data"]').value = todayISO();
+    f.querySelector('[name="data"]').value = todayISO();
   }
   document.getElementById('modal-ordem').classList.add('open');
 }
-
-function openDespesaModal(existingDespesa) {
-  const form = document.getElementById('form-despesa');
-  form.reset();
-  form.querySelector('[name="id"]').value = '';
+function openDespesa(d) {
+  const f = document.getElementById('form-despesa');
+  f.reset();
+  f.querySelector('[name="id"]').value = '';
   document.getElementById('modal-despesa-title').textContent = 'Nova Despesa Geral';
-
-  if (existingDespesa) {
+  if (d) {
     document.getElementById('modal-despesa-title').textContent = 'Editar Despesa';
-    form.querySelector('[name="id"]').value = existingDespesa.id;
-    form.querySelector('[name="data"]').value = existingDespesa.data;
-    form.querySelector('[name="categoria"]').value = existingDespesa.categoria;
-    form.querySelector('[name="descricao"]').value = existingDespesa.descricao || '';
-    form.querySelector('[name="valor"]').value = existingDespesa.valor;
+    f.querySelector('[name="id"]').value = d.id;
+    f.querySelector('[name="data"]').value = d.data;
+    f.querySelector('[name="categoria"]').value = d.categoria;
+    f.querySelector('[name="descricao"]').value = d.descricao || '';
+    f.querySelector('[name="valor"]').value = d.valor;
   } else {
-    form.querySelector('[name="data"]').value = todayISO();
+    f.querySelector('[name="data"]').value = todayISO();
   }
   document.getElementById('modal-despesa').classList.add('open');
 }
-
-function closeModal(id) {
-  document.getElementById(id).classList.remove('open');
+function closeAllModals() {
+  document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('open'));
 }
 
-// ============================================================
-// CRUD
-// ============================================================
+function confirmDialog(msg) {
+  return new Promise(resolve => {
+    document.getElementById('confirm-msg').textContent = msg;
+    document.getElementById('modal-confirm').classList.add('open');
+    const yes = document.getElementById('confirm-yes');
+    const no = document.getElementById('confirm-no');
+    function cleanup(val) { document.getElementById('modal-confirm').classList.remove('open'); yes.replaceWith(yes.cloneNode(true)); no.replaceWith(no.cloneNode(true)); resolve(val); }
+    document.getElementById('confirm-yes').addEventListener('click', () => cleanup(true), { once: true });
+    document.getElementById('confirm-no').addEventListener('click', () => cleanup(false), { once: true });
+  });
+}
 
-async function handleSaveOrdem(e) {
+// === CRUD ====================================================
+
+async function saveOrdem(e) {
   e.preventDefault();
-  const btn = e.target.querySelector('.btn-save');
+  const btn = e.target.querySelector('.btn-primary');
   if (btn.disabled) return;
-  btn.disabled = true;
-  btn.textContent = 'Salvando...';
+  btn.disabled = true; btn.textContent = 'Salvando...';
 
-  const f = new FormData(e.target);
-  const id = f.get('id');
-  const record = {
-    data:             f.get('data'),
-    regiao:           f.get('regiao'),
-    equipe:           f.get('equipe'),
-    linha_servico:    f.get('linha_servico'),
-    cliente:          f.get('cliente') || null,
-    valor_venda:      parseFloat(f.get('valor_venda')) || 0,
-    despesa_direta:   parseFloat(f.get('despesa_direta')) || 0,
-    status:           f.get('status'),
-    tempo_execucao_h: f.get('tempo_execucao_h') ? parseFloat(f.get('tempo_execucao_h')) : null,
-    qualidade:        f.get('qualidade') ? parseInt(f.get('qualidade')) : null,
-    resumo:           f.get('resumo') || null,
+  const fd = new FormData(e.target);
+  const id = fd.get('id');
+  const rec = {
+    data: fd.get('data'), regiao: fd.get('regiao'), equipe: fd.get('equipe'),
+    linha_servico: fd.get('linha_servico'), cliente: fd.get('cliente') || null,
+    valor_venda: parseFloat(fd.get('valor_venda')) || 0,
+    despesa_direta: parseFloat(fd.get('despesa_direta')) || 0,
+    status: fd.get('status'),
+    tempo_execucao_h: fd.get('tempo_execucao_h') ? parseFloat(fd.get('tempo_execucao_h')) : null,
+    qualidade: fd.get('qualidade') ? parseInt(fd.get('qualidade')) : null,
+    resumo: fd.get('resumo') || null,
   };
 
   let error;
-  if (id) {
-    ({ error } = await sb.from('ordens').update(record).eq('id', id));
-  } else {
-    record.created_by = currentUser.id;
-    ({ error } = await sb.from('ordens').insert([record]));
-  }
+  if (id) ({ error } = await sb.from('ordens').update(rec).eq('id', id));
+  else { rec.created_by = user.id; ({ error } = await sb.from('ordens').insert([rec])); }
 
-  btn.disabled = false;
-  btn.textContent = 'Salvar';
-  if (error) {
-    toast('Erro: ' + error.message, true);
-    return;
-  }
-  closeModal('modal-ordem');
-  await loadData();
-  renderAll();
+  btn.disabled = false; btn.textContent = 'Salvar';
+  if (error) { toast('Erro: ' + error.message, true); return; }
+  closeAllModals();
+  await loadData(); renderAll();
   toast(id ? 'Ordem atualizada.' : 'Ordem salva.');
 }
 
-async function handleSaveDespesa(e) {
+async function saveDespesa(e) {
   e.preventDefault();
-  const btn = e.target.querySelector('.btn-save');
+  const btn = e.target.querySelector('.btn-primary');
   if (btn.disabled) return;
-  btn.disabled = true;
-  btn.textContent = 'Salvando...';
+  btn.disabled = true; btn.textContent = 'Salvando...';
 
-  const f = new FormData(e.target);
-  const id = f.get('id');
-  const record = {
-    data:       f.get('data'),
-    categoria:  f.get('categoria'),
-    descricao:  f.get('descricao') || null,
-    valor:      parseFloat(f.get('valor')) || 0,
+  const fd = new FormData(e.target);
+  const id = fd.get('id');
+  const rec = {
+    data: fd.get('data'), categoria: fd.get('categoria'),
+    descricao: fd.get('descricao') || null, valor: parseFloat(fd.get('valor')) || 0,
   };
 
   let error;
-  if (id) {
-    ({ error } = await sb.from('despesas_gerais').update(record).eq('id', id));
-  } else {
-    record.created_by = currentUser.id;
-    ({ error } = await sb.from('despesas_gerais').insert([record]));
-  }
+  if (id) ({ error } = await sb.from('despesas_gerais').update(rec).eq('id', id));
+  else { rec.created_by = user.id; ({ error } = await sb.from('despesas_gerais').insert([rec])); }
 
-  btn.disabled = false;
-  btn.textContent = 'Salvar';
-  if (error) {
-    toast('Erro: ' + error.message, true);
-    return;
-  }
-  closeModal('modal-despesa');
-  await loadData();
-  renderAll();
+  btn.disabled = false; btn.textContent = 'Salvar';
+  if (error) { toast('Erro: ' + error.message, true); return; }
+  closeAllModals();
+  await loadData(); renderAll();
   toast(id ? 'Despesa atualizada.' : 'Despesa salva.');
 }
 
-async function deleteOrdem(id) {
+window.editOrdem = id => { const o = ordens.find(x => x.id === id); if (o) openOrdem(o); };
+window.deleteOrdem = async id => {
+  if (!await confirmDialog('Excluir esta ordem permanentemente?')) return;
   const { error } = await sb.from('ordens').delete().eq('id', id);
-  if (error) { toast('Erro ao excluir: ' + error.message, true); return; }
-  await loadData();
-  renderAll();
-  toast('Ordem excluída.');
-}
-
-async function deleteDespesa(id) {
-  const { error } = await sb.from('despesas_gerais').delete().eq('id', id);
-  if (error) { toast('Erro ao excluir: ' + error.message, true); return; }
-  await loadData();
-  renderAll();
-  toast('Despesa excluída.');
-}
-
-// Expose to inline onclick handlers
-window.editOrdem = function(id) {
-  const o = ordens.find(x => x.id === id);
-  if (o) openOrdemModal(o);
+  if (error) { toast('Erro: ' + error.message, true); return; }
+  await loadData(); renderAll(); toast('Ordem excluída.');
 };
-window.confirmDeleteOrdem = function(id) {
-  if (confirm('Excluir esta ordem?')) deleteOrdem(id);
-};
-window.applyFilterFromBar = applyFilterFromBar;
-window.setTicketsPage = function(p) {
-  ticketsPage = p;
-  renderOperacoes(filteredOrdens());
-};
+window.setTicketsPage = p => { ticketsPage = p; renderOps(filteredOrdens()); };
 
-// ============================================================
-// CÁLCULOS
-// ============================================================
+// === SORT ====================================================
 
-function calcVendas(data) {
-  const total = data.reduce((s, o) => s + Number(o.valor_venda), 0);
-  const count = data.length;
-  const ticketMedio = count > 0 ? total / count : 0;
-  return { total, count, ticketMedio };
+function sortTickets(col) {
+  if (ticketsSort.col === col) ticketsSort.asc = !ticketsSort.asc;
+  else { ticketsSort.col = col; ticketsSort.asc = true; }
+  document.querySelectorAll('#tbl-tickets th').forEach(th => th.classList.remove('sorted'));
+  const th = document.querySelector(`#tbl-tickets th[data-sort="${col}"]`);
+  if (th) { th.classList.add('sorted'); th.querySelector('.sort-arrow').textContent = ticketsSort.asc ? '▲' : '▼'; }
+  renderOps(filteredOrdens());
 }
 
-function calcOperacoes(data) {
-  const concluidas = data.filter(o => o.status === 'concluido');
-  const comTempo = concluidas.filter(o => o.tempo_execucao_h != null);
-  const comQualidade = data.filter(o => o.qualidade != null);
-  const emAndamento = data.filter(o => o.status === 'em_andamento').length;
+// === EXPORT ==================================================
 
-  const tempoMedio = comTempo.length > 0
-    ? comTempo.reduce((s, o) => s + Number(o.tempo_execucao_h), 0) / comTempo.length
-    : 0;
-  const qualidadeMedia = comQualidade.length > 0
-    ? comQualidade.reduce((s, o) => s + Number(o.qualidade), 0) / comQualidade.length
-    : 0;
-  const taxaConclusao = data.length > 0 ? (concluidas.length / data.length) * 100 : 0;
-
-  return { tempoMedio, qualidadeMedia, taxaConclusao, emAndamento, concluidas: concluidas.length };
+function exportCSV() {
+  const data = filteredOrdens();
+  if (!data.length) { toast('Sem dados para exportar.', true); return; }
+  const h = ['Data','Região','Equipe','Linha','Cliente','Valor Venda','Despesa Direta','Status','Tempo (h)','Qualidade','Resumo'];
+  const rows = data.map(o => [o.data, o.regiao, o.equipe, o.linha_servico, o.cliente||'',
+    o.valor_venda, o.despesa_direta, statusLabel(o.status), o.tempo_execucao_h??'', o.qualidade??'',
+    (o.resumo||'').replace(/"/g,'""')]);
+  const csv = '﻿' + [h.join(';'), ...rows.map(r => r.map(v => `"${v}"`).join(';'))].join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type:'text/csv;charset=utf-8;' }));
+  a.download = `build-brasil-${todayISO()}.csv`;
+  a.click(); URL.revokeObjectURL(a.href);
+  toast('CSV exportado.');
 }
 
-function groupBy(arr, key) {
-  const map = {};
-  arr.forEach(item => {
-    const k = item[key];
-    if (!map[k]) map[k] = [];
-    map[k].push(item);
-  });
-  return map;
+// === CALC ====================================================
+
+function calcVendas(d) {
+  const total = sum(d, 'valor_venda'), n = d.length;
+  return { total, n, ticket: n ? total / n : 0 };
 }
-
-function sumField(arr, field) {
-  return arr.reduce((s, o) => s + Number(o[field] || 0), 0);
+function calcOps(d) {
+  const done = d.filter(o => o.status === 'concluido');
+  const ct = done.filter(o => o.tempo_execucao_h != null);
+  const cq = d.filter(o => o.qualidade != null);
+  const andamento = d.filter(o => o.status === 'em_andamento').length;
+  return {
+    tempoMedio: ct.length ? ct.reduce((s,o) => s + +o.tempo_execucao_h, 0) / ct.length : 0,
+    qualMedia: cq.length ? cq.reduce((s,o) => s + +o.qualidade, 0) / cq.length : 0,
+    taxaConc: d.length ? (done.length / d.length) * 100 : 0,
+    andamento, concluidas: done.length,
+  };
 }
-
-// Validar com o financeiro antes de oficializar esta regra.
-function calcRateio(ordensData) {
-  const receitaTotal = sumField(ordensData, 'valor_venda');
-  const totalDespGerais = despesasGerais.reduce((s, d) => s + Number(d.valor), 0);
-  const porEquipe = groupBy(ordensData, 'equipe');
-  const resultado = {};
-
+function calcRateio(d) {
+  const recTotal = sum(d, 'valor_venda');
+  const despTotal = despesas.reduce((s,x) => s + +x.valor, 0);
+  const byEq = groupBy(d, 'equipe');
+  const res = {};
   lookups.equipes.forEach(eq => {
-    const eqOrdens = porEquipe[eq] || [];
-    const receita = sumField(eqOrdens, 'valor_venda');
-    const despDireta = sumField(eqOrdens, 'despesa_direta');
-    const proporcao = receitaTotal > 0 ? receita / receitaTotal : 0;
-    const despRateada = totalDespGerais * proporcao;
-    resultado[eq] = {
-      receita,
-      despDireta,
-      despRateada,
-      saldo: receita - despDireta - despRateada,
-      ordens: eqOrdens.length,
-    };
+    const items = byEq[eq] || [];
+    const rec = sum(items, 'valor_venda');
+    const dd = sum(items, 'despesa_direta');
+    const prop = recTotal > 0 ? rec / recTotal : 0;
+    const dr = despTotal * prop;
+    const saldo = rec - dd - dr;
+    const margem = rec > 0 ? (saldo / rec) * 100 : 0;
+    res[eq] = { rec, dd, dr, saldo, margem, n: items.length };
   });
-
-  return { resultado, receitaTotal, totalDespGerais };
+  return { res, recTotal, despTotal };
 }
+function groupBy(a, k) { const m = {}; a.forEach(i => { (m[i[k]] = m[i[k]] || []).push(i); }); return m; }
+function sum(a, f) { return a.reduce((s,o) => s + (+o[f] || 0), 0); }
 
-// ============================================================
-// RENDERIZAÇÃO
-// ============================================================
+// === RENDER ==================================================
 
 function renderAll() {
-  const data = filteredOrdens();
-  renderVisaoGeral(data);
-  renderVendas(data);
-  renderOperacoes(data);
-  renderFinanceiro(data);
+  const d = filteredOrdens();
+  renderGeral(d);
+  renderVendas(d);
+  renderOps(d);
+  renderFin(d);
+  const andamento = d.filter(o => o.status === 'em_andamento').length;
+  const badge = document.getElementById('badge-andamento');
+  if (andamento > 0) { badge.textContent = andamento; badge.classList.remove('hidden'); }
+  else badge.classList.add('hidden');
 }
 
-// --- Animação de KPI ---
-function animateValue(el, target, prefix, suffix) {
-  const start = parseInt(el.textContent.replace(/\D/g, '')) || 0;
-  if (start === Math.round(target)) return;
-  const duration = 400;
-  const startTime = performance.now();
-  function step(now) {
-    const progress = Math.min((now - startTime) / duration, 1);
-    const current = Math.round(start + (target - start) * progress);
-    el.textContent = prefix + current.toLocaleString('pt-BR') + suffix;
-    if (progress < 1) requestAnimationFrame(step);
-  }
-  requestAnimationFrame(step);
-}
+// --- Geral ---
+function renderGeral(d) {
+  const v = calcVendas(d), op = calcOps(d);
+  const { res, recTotal, despTotal } = calcRateio(d);
+  const saldo = recTotal - sum(d, 'despesa_direta') - despTotal;
 
-// --- Visão Geral ---
-function renderVisaoGeral(data) {
-  const v = calcVendas(data);
-  const op = calcOperacoes(data);
-  const { resultado, receitaTotal, totalDespGerais } = calcRateio(data);
-  const saldoGeral = receitaTotal - sumField(data, 'despesa_direta') - totalDespGerais;
+  document.getElementById('kpi-geral').innerHTML = kpi([
+    { val: cur(recTotal), lbl: 'Receita Total', cls: '' },
+    { val: cur(saldo), lbl: 'Saldo Geral', cls: saldo >= 0 ? 'verde' : 'erro' },
+    { val: v.n, lbl: 'Ordens', cls: 'teal' },
+    { val: op.qualMedia.toFixed(0), lbl: 'Qualidade Média', cls: op.qualMedia < 80 ? 'laranja' : 'teal' },
+    { val: op.andamento, lbl: 'Em Andamento', cls: op.andamento > 0 ? 'laranja' : '' },
+  ]);
 
-  document.getElementById('kpi-geral').innerHTML = `
-    <div class="kpi-item"><div class="kpi-value">${fmtCurrency(v.total)}</div><div class="kpi-label">Receita Total</div></div>
-    <div class="kpi-item"><div class="kpi-value verde">${fmtCurrency(saldoGeral)}</div><div class="kpi-label">Saldo Geral</div></div>
-    <div class="kpi-item"><div class="kpi-value teal">${v.count}</div><div class="kpi-label">Ordens</div></div>
-    <div class="kpi-item"><div class="kpi-value">${op.qualidadeMedia.toFixed(0)}</div><div class="kpi-label">Qualidade Média</div></div>
-    <div class="kpi-item"><div class="kpi-value${op.emAndamento > 0 ? ' destaque' : ''}">${op.emAndamento}</div><div class="kpi-label">Em Andamento</div></div>
-  `;
-
-  // Alertas
   const alerts = [];
-  const equipeEntries = Object.entries(resultado).filter(([, v]) => v.ordens > 0);
-
-  if (equipeEntries.length > 0) {
-    const lider = equipeEntries.sort((a, b) => b[1].saldo - a[1].saldo)[0];
-    alerts.push({ text: `Equipe líder em saldo: ${lider[0]} (${fmtCurrency(lider[1].saldo)})`, type: 'positivo' });
-
-    equipeEntries.forEach(([eq, d]) => {
-      if (d.saldo < 0) alerts.push({ text: `${eq}: saldo negativo (${fmtCurrency(d.saldo)})`, type: 'critico' });
-    });
+  const entries = Object.entries(res).filter(([,v]) => v.n > 0);
+  if (entries.length) {
+    const lider = entries.sort((a,b) => b[1].saldo - a[1].saldo)[0];
+    alerts.push({ t: `Equipe líder: ${lider[0]} (${cur(lider[1].saldo)})`, c: 'positivo', i: '▲' });
+    entries.forEach(([eq,x]) => { if (x.saldo < 0) alerts.push({ t: `${eq}: saldo negativo (${cur(x.saldo)})`, c: 'critico', i: '!' }); });
   }
-
-  if (op.qualidadeMedia > 0 && op.qualidadeMedia < 80) {
-    alerts.push({ text: `Qualidade abaixo da meta (${op.qualidadeMedia.toFixed(0)}/100)`, type: 'atencao' });
-  }
-  if (op.tempoMedio > 80) {
-    alerts.push({ text: `Tempo médio de execução alto (${op.tempoMedio.toFixed(1)}h)`, type: 'atencao' });
-  }
-  if (op.emAndamento > 3) {
-    alerts.push({ text: `${op.emAndamento} ordens em aberto`, type: 'atencao' });
-  }
-
-  const porEquipeQual = groupBy(data.filter(o => o.qualidade != null), 'equipe');
-  Object.entries(porEquipeQual).forEach(([eq, eqOrdens]) => {
-    const media = eqOrdens.reduce((s, o) => s + Number(o.qualidade), 0) / eqOrdens.length;
-    if (media < 80) {
-      alerts.push({ text: `${eq}: qualidade abaixo da meta (${media.toFixed(0)})`, type: 'atencao' });
-    }
+  if (op.qualMedia > 0 && op.qualMedia < 80) alerts.push({ t: `Qualidade geral abaixo de 80 (${op.qualMedia.toFixed(0)})`, c: 'atencao', i: '⚠' });
+  if (op.tempoMedio > 80) alerts.push({ t: `Tempo médio alto: ${op.tempoMedio.toFixed(1)}h`, c: 'atencao', i: '⚠' });
+  if (op.andamento > 3) alerts.push({ t: `${op.andamento} ordens em aberto`, c: 'atencao', i: '⚠' });
+  const byEqQ = groupBy(d.filter(o => o.qualidade != null), 'equipe');
+  Object.entries(byEqQ).forEach(([eq, items]) => {
+    const m = items.reduce((s,o) => s + +o.qualidade, 0) / items.length;
+    if (m < 80) alerts.push({ t: `${eq}: qualidade ${m.toFixed(0)}/100`, c: 'atencao', i: '⚠' });
   });
 
-  document.getElementById('alerts-container').innerHTML = alerts.length > 0
-    ? alerts.map(a => `<span class="alert-tag ${a.type}">${esc(a.text)}</span>`).join('')
-    : '<span class="mono" style="font-size:0.75rem;color:#607D8B;">Nenhum alerta.</span>';
+  document.getElementById('alerts-container').innerHTML = alerts.length
+    ? alerts.map(a => `<span class="alert-tag ${a.c}"><i class="alert-icon">${a.i}</i>${esc(a.t)}</span>`).join('')
+    : '<span class="text-muted mono" style="font-size:0.75rem;">Nenhum alerta no período.</span>';
 
-  // Tabela por equipe
-  const tbody = document.querySelector('#table-equipe-geral tbody');
+  const tbody = document.querySelector('#tbl-equipe-geral tbody');
   tbody.innerHTML = lookups.equipes.map(eq => {
-    const d = resultado[eq];
-    const eqOrdens = (groupBy(data, 'equipe')[eq] || []);
-    const comQual = eqOrdens.filter(o => o.qualidade != null);
-    const qualMedia = comQual.length > 0
-      ? (comQual.reduce((s, o) => s + Number(o.qualidade), 0) / comQual.length).toFixed(0)
-      : '—';
+    const x = res[eq], items = (groupBy(d,'equipe')[eq] || []);
+    const cq = items.filter(o => o.qualidade != null);
+    const qm = cq.length ? (cq.reduce((s,o) => s + +o.qualidade, 0) / cq.length) : null;
     return `<tr>
-      <td>${esc(eq)}</td>
-      <td class="text-right">${fmtCurrency(d.receita)}</td>
-      <td class="text-right">${fmtCurrency(d.despDireta)}</td>
-      <td class="text-right">${fmtCurrency(d.despRateada)}</td>
-      <td class="text-right" style="font-weight:600;color:${d.saldo >= 0 ? 'var(--verde)' : 'var(--erro)'}">${fmtCurrency(d.saldo)}</td>
-      <td class="text-right">${d.ordens}</td>
-      <td class="text-right">${qualMedia}</td>
+      <td class="fw-600">${esc(eq)}</td>
+      <td class="text-right">${cur(x.rec)}</td>
+      <td class="text-right">${cur(x.dd)}</td>
+      <td class="text-right">${cur(x.dr)}</td>
+      <td class="text-right fw-600" style="color:${x.saldo >= 0 ? 'var(--verde)' : 'var(--erro)'}">${cur(x.saldo)}</td>
+      <td class="text-right">${x.n}</td>
+      <td class="text-right">${qm != null ? qualityBar(qm) : '—'}</td>
     </tr>`;
   }).join('');
 }
 
 // --- Vendas ---
-function renderVendas(data) {
-  const v = calcVendas(data);
-  document.getElementById('kpi-vendas').innerHTML = `
-    <div class="kpi-item"><div class="kpi-value">${fmtCurrency(v.total)}</div><div class="kpi-label">Total de Vendas</div></div>
-    <div class="kpi-item"><div class="kpi-value teal">${fmtCurrency(v.ticketMedio)}</div><div class="kpi-label">Ticket Médio</div></div>
-    <div class="kpi-item"><div class="kpi-value">${v.count}</div><div class="kpi-label">Nº de Ordens</div></div>
-  `;
-
-  const byRegiao = groupBy(data, 'regiao');
-  const byEquipe = groupBy(data, 'equipe');
-  const byLinha  = groupBy(data, 'linha_servico');
-
-  renderBarChart('chart-vendas-regiao', byRegiao, 'valor_venda', '', 'regiao');
-  renderBarChart('chart-vendas-equipe', byEquipe, 'valor_venda', 'teal', 'equipe');
-  renderBarChart('chart-vendas-linha',  byLinha,  'valor_venda', 'verde');
+function renderVendas(d) {
+  const v = calcVendas(d);
+  document.getElementById('kpi-vendas').innerHTML = kpi([
+    { val: cur(v.total), lbl: 'Total de Vendas', cls: '' },
+    { val: cur(v.ticket), lbl: 'Ticket Médio', cls: 'teal' },
+    { val: v.n, lbl: 'Nº de Ordens', cls: '' },
+  ]);
+  barChart('chart-vendas-regiao', groupBy(d,'regiao'), 'valor_venda', '', 'regiao');
+  barChart('chart-vendas-equipe', groupBy(d,'equipe'), 'valor_venda', 'teal', 'equipe');
+  barChart('chart-vendas-linha', groupBy(d,'linha_servico'), 'valor_venda', 'verde');
 }
 
 // --- Operações ---
-function renderOperacoes(data) {
-  const op = calcOperacoes(data);
-  document.getElementById('kpi-operacoes').innerHTML = `
-    <div class="kpi-item"><div class="kpi-value">${op.tempoMedio.toFixed(1)}h</div><div class="kpi-label">Tempo Médio Exec.</div></div>
-    <div class="kpi-item"><div class="kpi-value teal">${op.qualidadeMedia.toFixed(0)}</div><div class="kpi-label">Qualidade Média</div></div>
-    <div class="kpi-item"><div class="kpi-value verde">${op.taxaConclusao.toFixed(0)}%</div><div class="kpi-label">Taxa Conclusão</div></div>
-    <div class="kpi-item"><div class="kpi-value${op.emAndamento > 0 ? ' destaque' : ''}">${op.emAndamento}</div><div class="kpi-label">Em Andamento</div></div>
-  `;
+function renderOps(d) {
+  const op = calcOps(d);
+  document.getElementById('kpi-ops').innerHTML = kpi([
+    { val: op.tempoMedio.toFixed(1) + 'h', lbl: 'Tempo Médio', cls: '' },
+    { val: op.qualMedia.toFixed(0), lbl: 'Qualidade Média', cls: 'teal' },
+    { val: op.taxaConc.toFixed(0) + '%', lbl: 'Taxa Conclusão', cls: 'verde' },
+    { val: op.andamento, lbl: 'Em Andamento', cls: op.andamento > 0 ? 'laranja' : '' },
+  ]);
 
-  // Tempo médio por equipe
-  const byEquipe = groupBy(data, 'equipe');
-  const tempoData = {};
-  Object.entries(byEquipe).forEach(([eq, items]) => {
-    const concluidas = items.filter(o => o.status === 'concluido' && o.tempo_execucao_h != null);
-    if (concluidas.length > 0) {
-      tempoData[eq] = concluidas.reduce((s, o) => s + Number(o.tempo_execucao_h), 0) / concluidas.length;
-    }
+  const byEq = groupBy(d, 'equipe');
+  const tempoMap = {}, qualMap = {};
+  Object.entries(byEq).forEach(([eq, items]) => {
+    const c = items.filter(o => o.status === 'concluido' && o.tempo_execucao_h != null);
+    if (c.length) tempoMap[eq] = c.reduce((s,o) => s + +o.tempo_execucao_h, 0) / c.length;
+    const q = items.filter(o => o.qualidade != null);
+    if (q.length) qualMap[eq] = q.reduce((s,o) => s + +o.qualidade, 0) / q.length;
   });
-  renderValueBarChart('chart-tempo-equipe', tempoData, 'h', 'teal');
+  valueBarChart('chart-tempo', tempoMap, 'h', 'teal');
+  valueBarChart('chart-qualidade', qualMap, '', 'verde', 100);
 
-  // Qualidade média por equipe
-  const qualData = {};
-  Object.entries(byEquipe).forEach(([eq, items]) => {
-    const comQual = items.filter(o => o.qualidade != null);
-    if (comQual.length > 0) {
-      qualData[eq] = comQual.reduce((s, o) => s + Number(o.qualidade), 0) / comQual.length;
-    }
+  // Tickets com sort
+  let sorted = [...d];
+  const sc = ticketsSort.col, sa = ticketsSort.asc;
+  sorted.sort((a,b) => {
+    let va = a[sc] ?? '', vb = b[sc] ?? '';
+    if (typeof va === 'number') return sa ? va - vb : vb - va;
+    va = String(va); vb = String(vb);
+    return sa ? va.localeCompare(vb) : vb.localeCompare(va);
   });
-  renderValueBarChart('chart-qualidade-equipe', qualData, '', 'verde', 100);
 
-  // Tabela de tickets com paginação
-  const totalItems = data.length;
-  const totalPages = Math.max(1, Math.ceil(totalItems / TICKETS_PER_PAGE));
-  if (ticketsPage > totalPages) ticketsPage = totalPages;
-  const start = (ticketsPage - 1) * TICKETS_PER_PAGE;
-  const pageData = data.slice(start, start + TICKETS_PER_PAGE);
+  const total = sorted.length, pages = Math.max(1, Math.ceil(total / PER_PAGE));
+  if (ticketsPage > pages) ticketsPage = pages;
+  const page = sorted.slice((ticketsPage - 1) * PER_PAGE, ticketsPage * PER_PAGE);
 
-  const tbody = document.querySelector('#table-tickets tbody');
-  tbody.innerHTML = pageData.map(o => {
-    const isOwner = currentUser && o.created_by === currentUser.id;
-    const actions = isOwner
-      ? `<div class="row-actions">
-          <button class="btn-row" onclick="editOrdem('${o.id}')">Editar</button>
-          <button class="btn-row danger" onclick="confirmDeleteOrdem('${o.id}')">Excluir</button>
-        </div>`
-      : '<span style="font-size:0.65rem;color:#607D8B;">—</span>';
-    return `<tr>
-      <td>${fmtDate(o.data)}</td>
-      <td>${esc(o.equipe)}</td>
-      <td>${esc(o.regiao)}</td>
-      <td>${esc(o.cliente || '—')}</td>
-      <td><span class="status-tag ${o.status}">${statusLabel(o.status)}</span></td>
-      <td>${esc(o.resumo || '—')}</td>
-      <td>${actions}</td>
-    </tr>`;
-  }).join('');
+  document.querySelector('#tbl-tickets tbody').innerHTML = page.length
+    ? page.map(o => {
+      const own = user && o.created_by === user.id;
+      const q = o.qualidade != null ? qualityBar(o.qualidade) : '—';
+      return `<tr>
+        <td>${fmtDate(o.data)}</td>
+        <td>${esc(o.equipe)}</td>
+        <td>${esc(o.regiao)}</td>
+        <td>${esc(o.cliente || '—')}</td>
+        <td class="text-right">${cur(o.valor_venda)}</td>
+        <td><span class="status-tag ${o.status}">${statusLabel(o.status)}</span></td>
+        <td>${q}</td>
+        <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(o.resumo||'')}">${esc(o.resumo || '—')}</td>
+        <td>${own ? `<div class="row-actions"><button class="btn-row" onclick="editOrdem('${o.id}')">Edit</button><button class="btn-row danger" onclick="deleteOrdem('${o.id}')">Del</button></div>` : ''}</td>
+      </tr>`;
+    }).join('')
+    : '<tr><td colspan="9" class="empty-state">Nenhuma ordem encontrada.</td></tr>';
 
-  // Paginação
-  const pagEl = document.getElementById('pagination-tickets');
-  if (totalPages > 1) {
-    pagEl.innerHTML = `
-      <button onclick="setTicketsPage(${ticketsPage - 1})" ${ticketsPage <= 1 ? 'disabled' : ''}>&#9664; Ant.</button>
-      <span class="page-info">${ticketsPage}/${totalPages}</span>
-      <button onclick="setTicketsPage(${ticketsPage + 1})" ${ticketsPage >= totalPages ? 'disabled' : ''}>Prox. &#9654;</button>
-    `;
-  } else {
-    pagEl.innerHTML = '';
-  }
+  document.getElementById('pag-tickets').innerHTML = pages > 1
+    ? `<button onclick="setTicketsPage(${ticketsPage-1})" ${ticketsPage<=1?'disabled':''}>◀</button>
+       <span class="page-info">${ticketsPage} / ${pages}</span>
+       <button onclick="setTicketsPage(${ticketsPage+1})" ${ticketsPage>=pages?'disabled':''}>▶</button>`
+    : '';
 }
 
 // --- Financeiro ---
-function renderFinanceiro(data) {
-  const { resultado, receitaTotal, totalDespGerais } = calcRateio(data);
-  const despDiretaTotal = sumField(data, 'despesa_direta');
-  const saldoGeral = receitaTotal - despDiretaTotal - totalDespGerais;
+function renderFin(d) {
+  const { res, recTotal, despTotal } = calcRateio(d);
+  const ddTotal = sum(d, 'despesa_direta');
+  const saldo = recTotal - ddTotal - despTotal;
+  const margem = recTotal > 0 ? (saldo / recTotal) * 100 : 0;
 
-  document.getElementById('kpi-financeiro').innerHTML = `
-    <div class="kpi-item"><div class="kpi-value">${fmtCurrency(receitaTotal)}</div><div class="kpi-label">Receita</div></div>
-    <div class="kpi-item"><div class="kpi-value destaque">${fmtCurrency(despDiretaTotal + totalDespGerais)}</div><div class="kpi-label">Despesas Totais</div></div>
-    <div class="kpi-item"><div class="kpi-value verde">${fmtCurrency(saldoGeral)}</div><div class="kpi-label">Saldo</div></div>
-    <div class="kpi-item"><div class="kpi-value teal">${fmtCurrency(totalDespGerais)}</div><div class="kpi-label">Desp. Gerais</div></div>
-  `;
+  document.getElementById('kpi-fin').innerHTML = kpi([
+    { val: cur(recTotal), lbl: 'Receita', cls: '' },
+    { val: cur(ddTotal + despTotal), lbl: 'Despesas Totais', cls: 'laranja' },
+    { val: cur(saldo), lbl: 'Saldo', cls: saldo >= 0 ? 'verde' : 'erro' },
+    { val: margem.toFixed(1) + '%', lbl: 'Margem', cls: margem >= 0 ? 'verde' : 'erro' },
+    { val: cur(despTotal), lbl: 'Desp. Gerais', cls: 'teal' },
+  ]);
 
-  // Tabela por equipe
-  const tbody = document.querySelector('#table-financeiro-equipe tbody');
-  tbody.innerHTML = lookups.equipes.map(eq => {
-    const d = resultado[eq];
+  document.querySelector('#tbl-fin-equipe tbody').innerHTML = lookups.equipes.map(eq => {
+    const x = res[eq];
     return `<tr>
-      <td>${esc(eq)}</td>
-      <td class="text-right">${fmtCurrency(d.receita)}</td>
-      <td class="text-right">${fmtCurrency(d.despDireta)}</td>
-      <td class="text-right">${fmtCurrency(d.despRateada)}</td>
-      <td class="text-right" style="font-weight:600;color:${d.saldo >= 0 ? 'var(--verde)' : 'var(--erro)'}">${fmtCurrency(d.saldo)}</td>
+      <td class="fw-600">${esc(eq)}</td>
+      <td class="text-right">${cur(x.rec)}</td>
+      <td class="text-right">${cur(x.dd)}</td>
+      <td class="text-right">${cur(x.dr)}</td>
+      <td class="text-right fw-600" style="color:${x.saldo>=0?'var(--verde)':'var(--erro)'}">${cur(x.saldo)}</td>
+      <td class="text-right" style="color:${x.margem>=0?'var(--verde)':'var(--erro)'}">${x.rec > 0 ? x.margem.toFixed(1)+'%' : '—'}</td>
     </tr>`;
   }).join('');
 
-  renderBalancoChart(data);
+  renderBalanco(d);
 }
 
-// ============================================================
-// GRÁFICOS DE BARRAS (HTML)
-// ============================================================
+// === BAR CHARTS ==============================================
 
-function renderBarChart(containerId, grouped, sumField_, cssClass, filterField) {
-  const container = document.getElementById(containerId);
-  const entries = Object.entries(grouped).map(([label, items]) => ({
-    label,
-    value: items.reduce((s, o) => s + Number(o[sumField_] || 0), 0),
-  }));
-  entries.sort((a, b) => b.value - a.value);
-  const max = entries.length > 0 ? Math.max(...entries.map(e => e.value)) : 1;
-  const total = entries.reduce((s, e) => s + e.value, 0);
-
-  container.innerHTML = '<div class="bar-chart">' + entries.map(e => {
-    const pct = max > 0 ? (e.value / max) * 100 : 0;
-    const pctTotal = total > 0 ? ((e.value / total) * 100).toFixed(1) : '0.0';
-    const isActive = filterField && filters[filterField] === e.label ? ' active' : '';
-    const onclick = filterField ? ` onclick="applyFilterFromBar('${filterField}','${esc(e.label)}')"` : '';
-    return `<div class="bar-row${isActive}"${onclick}>
-      <span class="bar-label">${esc(e.label)}</span>
-      <div class="bar-track">
-        <div class="bar-fill ${cssClass}" style="width:${pct}%"></div>
-        <div class="bar-tooltip">${fmtCurrency(e.value)} (${pctTotal}%)</div>
-      </div>
-      <span class="bar-value">${fmtCurrency(e.value)}</span>
+function barChart(containerId, grouped, field, css, filterField) {
+  const entries = Object.entries(grouped).map(([l, items]) => ({ l, v: sum(items, field) }));
+  entries.sort((a,b) => b.v - a.v);
+  const max = entries.length ? Math.max(...entries.map(e => e.v)) : 1;
+  const total = entries.reduce((s,e) => s + e.v, 0);
+  const el = document.getElementById(containerId);
+  if (!entries.length) { el.innerHTML = '<div class="empty-state">Sem dados.</div>'; return; }
+  el.innerHTML = '<div class="bar-chart">' + entries.map(e => {
+    const pct = max > 0 ? (e.v / max) * 100 : 0;
+    const pctT = total > 0 ? ((e.v / total) * 100).toFixed(1) : '0';
+    const active = filterField && filters[filterField] === e.l ? ' active' : '';
+    const click = filterField ? ` onclick="applyFilterFromBar('${filterField}','${esc(e.l)}')"` : '';
+    return `<div class="bar-row${active}"${click}>
+      <span class="bar-label">${esc(e.l)}</span>
+      <div class="bar-track"><div class="bar-fill ${css}" style="width:${pct}%"></div><span class="bar-pct">${pctT}%</span></div>
+      <span class="bar-value">${cur(e.v)}</span>
     </div>`;
   }).join('') + '</div>';
 }
 
-function renderValueBarChart(containerId, dataMap, suffix, cssClass, maxOverride) {
-  const container = document.getElementById(containerId);
-  const entries = Object.entries(dataMap).map(([label, value]) => ({ label, value }));
-  entries.sort((a, b) => b.value - a.value);
-  const max = maxOverride || (entries.length > 0 ? Math.max(...entries.map(e => e.value)) : 1);
-
-  container.innerHTML = '<div class="bar-chart">' + entries.map(e => {
-    const pct = max > 0 ? (e.value / max) * 100 : 0;
+function valueBarChart(containerId, dataMap, suffix, css, maxOverride) {
+  const entries = Object.entries(dataMap).map(([l,v]) => ({ l, v }));
+  entries.sort((a,b) => b.v - a.v);
+  const max = maxOverride || (entries.length ? Math.max(...entries.map(e => e.v)) : 1);
+  const el = document.getElementById(containerId);
+  if (!entries.length) { el.innerHTML = '<div class="empty-state">Sem dados.</div>'; return; }
+  el.innerHTML = '<div class="bar-chart">' + entries.map(e => {
+    const pct = max > 0 ? (e.v / max) * 100 : 0;
     return `<div class="bar-row">
-      <span class="bar-label">${esc(e.label)}</span>
-      <div class="bar-track">
-        <div class="bar-fill ${cssClass}" style="width:${pct}%"></div>
-        <div class="bar-tooltip">${e.value.toFixed(1)}${suffix}</div>
-      </div>
-      <span class="bar-value">${e.value.toFixed(1)}${suffix}</span>
+      <span class="bar-label">${esc(e.l)}</span>
+      <div class="bar-track"><div class="bar-fill ${css}" style="width:${pct}%"></div></div>
+      <span class="bar-value">${e.v.toFixed(1)}${suffix}</span>
     </div>`;
   }).join('') + '</div>';
 }
 
-// ============================================================
-// GRÁFICO DE BALANÇO (Canvas)
-// ============================================================
+// === CANVAS CHART ============================================
 
-function renderBalancoChart(data) {
+function renderBalanco(data) {
   const canvas = document.getElementById('canvas-balanco');
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
+  const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const txt = dark ? '#D0D8E0' : '#14202E';
+  const grid = dark ? '#253545' : '#B0BEC5';
+  const lbl = dark ? '#7A8FA0' : '#607D8B';
 
-  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-  const textColor = isDark ? '#D8DEE4' : '#14202E';
-  const gridColor = isDark ? '#2A3A4A' : '#B0BEC5';
-  const labelColor = isDark ? '#8899A6' : '#607D8B';
-
-  const byMonth = {};
+  const byM = {};
   data.forEach(o => {
-    const month = o.data.substring(0, 7);
-    if (!byMonth[month]) byMonth[month] = { receita: 0, despDireta: 0, despGeral: 0 };
-    byMonth[month].receita += Number(o.valor_venda);
-    byMonth[month].despDireta += Number(o.despesa_direta);
+    const m = o.data.substring(0,7);
+    if (!byM[m]) byM[m] = { r:0, dd:0, dg:0 };
+    byM[m].r += +o.valor_venda; byM[m].dd += +o.despesa_direta;
+  });
+  despesas.forEach(d => {
+    const m = d.data.substring(0,7);
+    if (!byM[m]) byM[m] = { r:0, dd:0, dg:0 };
+    byM[m].dg += +d.valor;
   });
 
-  despesasGerais.forEach(d => {
-    const month = d.data.substring(0, 7);
-    if (!byMonth[month]) byMonth[month] = { receita: 0, despDireta: 0, despGeral: 0 };
-    byMonth[month].despGeral += Number(d.valor);
-  });
-
-  const months = Object.keys(byMonth).sort();
-  if (months.length === 0) {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    return;
-  }
-
+  const months = Object.keys(byM).sort();
   const rect = canvas.parentElement.getBoundingClientRect();
-  canvas.width = rect.width;
-  canvas.height = 260;
+  canvas.width = rect.width; canvas.height = 260;
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  if (!months.length) return;
 
-  const padding = { top: 20, right: 20, bottom: 40, left: 70 };
-  const w = canvas.width - padding.left - padding.right;
-  const h = canvas.height - padding.top - padding.bottom;
+  const pad = { t:25, r:20, b:35, l:65 };
+  const w = canvas.width - pad.l - pad.r, h = canvas.height - pad.t - pad.b;
+  const vals = months.map(m => ({ m, r: byM[m].r, d: byM[m].dd + byM[m].dg, s: byM[m].r - byM[m].dd - byM[m].dg }));
+  const all = vals.flatMap(v => [v.r, v.d, v.s]);
+  const mx = Math.max(...all, 1), mn = Math.min(...all, 0), rng = mx - mn || 1;
 
-  const values = months.map(m => {
-    const d = byMonth[m];
-    return {
-      month: m,
-      receita: d.receita,
-      despesa: d.despDireta + d.despGeral,
-      saldo: d.receita - d.despDireta - d.despGeral,
-    };
-  });
-
-  const allVals = values.flatMap(v => [v.receita, v.despesa, v.saldo]);
-  const maxVal = Math.max(...allVals, 1);
-  const minVal = Math.min(...allVals, 0);
-  const range = maxVal - minVal || 1;
-
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.font = '11px "IBM Plex Mono", monospace';
-  ctx.textBaseline = 'middle';
-
-  const steps = 5;
-  for (let i = 0; i <= steps; i++) {
-    const val = minVal + (range * i / steps);
-    const y = padding.top + h - (h * (val - minVal) / range);
-    ctx.strokeStyle = gridColor;
-    ctx.lineWidth = 0.5;
-    ctx.beginPath();
-    ctx.moveTo(padding.left, y);
-    ctx.lineTo(padding.left + w, y);
-    ctx.stroke();
-    ctx.fillStyle = labelColor;
-    ctx.textAlign = 'right';
-    ctx.fillText(fmtShortCurrency(val), padding.left - 8, y);
+  ctx.font = '10px "IBM Plex Mono"'; ctx.textBaseline = 'middle';
+  for (let i = 0; i <= 4; i++) {
+    const val = mn + (rng * i / 4);
+    const y = pad.t + h - (h * (val - mn) / rng);
+    ctx.strokeStyle = grid; ctx.lineWidth = 0.5;
+    ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l + w, y); ctx.stroke();
+    ctx.fillStyle = lbl; ctx.textAlign = 'right';
+    ctx.fillText(shortCur(val), pad.l - 6, y);
   }
 
-  const barGroupWidth = w / months.length;
-  const barWidth = Math.min(barGroupWidth * 0.25, 30);
-  const gap = barWidth * 0.2;
+  const gw = w / months.length, bw = Math.min(gw * 0.22, 26), gap = bw * 0.15;
+  const colors = dark
+    ? { r:'#4D8FE0', d:'#E8845A', s:'#2BAA6A' }
+    : { r:'#1B4D96', d:'#D4531A', s:'#157A4E' };
+  const zeroY = pad.t + h - (h * (0 - mn) / rng);
 
-  const colors = isDark
-    ? { receita: '#5B8FD9', despesa: '#F0845A', saldo: '#2EAE6D' }
-    : { receita: '#1E4FA0', despesa: '#EC5C1E', saldo: '#157A4E' };
-
-  const zeroY = padding.top + h - (h * (0 - minVal) / range);
-
-  values.forEach((v, i) => {
-    const cx = padding.left + barGroupWidth * i + barGroupWidth / 2;
-
-    const ry = padding.top + h - (h * (v.receita - minVal) / range);
-    ctx.fillStyle = colors.receita;
-    ctx.fillRect(cx - barWidth * 1.5 - gap, ry, barWidth, zeroY - ry);
-
-    const dy = padding.top + h - (h * (v.despesa - minVal) / range);
-    ctx.fillStyle = colors.despesa;
-    ctx.fillRect(cx - barWidth / 2, dy, barWidth, zeroY - dy);
-
-    const sy = padding.top + h - (h * (v.saldo - minVal) / range);
-    ctx.fillStyle = colors.saldo;
-    if (v.saldo >= 0) {
-      ctx.fillRect(cx + barWidth / 2 + gap, sy, barWidth, zeroY - sy);
-    } else {
-      ctx.fillRect(cx + barWidth / 2 + gap, zeroY, barWidth, Math.abs(zeroY - sy));
-    }
-
-    ctx.fillStyle = textColor;
-    ctx.textAlign = 'center';
-    ctx.fillText(v.month, cx, padding.top + h + 20);
+  vals.forEach((v, i) => {
+    const cx = pad.l + gw * i + gw / 2;
+    const ry = pad.t + h - (h * (v.r - mn) / rng);
+    ctx.fillStyle = colors.r; ctx.fillRect(cx - bw*1.5 - gap, ry, bw, zeroY - ry);
+    const dy = pad.t + h - (h * (v.d - mn) / rng);
+    ctx.fillStyle = colors.d; ctx.fillRect(cx - bw/2, dy, bw, zeroY - dy);
+    const sy = pad.t + h - (h * (v.s - mn) / rng);
+    ctx.fillStyle = colors.s;
+    v.s >= 0 ? ctx.fillRect(cx + bw/2 + gap, sy, bw, zeroY - sy) : ctx.fillRect(cx + bw/2 + gap, zeroY, bw, Math.abs(zeroY - sy));
+    ctx.fillStyle = txt; ctx.textAlign = 'center';
+    ctx.fillText(v.m, cx, pad.t + h + 18);
   });
 
-  const legendY = 10;
-  const legendItems = [
-    { label: 'Receita', color: colors.receita },
-    { label: 'Despesa', color: colors.despesa },
-    { label: 'Saldo', color: colors.saldo },
-  ];
-  let lx = padding.left;
-  legendItems.forEach(item => {
-    ctx.fillStyle = item.color;
-    ctx.fillRect(lx, legendY, 12, 12);
-    ctx.fillStyle = textColor;
-    ctx.textAlign = 'left';
-    ctx.fillText(item.label, lx + 16, legendY + 6);
-    lx += ctx.measureText(item.label).width + 32;
+  let lx = pad.l;
+  [{ l:'Receita', c:colors.r },{ l:'Despesa', c:colors.d },{ l:'Saldo', c:colors.s }].forEach(it => {
+    ctx.fillStyle = it.c; ctx.fillRect(lx, 6, 10, 10);
+    ctx.fillStyle = txt; ctx.textAlign = 'left';
+    ctx.fillText(it.l, lx + 14, 11);
+    lx += ctx.measureText(it.l).width + 28;
   });
 }
 
-// ============================================================
-// UTILITÁRIOS
-// ============================================================
+// === KPI HELPER ==============================================
 
-function fmtCurrency(val) {
-  return 'R$ ' + Number(val).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+function kpi(items) {
+  return items.map(i => `<div class="kpi-item"><div class="kpi-val ${i.cls}">${i.val}</div><div class="kpi-lbl">${i.lbl}</div></div>`).join('');
 }
 
-function fmtShortCurrency(val) {
-  if (Math.abs(val) >= 1000) return 'R$ ' + (val / 1000).toFixed(0) + 'k';
-  return 'R$ ' + val.toFixed(0);
+function qualityBar(val) {
+  const v = +val;
+  const cls = v >= 85 ? 'high' : v >= 70 ? 'mid' : 'low';
+  return `<span class="quality-bar"><span class="quality-track"><span class="quality-fill ${cls}" style="width:${v}%"></span></span> ${v}</span>`;
 }
 
-function fmtDate(dateStr) {
-  if (!dateStr) return '—';
-  const [y, m, d] = dateStr.split('-');
-  return `${d}/${m}/${y}`;
-}
+// === UTIL ====================================================
 
-function statusLabel(s) {
-  const map = { concluido: 'Concluído', execucao_parcial: 'Exec. Parcial', em_andamento: 'Em Andamento' };
-  return map[s] || s;
-}
-
-function todayISO() {
-  return new Date().toISOString().split('T')[0];
-}
-
-function esc(str) {
-  const el = document.createElement('span');
-  el.textContent = str;
-  return el.innerHTML;
-}
-
-function debounce(fn, ms) {
-  let timer;
-  return function(...args) {
-    clearTimeout(timer);
-    timer = setTimeout(() => fn.apply(this, args), ms);
-  };
-}
+function cur(v) { return 'R$ ' + (+v).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }); }
+function shortCur(v) { return Math.abs(v) >= 1000 ? 'R$ ' + (v/1000).toFixed(0) + 'k' : 'R$ ' + v.toFixed(0); }
+function fmtDate(d) { if (!d) return '—'; const [y,m,dd] = d.split('-'); return `${dd}/${m}/${y}`; }
+function todayISO() { return new Date().toISOString().split('T')[0]; }
+function todayBR() { const d = new Date(); return `${d.getDate().toString().padStart(2,'0')}/${(d.getMonth()+1).toString().padStart(2,'0')}/${d.getFullYear()}`; }
+function statusLabel(s) { return { concluido:'Concluído', execucao_parcial:'Exec. Parcial', em_andamento:'Em Andamento' }[s] || s; }
+function esc(s) { const e = document.createElement('span'); e.textContent = s; return e.innerHTML; }
+function debounce(fn, ms) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; }
