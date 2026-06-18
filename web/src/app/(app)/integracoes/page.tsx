@@ -12,13 +12,14 @@ import { Badge } from "@/components/ui/badge";
 import { Input, Select, Label } from "@/components/ui/field";
 import { Modal, ModalBody, ModalFooter } from "@/components/ui/modal";
 import { ConfirmDialog } from "@/components/ui/confirm";
-import { EVENTOS, ingestUrl } from "@/lib/integrations";
+import { EVENTOS, ingestUrl, whatsappInboundUrl } from "@/lib/integrations";
 import { formatDate, cn } from "@/lib/utils";
 import {
   INTEGRACAO_TIPO_LABELS, type Integracao, type IntegracaoLog, type IntegracaoTipo,
+  type WhatsappConfig, type WhatsappProvider,
 } from "@/lib/types";
 import {
-  Plus, Pencil, Trash2, Lock, Plug, Send, RefreshCw, Power, Copy, Webhook, Download, KeyRound,
+  Plus, Pencil, Trash2, Lock, Plug, Send, RefreshCw, Power, Copy, Webhook, Download, KeyRound, MessageCircle,
 } from "lucide-react";
 
 export default function IntegracoesPage() {
@@ -65,7 +66,7 @@ export default function IntegracoesPage() {
       const { data, error } = await supabase.functions.invoke("integracoes", { body: { action, id: i.id } });
       if (error) throw new Error(error.message);
       if (data?.error) throw new Error(data.error);
-      if (action === "test") toast(data?.ok ? "Webhook de teste enviado." : `Falhou (HTTP ${data?.status}).`, data?.ok ? "success" : "error");
+      if (action === "test") toast(data?.ok ? "Teste enviado com sucesso." : `Falhou (HTTP ${data?.status}).`, data?.ok ? "success" : "error");
       else toast(`Importadas ${data?.importadas ?? 0} ordem(ns).`);
       await load();
     } catch (e) {
@@ -146,6 +147,23 @@ export default function IntegracoesPage() {
         </CardBody>
       </Card>
 
+      <Card className="mb-5">
+        <CardHeader><CardTitle>Bot de WhatsApp — conversação</CardTitle></CardHeader>
+        <CardBody>
+          <p className="text-sm text-muted mb-3">
+            Crie uma integração do tipo <strong>Bot de WhatsApp</strong> com as credenciais do provedor.
+            Para o bot <strong>responder</strong> os funcionários, configure o webhook de mensagens recebidas
+            do seu provedor (Z-API ou Meta) apontando para a URL abaixo.
+          </p>
+          <CopyField label="Webhook de recebimento (inbound)" value={whatsappInboundUrl()} />
+          <ul className="mt-3 text-xs text-muted list-disc pl-5 space-y-1">
+            <li><strong>Z-API:</strong> cole esta URL em &quot;Ao receber&quot; (on-message-received) no painel da Z-API.</li>
+            <li><strong>Meta:</strong> use como Callback URL; o Verify Token deve bater com a variável <code>WHATSAPP_VERIFY_TOKEN</code> da função.</li>
+            <li>Os funcionários precisam estar cadastrados em <strong>Cadastros → Funcionários</strong> com o telefone correto.</li>
+          </ul>
+        </CardBody>
+      </Card>
+
       <Card>
         <CardHeader><CardTitle>Atividade recente</CardTitle></CardHeader>
         <CardBody className="p-0">
@@ -194,7 +212,7 @@ export default function IntegracoesPage() {
 }
 
 const TIPO_ICON: Record<IntegracaoTipo, React.ComponentType<{ size?: number; className?: string }>> = {
-  saida: Webhook, entrada: KeyRound, importacao: Download,
+  saida: Webhook, entrada: KeyRound, importacao: Download, whatsapp: MessageCircle,
 };
 
 function IntegracaoRow({ item: i, busy, onToggle, onEdit, onDelete, onTest, onSync }: {
@@ -219,8 +237,8 @@ function IntegracaoRow({ item: i, busy, onToggle, onEdit, onDelete, onTest, onSy
         </div>
       </div>
       <div className="flex items-center gap-1 shrink-0">
-        {i.tipo === "saida" && (
-          <button disabled={busy} onClick={onTest} title="Testar webhook"
+        {(i.tipo === "saida" || i.tipo === "whatsapp") && (
+          <button disabled={busy} onClick={onTest} title={i.tipo === "whatsapp" ? "Enviar mensagem de teste" : "Testar webhook"}
             className="p-1.5 rounded-md text-muted hover:text-primary hover:bg-primary-soft disabled:opacity-40 cursor-pointer"><Send size={15} /></button>
         )}
         {i.tipo === "importacao" && (
@@ -249,6 +267,21 @@ function IntegracaoModal({ integracao, onClose, onSaved }: {
   const [secret, setSecret] = React.useState(integracao?.secret ?? "");
   const [eventos, setEventos] = React.useState<string[]>(integracao?.eventos ?? EVENTOS.map((e) => e.id));
 
+  // Config específica de WhatsApp
+  const waCfg = (integracao?.config ?? {}) as unknown as WhatsappConfig;
+  const [provider, setProvider] = React.useState<WhatsappProvider>(waCfg.provider ?? "zapi");
+  const [zapi, setZapi] = React.useState({
+    instanceId: waCfg.zapi?.instanceId ?? "",
+    token: waCfg.zapi?.token ?? "",
+    clientToken: waCfg.zapi?.clientToken ?? "",
+  });
+  const [meta, setMeta] = React.useState({
+    phoneNumberId: waCfg.meta?.phoneNumberId ?? "",
+    accessToken: waCfg.meta?.accessToken ?? "",
+  });
+  const [destinatarios, setDestinatarios] = React.useState((waCfg.destinatarios ?? []).join(", "));
+  const [notificarEquipe, setNotificarEquipe] = React.useState(waCfg.notificar_equipe ?? false);
+
   function genToken() {
     const t = (crypto.randomUUID() + crypto.randomUUID()).replace(/-/g, "");
     setSecret(t);
@@ -258,16 +291,40 @@ function IntegracaoModal({ integracao, onClose, onSaved }: {
     e.preventDefault();
     setSaving(true);
     const fd = new FormData(e.currentTarget);
+    const precisaUrl = tipo === "saida" || tipo === "importacao";
+    const config: Record<string, unknown> =
+      tipo === "whatsapp"
+        ? {
+            provider,
+            ...(provider === "zapi"
+              ? { zapi }
+              : { meta }),
+            destinatarios: destinatarios
+              .split(/[,\n;]/)
+              .map((s) => s.replace(/\D/g, ""))
+              .filter(Boolean),
+            notificar_equipe: notificarEquipe,
+          }
+        : (integracao?.config ?? {});
     const rec = {
       tipo,
       nome: (fd.get("nome") as string).trim(),
       ativo: fd.get("ativo") === "on",
-      url: tipo === "entrada" ? null : ((fd.get("url") as string).trim() || null),
+      url: precisaUrl ? ((fd.get("url") as string).trim() || null) : null,
       secret: secret || null,
-      eventos: tipo === "saida" ? eventos : [],
+      eventos: tipo === "saida" || tipo === "whatsapp" ? eventos : [],
+      config,
     };
     if (!rec.nome) { setSaving(false); toast("Informe um nome.", "error"); return; }
-    if (tipo !== "entrada" && !rec.url) { setSaving(false); toast("Informe a URL.", "error"); return; }
+    if (precisaUrl && !rec.url) { setSaving(false); toast("Informe a URL.", "error"); return; }
+    if (tipo === "whatsapp") {
+      if (provider === "zapi" && (!zapi.instanceId || !zapi.token)) {
+        setSaving(false); toast("Informe Instance ID e Token da Z-API.", "error"); return;
+      }
+      if (provider === "meta" && (!meta.phoneNumberId || !meta.accessToken)) {
+        setSaving(false); toast("Informe Phone Number ID e Access Token da Meta.", "error"); return;
+      }
+    }
 
     const { error } = integracao
       ? await supabase.from("integracoes").update(rec).eq("id", integracao.id)
@@ -290,6 +347,7 @@ function IntegracaoModal({ integracao, onClose, onSaved }: {
                 <option value="saida">Webhook de saída</option>
                 <option value="entrada">API de entrada</option>
                 <option value="importacao">Importação externa</option>
+                <option value="whatsapp">Bot de WhatsApp</option>
               </Select>
             </div>
             <div>
@@ -298,39 +356,51 @@ function IntegracaoModal({ integracao, onClose, onSaved }: {
             </div>
           </div>
 
-          {tipo !== "entrada" && (
+          {(tipo === "saida" || tipo === "importacao") && (
             <div>
               <Label>{tipo === "saida" ? "URL de destino *" : "URL de origem (JSON) *"}</Label>
               <Input name="url" type="url" required placeholder="https://..." defaultValue={integracao?.url ?? ""} />
             </div>
           )}
 
-          <div>
-            <Label>
-              {tipo === "entrada" ? "Token de acesso (x-api-key) *" : "Segredo / token (opcional)"}
-            </Label>
-            <div className="flex gap-2">
-              <Input
-                value={secret}
-                onChange={(e) => setSecret(e.target.value)}
-                placeholder={tipo === "entrada" ? "gere um token" : "enviado como X-Webhook-Secret / Bearer"}
-                className="font-mono text-xs"
-              />
+          {tipo !== "whatsapp" && (
+            <div>
+              <Label>
+                {tipo === "entrada" ? "Token de acesso (x-api-key) *" : "Segredo / token (opcional)"}
+              </Label>
+              <div className="flex gap-2">
+                <Input
+                  value={secret}
+                  onChange={(e) => setSecret(e.target.value)}
+                  placeholder={tipo === "entrada" ? "gere um token" : "enviado como X-Webhook-Secret / Bearer"}
+                  className="font-mono text-xs"
+                />
+                {tipo === "entrada" && (
+                  <Button type="button" variant="secondary" onClick={genToken}><KeyRound size={14} /> Gerar</Button>
+                )}
+              </div>
               {tipo === "entrada" && (
-                <Button type="button" variant="secondary" onClick={genToken}><KeyRound size={14} /> Gerar</Button>
+                <p className="text-xs text-muted mt-1">Quem enviar dados deve usar este token no header <code>x-api-key</code>.</p>
+              )}
+              {tipo === "importacao" && (
+                <p className="text-xs text-muted mt-1">Se preenchido, é enviado como <code>Authorization: Bearer</code> ao buscar a origem.</p>
               )}
             </div>
-            {tipo === "entrada" && (
-              <p className="text-xs text-muted mt-1">Quem enviar dados deve usar este token no header <code>x-api-key</code>.</p>
-            )}
-            {tipo === "importacao" && (
-              <p className="text-xs text-muted mt-1">Se preenchido, é enviado como <code>Authorization: Bearer</code> ao buscar a origem.</p>
-            )}
-          </div>
+          )}
 
-          {tipo === "saida" && (
+          {tipo === "whatsapp" && (
+            <WhatsappFields
+              provider={provider} setProvider={setProvider}
+              zapi={zapi} setZapi={setZapi}
+              meta={meta} setMeta={setMeta}
+              destinatarios={destinatarios} setDestinatarios={setDestinatarios}
+              notificarEquipe={notificarEquipe} setNotificarEquipe={setNotificarEquipe}
+            />
+          )}
+
+          {(tipo === "saida" || tipo === "whatsapp") && (
             <div>
-              <Label>Eventos que disparam o webhook</Label>
+              <Label>{tipo === "whatsapp" ? "Eventos que enviam mensagem" : "Eventos que disparam o webhook"}</Label>
               <div className="grid grid-cols-2 gap-2 mt-1">
                 {EVENTOS.map((ev) => (
                   <label key={ev.id} className="flex items-center gap-2 text-sm cursor-pointer">
@@ -358,6 +428,78 @@ function IntegracaoModal({ integracao, onClose, onSaved }: {
         </ModalFooter>
       </form>
     </Modal>
+  );
+}
+
+function WhatsappFields({
+  provider, setProvider, zapi, setZapi, meta, setMeta,
+  destinatarios, setDestinatarios, notificarEquipe, setNotificarEquipe,
+}: {
+  provider: WhatsappProvider;
+  setProvider: (p: WhatsappProvider) => void;
+  zapi: { instanceId: string; token: string; clientToken: string };
+  setZapi: React.Dispatch<React.SetStateAction<{ instanceId: string; token: string; clientToken: string }>>;
+  meta: { phoneNumberId: string; accessToken: string };
+  setMeta: React.Dispatch<React.SetStateAction<{ phoneNumberId: string; accessToken: string }>>;
+  destinatarios: string;
+  setDestinatarios: (s: string) => void;
+  notificarEquipe: boolean;
+  setNotificarEquipe: (b: boolean) => void;
+}) {
+  return (
+    <div className="space-y-4 rounded-lg border border-border bg-surface-2 p-3">
+      <div>
+        <Label>Provedor *</Label>
+        <Select value={provider} onChange={(e) => setProvider(e.target.value as WhatsappProvider)}>
+          <option value="zapi">Z-API (rápido para MVP/demo)</option>
+          <option value="meta">WhatsApp Cloud API (Meta — oficial)</option>
+        </Select>
+      </div>
+
+      {provider === "zapi" ? (
+        <div className="grid grid-cols-1 gap-3">
+          <div>
+            <Label>Instance ID *</Label>
+            <Input value={zapi.instanceId} onChange={(e) => setZapi((s) => ({ ...s, instanceId: e.target.value }))} className="font-mono text-xs" />
+          </div>
+          <div>
+            <Label>Token *</Label>
+            <Input value={zapi.token} onChange={(e) => setZapi((s) => ({ ...s, token: e.target.value }))} className="font-mono text-xs" />
+          </div>
+          <div>
+            <Label>Client-Token (segurança da conta)</Label>
+            <Input value={zapi.clientToken} onChange={(e) => setZapi((s) => ({ ...s, clientToken: e.target.value }))} className="font-mono text-xs" />
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-3">
+          <div>
+            <Label>Phone Number ID *</Label>
+            <Input value={meta.phoneNumberId} onChange={(e) => setMeta((s) => ({ ...s, phoneNumberId: e.target.value }))} className="font-mono text-xs" />
+          </div>
+          <div>
+            <Label>Access Token *</Label>
+            <Input value={meta.accessToken} onChange={(e) => setMeta((s) => ({ ...s, accessToken: e.target.value }))} className="font-mono text-xs" />
+          </div>
+        </div>
+      )}
+
+      <div>
+        <Label>Destinatários fixos (números com DDI+DDD)</Label>
+        <Input
+          value={destinatarios}
+          onChange={(e) => setDestinatarios(e.target.value)}
+          placeholder="ex: 5511999999999, 5521988888888"
+          className="font-mono text-xs"
+        />
+        <p className="text-xs text-muted mt-1">Separe por vírgula. Recebem todas as notificações dos eventos marcados.</p>
+      </div>
+
+      <label className="flex items-center gap-2 text-sm cursor-pointer">
+        <input type="checkbox" checked={notificarEquipe} onChange={(e) => setNotificarEquipe(e.target.checked)} className="accent-[var(--primary)]" />
+        Também notificar os funcionários da equipe da ordem (cadastrados em Funcionários)
+      </label>
+    </div>
   );
 }
 

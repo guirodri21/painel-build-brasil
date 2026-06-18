@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { LookupManager } from "@/components/lookup-manager";
+import { FuncionariosManager } from "@/components/funcionarios-manager";
 import { DespesaModal } from "@/components/despesa-modal";
 import { ConfirmDialog } from "@/components/ui/confirm";
 import { formatCurrency, formatDate, cn } from "@/lib/utils";
@@ -51,6 +52,10 @@ export default function CadastrosPage() {
         <LookupManager title="Equipes" table="equipes" items={equipes} />
         <LookupManager title="Regiões" table="regioes" items={regioes} />
         <LookupManager title="Linhas de Serviço" table="linhas_servico" items={linhas} />
+      </div>
+
+      <div className="mb-5">
+        <FuncionariosManager />
       </div>
 
       <Card>

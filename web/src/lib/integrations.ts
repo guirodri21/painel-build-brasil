@@ -16,6 +16,12 @@ export function ingestUrl(): string {
   return `${base}/functions/v1/ingest`;
 }
 
+/** URL pública do webhook de WhatsApp (Edge Function whatsapp-inbound). */
+export function whatsappInboundUrl(): string {
+  const base = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+  return `${base}/functions/v1/whatsapp-inbound`;
+}
+
 /**
  * Dispara os webhooks de saída inscritos no evento. Fire-and-forget:
  * nunca interrompe o fluxo de salvar — falhas ficam só no log de integrações.

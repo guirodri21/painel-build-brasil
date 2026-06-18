@@ -95,50 +95,11 @@ CREATE POLICY "despesas_delete" ON despesas_gerais FOR DELETE
   USING (auth.uid() = created_by);
 
 -- ============================================================
--- 5. Dados iniciais das listas de apoio
+-- 5. Dados (seed / reset)
+-- Este schema cria apenas a ESTRUTURA. Nenhum dado fictício é
+-- inserido aqui, para que produção nunca suba dado falso por engano.
+--
+-- Para popular dados de demonstração: rode  seed-demo.sql
+-- Para deixar limpo p/ produção (mantém cadastros): reset-limpo.sql
+-- Para zerar tudo (inclui cadastros base):          reset-total.sql
 -- ============================================================
-
-INSERT INTO regioes (nome) VALUES
-  ('São Paulo - Capital'),
-  ('São Paulo - Interior'),
-  ('Rio de Janeiro'),
-  ('Minas Gerais'),
-  ('Sul');
-
-INSERT INTO equipes (nome) VALUES
-  ('Alfa'),
-  ('Bravo'),
-  ('Charlie'),
-  ('Delta');
-
-INSERT INTO linhas_servico (nome) VALUES
-  ('Manutenção Predial'),
-  ('Reforma Comercial'),
-  ('Instalações Elétricas'),
-  ('Construção Civil'),
-  ('Pintura e Acabamento');
-
--- ============================================================
--- 6. Dados de exemplo (ordens e despesas)
--- created_by fica NULL nos exemplos; em produção o app preenche.
--- ============================================================
-
-INSERT INTO ordens (data, regiao, equipe, linha_servico, cliente, valor_venda, despesa_direta, status, tempo_execucao_h, qualidade, resumo) VALUES
-  ('2026-06-01','São Paulo - Capital','Alfa','Manutenção Predial','Edifício Aurora',18500,6200,'concluido',32,92,'Manutenção preventiva — elétrica e hidráulica'),
-  ('2026-06-03','Rio de Janeiro','Bravo','Reforma Comercial','Loja Center Norte',42000,18500,'concluido',120,85,'Reforma completa do piso térreo'),
-  ('2026-06-05','Minas Gerais','Charlie','Instalações Elétricas','Galpão MG-040',27800,9400,'concluido',64,78,'Instalação de novo quadro de distribuição'),
-  ('2026-06-06','São Paulo - Interior','Delta','Construção Civil','Condomínio Parque das Águas',135000,62000,'em_andamento',NULL,NULL,'Construção de 4 unidades — fase de fundação'),
-  ('2026-06-07','Sul','Alfa','Pintura e Acabamento','Hospital Regional Sul',22000,7800,'concluido',48,95,'Pintura externa — 3 blocos'),
-  ('2026-06-08','São Paulo - Capital','Bravo','Manutenção Predial','Sede Banco Central',15200,5100,'execucao_parcial',18,NULL,'Manutenção do sistema de ar-condicionado — aguardando peça'),
-  ('2026-06-10','Rio de Janeiro','Charlie','Reforma Comercial','Shopping Tijuca',55000,22000,'em_andamento',NULL,NULL,'Reforma de 12 lojas — fase de demolição'),
-  ('2026-06-12','Minas Gerais','Delta','Instalações Elétricas','Fábrica Itabirito',31500,11200,'concluido',80,88,'Adequação NR-10 completa'),
-  ('2026-06-13','São Paulo - Capital','Alfa','Construção Civil','Residência Alto de Pinheiros',89000,38000,'execucao_parcial',96,82,'Ampliação — estrutura pronta, acabamento pendente'),
-  ('2026-06-15','Sul','Bravo','Pintura e Acabamento','Escola Municipal Canoas',12800,4200,'concluido',24,90,'Pintura interna — 8 salas de aula');
-
-INSERT INTO despesas_gerais (data, categoria, descricao, valor) VALUES
-  ('2026-06-01','suprimentos','Compra mensal de EPIs',3200),
-  ('2026-06-01','contas','Aluguel do galpão de materiais',4500),
-  ('2026-06-05','suprimentos','Ferramentas elétricas — reposição',1800),
-  ('2026-06-10','contas','Conta de energia do escritório',950),
-  ('2026-06-12','outros','Licença de software de projeto',600),
-  ('2026-06-15','suprimentos','Tintas e solventes — estoque',2700);

@@ -72,6 +72,21 @@ export default function VisaoGeralPage() {
       <PageHeader title="Visão Geral" subtitle="Resumo consolidado dos resultados" />
       <FilterBar />
 
+      {ordens.length === 0 && (
+        <Card className="mb-5">
+          <CardBody>
+            <div className="flex flex-col items-center justify-center py-10 text-center">
+              <ClipboardList size={36} className="text-muted mb-3" />
+              <p className="font-semibold mb-1">Tudo pronto para começar</p>
+              <p className="text-sm text-muted max-w-md">
+                Ainda não há ordens registradas. Cadastre a primeira em <strong>Operações</strong> —
+                os indicadores e gráficos serão preenchidos automaticamente.
+              </p>
+            </div>
+          </CardBody>
+        </Card>
+      )}
+
       <div className="grid gap-3 mb-5 grid-cols-2 lg:grid-cols-5">
         <KpiCard label="Receita Total" value={formatCurrency(recTotal)} icon={DollarSign} trend={trends?.receita} />
         <KpiCard label="Saldo Geral" value={formatCurrency(saldo)} tone={saldo >= 0 ? "green" : "red"} icon={Wallet} trend={trends?.saldo} />
@@ -122,6 +137,11 @@ export default function VisaoGeralPage() {
                 </tr>
               </thead>
               <tbody>
+                {equipes.length === 0 && (
+                  <tr><td colSpan={7} className="text-center py-12 text-muted text-sm">
+                    Nenhuma equipe cadastrada. Adicione equipes em <strong>Cadastros</strong> para começar.
+                  </td></tr>
+                )}
                 {equipes.map((eq) => {
                   const x = res[eq];
                   const qmItems = d.filter((o) => o.equipe === eq && o.qualidade != null);
