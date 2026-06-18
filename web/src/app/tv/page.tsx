@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { useData } from "@/components/data-provider";
+import { createClient } from "@/lib/supabase/client";
 import { BrandMark } from "@/components/brand";
 import { DonutChart, HBarChart, BalancoChart, ValueBarChart, CHART_COLORS } from "@/components/charts";
 import {
@@ -75,6 +76,15 @@ export default function TvPage() {
   // Relógio
   React.useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  // TV ligada 24/7: revalida a sessão a cada 30 min para manter o token vivo
+  React.useEffect(() => {
+    const supabase = createClient();
+    const id = setInterval(() => {
+      supabase.auth.getSession();
+    }, 30 * 60 * 1000);
     return () => clearInterval(id);
   }, []);
 
