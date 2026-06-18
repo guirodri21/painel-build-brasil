@@ -11,6 +11,7 @@ import {
   Database,
   FileText,
   Users,
+  Plug,
   MonitorPlay,
   X,
 } from "lucide-react";
@@ -28,7 +29,10 @@ const NAV = [
   { href: "/relatorios", label: "Relatórios", icon: FileText },
 ];
 
-const ADMIN_NAV = [{ href: "/usuarios", label: "Usuários", icon: Users }];
+const ADMIN_NAV = [
+  { href: "/integracoes", label: "Integrações", icon: Plug },
+  { href: "/usuarios", label: "Usuários", icon: Users },
+];
 
 export function Sidebar({
   open,

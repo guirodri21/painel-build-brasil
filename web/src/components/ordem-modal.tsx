@@ -8,6 +8,7 @@ import { Modal, ModalBody, ModalFooter } from "@/components/ui/modal";
 import { Input, Select, Textarea, Label } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { todayISO } from "@/lib/utils";
+import { fireEvent } from "@/lib/integrations";
 import type { Ordem } from "@/lib/types";
 
 export function OrdemModal({
@@ -56,6 +57,7 @@ export function OrdemModal({
       toast("Erro: " + error.message, "error");
       return;
     }
+    fireEvent(ordem ? "ordem.atualizada" : "ordem.criada", { ...rec, id: ordem?.id });
     await refresh();
     toast(ordem ? "Ordem atualizada." : "Ordem criada.");
     onClose();

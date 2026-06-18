@@ -7,6 +7,7 @@ import { useToast } from "@/components/ui/toast";
 import { Modal, ModalBody, ModalFooter } from "@/components/ui/modal";
 import { Input, Select, Label } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
+import { fireEvent } from "@/lib/integrations";
 import type { Meta } from "@/lib/types";
 
 export function MetaModal({
@@ -50,6 +51,7 @@ export function MetaModal({
       );
       return;
     }
+    fireEvent(meta ? "meta.atualizada" : "meta.criada", { ...rec, id: meta?.id });
     await refresh();
     toast(meta ? "Meta atualizada." : "Meta criada.");
     onClose();
