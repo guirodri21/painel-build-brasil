@@ -87,7 +87,7 @@ export function HBarChart({
           tickLine={false}
         />
         <Tooltip content={<CurrencyTooltip />} cursor={{ fill: "var(--primary-soft)" }} />
-        <Bar dataKey="value" radius={[0, 4, 4, 0]} maxBarSize={28}>
+        <Bar dataKey="value" radius={[0, 4, 4, 0]} maxBarSize={28} animationDuration={900} animationEasing="ease-out">
           {data.map((_, i) => (
             <Cell key={i} fill={color} />
           ))}
@@ -115,6 +115,8 @@ export function DonutChart({
           innerRadius={60}
           outerRadius={95}
           paddingAngle={2}
+          animationDuration={900}
+          animationEasing="ease-out"
         >
           {data.map((_, i) => (
             <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
@@ -154,9 +156,9 @@ export function BalancoChart({
           iconType="line"
           formatter={(v) => <span className="text-xs text-muted">{v}</span>}
         />
-        <Line type="monotone" dataKey="receita" name="Receita" stroke={CHART_COLORS[0]} strokeWidth={2} dot={false} />
-        <Line type="monotone" dataKey="despesa" name="Despesa" stroke={CHART_COLORS[3]} strokeWidth={2} dot={false} />
-        <Line type="monotone" dataKey="saldo" name="Saldo" stroke={CHART_COLORS[2]} strokeWidth={2} dot={false} />
+        <Line type="monotone" dataKey="receita" name="Receita" stroke={CHART_COLORS[0]} strokeWidth={2} dot={false} animationDuration={1100} animationEasing="ease-out" />
+        <Line type="monotone" dataKey="despesa" name="Despesa" stroke={CHART_COLORS[3]} strokeWidth={2} dot={false} animationDuration={1100} animationEasing="ease-out" />
+        <Line type="monotone" dataKey="saldo" name="Saldo" stroke={CHART_COLORS[2]} strokeWidth={2} dot={false} animationDuration={1100} animationEasing="ease-out" />
       </LineChart>
     </ResponsiveContainer>
   );
@@ -190,7 +192,7 @@ export function ValueBarChart({
           }}
           formatter={(v) => [`${Number(v).toFixed(1)}${suffix}`, ""]}
         />
-        <Bar dataKey="value" radius={[0, 4, 4, 0]} maxBarSize={28}>
+        <Bar dataKey="value" radius={[0, 4, 4, 0]} maxBarSize={28} animationDuration={900} animationEasing="ease-out">
           {data.map((_, i) => (
             <Cell key={i} fill={color} />
           ))}

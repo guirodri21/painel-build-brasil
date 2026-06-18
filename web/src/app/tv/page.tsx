@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useData } from "@/components/data-provider";
 import { createClient } from "@/lib/supabase/client";
 import { BrandMark } from "@/components/brand";
+import { AnimatedNumber } from "@/components/animated-number";
 import { DonutChart, HBarChart, BalancoChart, ValueBarChart, CHART_COLORS } from "@/components/charts";
 import {
   calcVendas,
@@ -176,7 +177,7 @@ export default function TvPage() {
         </div>
 
         <div className="flex items-center gap-3">
-          <span className="flex items-center gap-2 rounded-full bg-red-soft px-3 py-1">
+          <span className="live-pulse flex items-center gap-2 rounded-full bg-red-soft px-3 py-1">
             <span className="h-2 w-2 rounded-full bg-red animate-pulse" />
             <span className="text-xs font-semibold text-red tracking-wide">AO VIVO</span>
           </span>
@@ -229,7 +230,7 @@ export default function TvPage() {
         {loading ? (
           <div className="h-full flex items-center justify-center text-muted text-lg">Carregando dados…</div>
         ) : isGrid ? (
-          <div className={cn("grid gap-5", activeScenes.length <= 1 ? "grid-cols-1" : activeScenes.length <= 4 ? "grid-cols-2" : "grid-cols-2 xl:grid-cols-3")}>
+          <div className={cn("stagger grid gap-5", activeScenes.length <= 1 ? "grid-cols-1" : activeScenes.length <= 4 ? "grid-cols-2" : "grid-cols-2 xl:grid-cols-3")}>
             {activeScenes.map((s) => (
               <div key={s} className="rounded-2xl border border-border bg-surface/40 p-4">
                 <h2 className="text-lg font-bold mb-3">{SCENES[s]}</h2>
@@ -349,14 +350,18 @@ function ConfigPanel({ config, onChange, onClose }: { config: TvConfig; onChange
 }
 
 /* ===== KPI grande ===== */
-function BigKpi({ label, value, tone = "default" }: { label: string; value: string | number; tone?: string }) {
+function BigKpi({ label, value, format, tone = "default" }: {
+  label: string; value: string | number; format?: (n: number) => string; tone?: string;
+}) {
   const color =
     tone === "green" ? "text-green" : tone === "red" ? "text-red" :
     tone === "orange" ? "text-orange" : tone === "teal" ? "text-teal" : "text-primary";
   return (
-    <div className="rounded-2xl border border-border bg-surface px-6 py-5 flex flex-col justify-center">
+    <div className="rounded-2xl border border-border bg-surface px-6 py-5 flex flex-col justify-center transition-transform hover:scale-[1.02]">
       <span className="text-sm font-medium text-muted">{label}</span>
-      <span className={cn("mt-2 text-[2.75rem] leading-none font-bold tracking-tight tabular-nums", color)}>{value}</span>
+      <span className={cn("mt-2 text-[2.75rem] leading-none font-bold tracking-tight tabular-nums", color)}>
+        {typeof value === "number" && format ? <AnimatedNumber value={value} format={format} /> : value}
+      </span>
     </div>
   );
 }
@@ -378,12 +383,12 @@ function SceneGeral({ recTotal, saldo, ordens, qualidade, andamento, res }: {
 
   return (
     <div className="h-full flex flex-col gap-5">
-      <div className="grid grid-cols-5 gap-4 flex-1">
-        <BigKpi label="Receita Total" value={formatCurrency(recTotal)} />
-        <BigKpi label="Saldo Geral" value={formatCurrency(saldo)} tone={saldo >= 0 ? "green" : "red"} />
-        <BigKpi label="Ordens" value={ordens} tone="teal" />
-        <BigKpi label="Qualidade Média" value={qualidade.toFixed(0)} tone={qualidade < 80 ? "orange" : "teal"} />
-        <BigKpi label="Em Andamento" value={andamento} tone={andamento > 0 ? "orange" : "default"} />
+      <div className="stagger grid grid-cols-5 gap-4 flex-1">
+        <BigKpi label="Receita Total" value={recTotal} format={(n) => formatCurrency(n)} />
+        <BigKpi label="Saldo Geral" value={saldo} format={(n) => formatCurrency(n)} tone={saldo >= 0 ? "green" : "red"} />
+        <BigKpi label="Ordens" value={ordens} format={(n) => Math.round(n).toString()} tone="teal" />
+        <BigKpi label="Qualidade Média" value={qualidade} format={(n) => n.toFixed(0)} tone={qualidade < 80 ? "orange" : "teal"} />
+        <BigKpi label="Em Andamento" value={andamento} format={(n) => Math.round(n).toString()} tone={andamento > 0 ? "orange" : "default"} />
       </div>
       <div className="flex flex-wrap gap-3">
         {alerts.length ? alerts.map((a, i) => (
@@ -410,9 +415,9 @@ function SceneVendas({ ordens, total, ticket }: { ordens: Ordem[]; total: number
 
   return (
     <div className="h-full grid grid-cols-3 gap-5">
-      <div className="flex flex-col gap-4">
-        <BigKpi label="Total de Vendas" value={formatCurrency(total)} />
-        <BigKpi label="Ticket Médio" value={formatCurrency(ticket)} tone="teal" />
+      <div className="stagger flex flex-col gap-4">
+        <BigKpi label="Total de Vendas" value={total} format={(n) => formatCurrency(n)} />
+        <BigKpi label="Ticket Médio" value={ticket} format={(n) => formatCurrency(n)} tone="teal" />
       </div>
       <Panel title="Vendas por Região"><DonutChart data={porRegiao} height={420} /></Panel>
       <Panel title="Vendas por Equipe"><HBarChart data={porEquipe} color={CHART_COLORS[1]} height={420} /></Panel>
@@ -426,11 +431,11 @@ function SceneOps({ ordens, op }: { ordens: Ordem[]; op: ReturnType<typeof calcO
   const tempo = Object.entries(tempoMedioPorEquipe(ordens)).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
   return (
     <div className="h-full flex flex-col gap-5">
-      <div className="grid grid-cols-4 gap-4">
-        <BigKpi label="Tempo Médio" value={op.tempoMedio.toFixed(1) + "h"} />
-        <BigKpi label="Qualidade Média" value={op.qualMedia.toFixed(0)} tone="teal" />
-        <BigKpi label="Taxa Conclusão" value={op.taxaConc.toFixed(0) + "%"} tone="green" />
-        <BigKpi label="Em Andamento" value={op.andamento} tone={op.andamento > 0 ? "orange" : "default"} />
+      <div className="stagger grid grid-cols-4 gap-4">
+        <BigKpi label="Tempo Médio" value={op.tempoMedio} format={(n) => n.toFixed(1) + "h"} />
+        <BigKpi label="Qualidade Média" value={op.qualMedia} format={(n) => n.toFixed(0)} tone="teal" />
+        <BigKpi label="Taxa Conclusão" value={op.taxaConc} format={(n) => n.toFixed(0) + "%"} tone="green" />
+        <BigKpi label="Em Andamento" value={op.andamento} format={(n) => Math.round(n).toString()} tone={op.andamento > 0 ? "orange" : "default"} />
       </div>
       <div className="grid grid-cols-2 gap-5 flex-1">
         <Panel title="Qualidade por Equipe"><ValueBarChart data={qualidade} color={CHART_COLORS[2]} height={300} /></Panel>
@@ -448,11 +453,11 @@ function SceneFin({ ordens, despesas, recTotal, despTotal, saldo, margem }: {
   const balanco = balancoMensal(ordens, despesas).map((b) => ({ ...b, mes: monthLabel(b.mes) }));
   return (
     <div className="h-full grid grid-cols-3 gap-5">
-      <div className="flex flex-col gap-4">
-        <BigKpi label="Receita" value={formatCurrency(recTotal)} />
-        <BigKpi label="Despesas" value={formatCurrency(despTotal)} tone="orange" />
-        <BigKpi label="Saldo" value={formatCurrency(saldo)} tone={saldo >= 0 ? "green" : "red"} />
-        <BigKpi label="Margem" value={margem.toFixed(1).replace(".", ",") + "%"} tone={margem >= 0 ? "green" : "red"} />
+      <div className="stagger flex flex-col gap-4">
+        <BigKpi label="Receita" value={recTotal} format={(n) => formatCurrency(n)} />
+        <BigKpi label="Despesas" value={despTotal} format={(n) => formatCurrency(n)} tone="orange" />
+        <BigKpi label="Saldo" value={saldo} format={(n) => formatCurrency(n)} tone={saldo >= 0 ? "green" : "red"} />
+        <BigKpi label="Margem" value={margem} format={(n) => n.toFixed(1).replace(".", ",") + "%"} tone={margem >= 0 ? "green" : "red"} />
       </div>
       <div className="col-span-2">
         <Panel title="Balanço Mensal"><BalancoChart data={balanco} height={440} /></Panel>
@@ -476,7 +481,7 @@ function SceneMetas({ metas, realizado }: { metas: Meta[]; realizado: Record<str
     return <div className="h-full flex items-center justify-center text-muted text-lg">Nenhuma meta definida.</div>;
 
   return (
-    <div className="h-full flex flex-col gap-4 justify-center">
+    <div className="stagger h-full flex flex-col gap-4 justify-center">
       {linhas.map(({ m, real, pct }) => (
         <div key={m.id} className="rounded-2xl border border-border bg-surface px-5 py-4">
           <div className="flex items-center justify-between mb-2">
@@ -488,12 +493,12 @@ function SceneMetas({ metas, realizado }: { metas: Meta[]; realizado: Record<str
           <div className="flex items-center gap-3">
             <span className="h-3 flex-1 rounded-full bg-surface-2 overflow-hidden">
               <span
-                className={cn("block h-full rounded-full transition-all", pct >= 100 ? "bg-green" : pct >= 70 ? "bg-yellow" : "bg-red")}
+                className={cn("animate-bar block h-full rounded-full transition-all duration-700", pct >= 100 ? "bg-green" : pct >= 70 ? "bg-yellow" : "bg-red")}
                 style={{ width: `${Math.min(pct, 100)}%` }}
               />
             </span>
             <span className={cn("text-xl font-bold tabular-nums w-20 text-right", pct >= 100 ? "text-green" : pct >= 70 ? "text-yellow" : "text-red")}>
-              {pct.toFixed(0)}%
+              <AnimatedNumber value={pct} format={(n) => n.toFixed(0) + "%"} />
             </span>
           </div>
         </div>
@@ -513,7 +518,7 @@ function SceneRanking({ res }: { res: Record<string, { rec: number; saldo: numbe
 
   const medals = ["🥇", "🥈", "🥉"];
   return (
-    <div className="h-full flex flex-col gap-3 justify-center">
+    <div className="stagger h-full flex flex-col gap-3 justify-center">
       {linhas.map(([eq, x], i) => (
         <div key={eq} className={cn(
           "flex items-center gap-4 rounded-2xl border px-5 py-4",

@@ -87,12 +87,12 @@ export default function VisaoGeralPage() {
         </Card>
       )}
 
-      <div className="grid gap-3 mb-5 grid-cols-2 lg:grid-cols-5">
-        <KpiCard label="Receita Total" value={formatCurrency(recTotal)} icon={DollarSign} trend={trends?.receita} />
-        <KpiCard label="Saldo Geral" value={formatCurrency(saldo)} tone={saldo >= 0 ? "green" : "red"} icon={Wallet} trend={trends?.saldo} />
-        <KpiCard label="Ordens" value={v.n} tone="teal" icon={ClipboardList} trend={trends?.ordens} />
-        <KpiCard label="Qualidade Média" value={op.qualMedia.toFixed(0)} tone={op.qualMedia < 80 ? "orange" : "teal"} icon={Star} />
-        <KpiCard label="Em Andamento" value={op.andamento} tone={op.andamento > 0 ? "orange" : "default"} icon={Clock} />
+      <div className="stagger grid gap-3 mb-5 grid-cols-2 lg:grid-cols-5">
+        <KpiCard label="Receita Total" value={recTotal} format={(n) => formatCurrency(n)} icon={DollarSign} trend={trends?.receita} />
+        <KpiCard label="Saldo Geral" value={saldo} format={(n) => formatCurrency(n)} tone={saldo >= 0 ? "green" : "red"} icon={Wallet} trend={trends?.saldo} />
+        <KpiCard label="Ordens" value={v.n} format={(n) => Math.round(n).toString()} tone="teal" icon={ClipboardList} trend={trends?.ordens} />
+        <KpiCard label="Qualidade Média" value={op.qualMedia} format={(n) => n.toFixed(0)} tone={op.qualMedia < 80 ? "orange" : "teal"} icon={Star} />
+        <KpiCard label="Em Andamento" value={op.andamento} format={(n) => Math.round(n).toString()} tone={op.andamento > 0 ? "orange" : "default"} icon={Clock} />
       </div>
 
       <Card className="mb-5">

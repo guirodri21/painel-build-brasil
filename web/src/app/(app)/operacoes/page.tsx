@@ -95,14 +95,14 @@ export default function OperacoesPage() {
       </PageHeader>
       <FilterBar />
 
-      <div className="grid gap-3 mb-5 grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
-        <KpiCard label="Tempo Médio" value={op.tempoMedio.toFixed(1) + "h"} icon={Clock} />
-        <KpiCard label="Qualidade Média" value={op.qualMedia.toFixed(0)} tone="teal" icon={Star} />
-        <KpiCard label="Taxa Conclusão" value={op.taxaConc.toFixed(0) + "%"} tone="green" icon={CheckCircle2} />
-        <KpiCard label="Em Andamento" value={op.andamento} tone={op.andamento > 0 ? "orange" : "default"} icon={Loader} />
-        <KpiCard label="Concluídas" value={op.concluidas} tone="green" icon={CheckCheck} />
-        <KpiCard label="Ticket Médio" value={vendas.ticket.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })} icon={Receipt} />
-        <KpiCard label="Ordens/dia" value={ordensPorDia.toFixed(1).replace(".", ",")} tone="teal" icon={CalendarDays} />
+      <div className="stagger grid gap-3 mb-5 grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
+        <KpiCard label="Tempo Médio" value={op.tempoMedio} format={(n) => n.toFixed(1) + "h"} icon={Clock} />
+        <KpiCard label="Qualidade Média" value={op.qualMedia} format={(n) => n.toFixed(0)} tone="teal" icon={Star} />
+        <KpiCard label="Taxa Conclusão" value={op.taxaConc} format={(n) => n.toFixed(0) + "%"} tone="green" icon={CheckCircle2} />
+        <KpiCard label="Em Andamento" value={op.andamento} format={(n) => Math.round(n).toString()} tone={op.andamento > 0 ? "orange" : "default"} icon={Loader} />
+        <KpiCard label="Concluídas" value={op.concluidas} format={(n) => Math.round(n).toString()} tone="green" icon={CheckCheck} />
+        <KpiCard label="Ticket Médio" value={vendas.ticket} format={(n) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })} icon={Receipt} />
+        <KpiCard label="Ordens/dia" value={ordensPorDia} format={(n) => n.toFixed(1).replace(".", ",")} tone="teal" icon={CalendarDays} />
       </div>
 
       <div className="grid gap-5 lg:grid-cols-2 mb-5">

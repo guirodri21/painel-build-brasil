@@ -55,12 +55,12 @@ export default function FinanceiroPage() {
       </PageHeader>
       <FilterBar />
 
-      <div className="grid gap-3 mb-5 grid-cols-2 lg:grid-cols-5">
-        <KpiCard label="Receita" value={formatCurrency(recTotal)} icon={DollarSign} />
-        <KpiCard label="Despesas Totais" value={formatCurrency(ddTotal + despTotal)} tone="orange" icon={TrendingDown} />
-        <KpiCard label="Saldo" value={formatCurrency(saldo)} tone={saldo >= 0 ? "green" : "red"} icon={Wallet} />
-        <KpiCard label="Margem" value={formatPercent(margem)} tone={margem >= 0 ? "green" : "red"} icon={Percent} />
-        <KpiCard label="Desp. Gerais" value={formatCurrency(despTotal)} tone="teal" icon={TrendingDown} />
+      <div className="stagger grid gap-3 mb-5 grid-cols-2 lg:grid-cols-5">
+        <KpiCard label="Receita" value={recTotal} format={(n) => formatCurrency(n)} icon={DollarSign} />
+        <KpiCard label="Despesas Totais" value={ddTotal + despTotal} format={(n) => formatCurrency(n)} tone="orange" icon={TrendingDown} />
+        <KpiCard label="Saldo" value={saldo} format={(n) => formatCurrency(n)} tone={saldo >= 0 ? "green" : "red"} icon={Wallet} />
+        <KpiCard label="Margem" value={margem} format={(n) => formatPercent(n)} tone={margem >= 0 ? "green" : "red"} icon={Percent} />
+        <KpiCard label="Desp. Gerais" value={despTotal} format={(n) => formatCurrency(n)} tone="teal" icon={TrendingDown} />
       </div>
 
       <Card className="mb-5">

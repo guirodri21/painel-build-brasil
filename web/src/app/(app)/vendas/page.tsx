@@ -43,10 +43,10 @@ export default function VendasPage() {
       <PageHeader title="Vendas" subtitle="Desempenho comercial por dimensão" />
       <FilterBar />
 
-      <div className="grid gap-3 mb-5 grid-cols-2 lg:grid-cols-3">
-        <KpiCard label="Total de Vendas" value={formatCurrency(v.total)} icon={DollarSign} />
-        <KpiCard label="Ticket Médio" value={formatCurrency(v.ticket)} tone="teal" icon={Receipt} />
-        <KpiCard label="Nº de Ordens" value={v.n} icon={ClipboardList} />
+      <div className="stagger grid gap-3 mb-5 grid-cols-2 lg:grid-cols-3">
+        <KpiCard label="Total de Vendas" value={v.total} format={(n) => formatCurrency(n)} icon={DollarSign} />
+        <KpiCard label="Ticket Médio" value={v.ticket} format={(n) => formatCurrency(n)} tone="teal" icon={Receipt} />
+        <KpiCard label="Nº de Ordens" value={v.n} format={(n) => Math.round(n).toString()} icon={ClipboardList} />
       </div>
 
       <div className="grid gap-5 lg:grid-cols-2">
