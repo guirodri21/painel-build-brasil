@@ -11,6 +11,7 @@ interface DataState {
   equipes: string[];
   regioes: string[];
   linhas: string[];
+  clientes: string[];
   userId: string | null;
   role: "admin" | "membro" | null;
   isAdmin: boolean;
@@ -38,6 +39,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     equipes: [],
     regioes: [],
     linhas: [],
+    clientes: [],
     userId: null,
     role: null,
     isAdmin: false,
@@ -76,13 +78,19 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
       const role = (prof.data?.role as "admin" | "membro" | undefined) ?? "membro";
 
+      const ordens = (ord.data as Ordem[]) || [];
+      const clientes = Array.from(
+        new Set(ordens.map((o) => o.cliente).filter((c): c is string => !!c)),
+      ).sort((a, b) => a.localeCompare(b));
+
       setState({
-        ordens: (ord.data as Ordem[]) || [],
+        ordens,
         despesas: (desp.data as DespesaGeral[]) || [],
         metas: (met.data as Meta[]) || [],
         equipes: (eq.data || []).map((r) => r.nome),
         regioes: (rg.data || []).map((r) => r.nome),
         linhas: (ls.data || []).map((r) => r.nome),
+        clientes,
         userId: uid,
         role,
         isAdmin: role === "admin",

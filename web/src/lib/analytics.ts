@@ -1,4 +1,5 @@
-import type { Ordem, DespesaGeral } from "@/lib/types";
+import type { Ordem, DespesaGeral, OrdemStatus } from "@/lib/types";
+import { STATUS_LABELS } from "@/lib/types";
 
 export function sum<T>(arr: T[], key: (item: T) => number): number {
   return arr.reduce((s, item) => s + (key(item) || 0), 0);
@@ -124,6 +125,12 @@ export interface Filtros {
   de: string;
   ate: string;
   busca: string;
+  status: string;
+  cliente: string;
+  valorMin: string;
+  valorMax: string;
+  qualMin: string;
+  qualMax: string;
 }
 
 export const EMPTY_FILTROS: Filtros = {
@@ -133,6 +140,12 @@ export const EMPTY_FILTROS: Filtros = {
   de: "",
   ate: "",
   busca: "",
+  status: "",
+  cliente: "",
+  valorMin: "",
+  valorMax: "",
+  qualMin: "",
+  qualMax: "",
 };
 
 /** Janela do período anterior, do mesmo tamanho da janela atual.
@@ -164,12 +177,25 @@ export function calcDelta(atual: number, anterior: number): number | null {
 
 export function applyFiltros(ordens: Ordem[], f: Filtros): Ordem[] {
   const q = f.busca.toLowerCase();
+  const vMin = f.valorMin !== "" ? Number(f.valorMin) : null;
+  const vMax = f.valorMax !== "" ? Number(f.valorMax) : null;
+  const qMin = f.qualMin !== "" ? Number(f.qualMin) : null;
+  const qMax = f.qualMax !== "" ? Number(f.qualMax) : null;
   return ordens.filter((o) => {
     if (f.regiao && o.regiao !== f.regiao) return false;
     if (f.equipe && o.equipe !== f.equipe) return false;
     if (f.linha && o.linha_servico !== f.linha) return false;
+    if (f.status && o.status !== f.status) return false;
+    if (f.cliente && o.cliente !== f.cliente) return false;
     if (f.de && o.data < f.de) return false;
     if (f.ate && o.data > f.ate) return false;
+    if (vMin != null && o.valor_venda < vMin) return false;
+    if (vMax != null && o.valor_venda > vMax) return false;
+    if (qMin != null || qMax != null) {
+      if (o.qualidade == null) return false;
+      if (qMin != null && o.qualidade < qMin) return false;
+      if (qMax != null && o.qualidade > qMax) return false;
+    }
     if (q) {
       const hay = [o.cliente, o.resumo, o.equipe, o.regiao, o.linha_servico]
         .filter(Boolean)
@@ -179,4 +205,34 @@ export function applyFiltros(ordens: Ordem[], f: Filtros): Ordem[] {
     }
     return true;
   });
+}
+
+/** Distribuição de ordens por status (para gráfico de rosca). */
+export function statusDistribution(ordens: Ordem[]): { name: string; value: number }[] {
+  const order: OrdemStatus[] = ["em_andamento", "execucao_parcial", "concluido"];
+  return order
+    .map((s) => ({
+      name: STATUS_LABELS[s],
+      value: ordens.filter((o) => o.status === s).length,
+    }))
+    .filter((x) => x.value > 0);
+}
+
+/** Taxa de conclusão (%) por equipe. */
+export function taxaConclusaoPorEquipe(ordens: Ordem[]): Record<string, number> {
+  const byEq = groupBy(ordens, (o) => o.equipe);
+  const out: Record<string, number> = {};
+  for (const [eq, items] of Object.entries(byEq)) {
+    const done = items.filter((o) => o.status === "concluido").length;
+    out[eq] = items.length ? (done / items.length) * 100 : 0;
+  }
+  return out;
+}
+
+/** Quantidade de ordens por mês (série temporal). */
+export function ordensPorMes(ordens: Ordem[]): { name: string; value: number }[] {
+  const byM = groupBy(ordens, (o) => o.data.substring(0, 7));
+  return Object.keys(byM)
+    .sort()
+    .map((m) => ({ name: m, value: byM[m].length }));
 }

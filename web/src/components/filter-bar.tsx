@@ -1,10 +1,12 @@
 "use client";
 
+import * as React from "react";
 import { useData } from "@/components/data-provider";
 import { useFiltros } from "@/components/filters-provider";
 import { Input, Select } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
-import { Search, X } from "lucide-react";
+import { STATUS_LABELS } from "@/lib/types";
+import { Search, X, SlidersHorizontal } from "lucide-react";
 
 function isoOf(d: Date) {
   return d.toISOString().split("T")[0];
@@ -44,10 +46,14 @@ const PRESETS: { label: string; range: () => { de: string; ate: string } }[] = [
 ];
 
 export function FilterBar() {
-  const { regioes, equipes, linhas } = useData();
+  const { regioes, equipes, linhas, clientes } = useData();
   const { filtros, setFiltro, setMany, clear } = useFiltros();
+  const [showMore, setShowMore] = React.useState(false);
 
   const hasActive = Object.values(filtros).some(Boolean);
+  const moreActive =
+    !!filtros.status || !!filtros.cliente || !!filtros.valorMin ||
+    !!filtros.valorMax || !!filtros.qualMin || !!filtros.qualMax;
 
   return (
     <div className="rounded-xl border border-border bg-surface p-3 shadow-sm mb-5">
@@ -136,12 +142,95 @@ export function FilterBar() {
             />
           </div>
         </Field>
+        <button
+          onClick={() => setShowMore((s) => !s)}
+          className={
+            "h-9 inline-flex items-center gap-1.5 rounded-md px-2.5 text-xs font-medium border transition-colors cursor-pointer " +
+            (showMore || moreActive
+              ? "border-primary text-primary bg-primary-soft"
+              : "border-border text-muted hover:text-foreground hover:bg-surface-2")
+          }
+        >
+          <SlidersHorizontal size={14} /> Mais filtros
+          {moreActive && <span className="h-1.5 w-1.5 rounded-full bg-primary" />}
+        </button>
         {hasActive && (
           <Button variant="ghost" size="sm" onClick={clear} className="h-9">
             <X size={14} /> Limpar
           </Button>
         )}
       </div>
+
+      {showMore && (
+        <div className="flex flex-wrap items-end gap-2 mt-3 pt-3 border-t border-border">
+          <Field label="Status">
+            <Select
+              value={filtros.status}
+              onChange={(e) => setFiltro("status", e.target.value)}
+              className="min-w-[150px]"
+            >
+              <option value="">Todos</option>
+              {(Object.keys(STATUS_LABELS) as (keyof typeof STATUS_LABELS)[]).map((s) => (
+                <option key={s} value={s}>{STATUS_LABELS[s]}</option>
+              ))}
+            </Select>
+          </Field>
+          <Field label="Cliente">
+            <Select
+              value={filtros.cliente}
+              onChange={(e) => setFiltro("cliente", e.target.value)}
+              className="min-w-[150px]"
+            >
+              <option value="">Todos</option>
+              {clientes.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </Select>
+          </Field>
+          <Field label="Valor mín. (R$)">
+            <Input
+              type="number"
+              min={0}
+              placeholder="0"
+              value={filtros.valorMin}
+              onChange={(e) => setFiltro("valorMin", e.target.value)}
+              className="w-[120px]"
+            />
+          </Field>
+          <Field label="Valor máx. (R$)">
+            <Input
+              type="number"
+              min={0}
+              placeholder="—"
+              value={filtros.valorMax}
+              onChange={(e) => setFiltro("valorMax", e.target.value)}
+              className="w-[120px]"
+            />
+          </Field>
+          <Field label="Qualidade mín.">
+            <Input
+              type="number"
+              min={0}
+              max={100}
+              placeholder="0"
+              value={filtros.qualMin}
+              onChange={(e) => setFiltro("qualMin", e.target.value)}
+              className="w-[110px]"
+            />
+          </Field>
+          <Field label="Qualidade máx.">
+            <Input
+              type="number"
+              min={0}
+              max={100}
+              placeholder="100"
+              value={filtros.qualMax}
+              onChange={(e) => setFiltro("qualMax", e.target.value)}
+              className="w-[110px]"
+            />
+          </Field>
+        </div>
+      )}
     </div>
   );
 }
