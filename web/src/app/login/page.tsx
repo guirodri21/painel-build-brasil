@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/field";
-import { Building2 } from "lucide-react";
+import { BrandMark } from "@/components/brand";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -37,9 +37,7 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center p-4 bg-background">
       <div className="w-full max-w-sm">
         <div className="flex flex-col items-center mb-8">
-          <div className="h-12 w-12 rounded-xl bg-primary flex items-center justify-center mb-3 shadow-md">
-            <Building2 className="text-primary-fg" size={24} />
-          </div>
+          <BrandMark size={48} className="mb-3 shadow-md" />
           <h1 className="text-xl font-bold tracking-tight">Build Brasil</h1>
           <p className="text-sm text-muted mt-0.5">Painel de Resultados</p>
         </div>

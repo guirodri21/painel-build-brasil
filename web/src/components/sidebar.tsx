@@ -10,11 +10,13 @@ import {
   Target,
   Database,
   FileText,
-  Building2,
+  Users,
   MonitorPlay,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useData } from "@/components/data-provider";
+import { BrandLogo } from "@/components/brand";
 
 const NAV = [
   { href: "/", label: "Visão Geral", icon: LayoutDashboard },
@@ -26,6 +28,8 @@ const NAV = [
   { href: "/relatorios", label: "Relatórios", icon: FileText },
 ];
 
+const ADMIN_NAV = [{ href: "/usuarios", label: "Usuários", icon: Users }];
+
 export function Sidebar({
   open,
   onClose,
@@ -34,6 +38,8 @@ export function Sidebar({
   onClose: () => void;
 }) {
   const pathname = usePathname();
+  const { isAdmin } = useData();
+  const nav = isAdmin ? [...NAV, ...ADMIN_NAV] : NAV;
 
   return (
     <>
@@ -50,15 +56,7 @@ export function Sidebar({
         )}
       >
         <div className="flex items-center justify-between gap-2 px-5 h-16 border-b border-border">
-          <div className="flex items-center gap-2.5">
-            <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center shrink-0">
-              <Building2 className="text-primary-fg" size={18} />
-            </div>
-            <div className="leading-tight">
-              <div className="text-sm font-bold">Build Brasil</div>
-              <div className="text-[11px] text-muted">Painel de Resultados</div>
-            </div>
-          </div>
+          <BrandLogo />
           <button
             onClick={onClose}
             className="lg:hidden text-muted hover:text-foreground"
@@ -68,7 +66,7 @@ export function Sidebar({
         </div>
 
         <nav className="flex-1 overflow-y-auto p-3 space-y-1">
-          {NAV.map(({ href, label, icon: Icon }) => {
+          {nav.map(({ href, label, icon: Icon }) => {
             const active =
               href === "/" ? pathname === "/" : pathname.startsWith(href);
             return (

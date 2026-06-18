@@ -12,6 +12,8 @@ interface DataState {
   regioes: string[];
   linhas: string[];
   userId: string | null;
+  role: "admin" | "membro" | null;
+  isAdmin: boolean;
   loading: boolean;
   error: string | null;
   refresh: () => Promise<void>;
@@ -37,6 +39,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     regioes: [],
     linhas: [],
     userId: null,
+    role: null,
+    isAdmin: false,
     loading: true,
     error: null,
   });
@@ -44,26 +48,33 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const load = React.useCallback(async () => {
     setState((s) => ({ ...s, loading: true, error: null }));
     try {
+      const { data: userData } = await supabase.auth.getUser();
+      const uid = userData.user?.id ?? null;
+
       const [
-        { data: userData },
         eq,
         rg,
         ls,
         ord,
         desp,
         met,
+        prof,
       ] = await Promise.all([
-        supabase.auth.getUser(),
         supabase.from("equipes").select("nome").order("nome"),
         supabase.from("regioes").select("nome").order("nome"),
         supabase.from("linhas_servico").select("nome").order("nome"),
         supabase.from("ordens").select("*").order("data", { ascending: false }),
         supabase.from("despesas_gerais").select("*").order("data", { ascending: false }),
         supabase.from("metas").select("*").order("mes", { ascending: false }),
+        uid
+          ? supabase.from("profiles").select("role").eq("id", uid).single()
+          : Promise.resolve({ data: null, error: null }),
       ]);
 
       const err = eq.error || rg.error || ls.error || ord.error || desp.error || met.error;
       if (err) throw err;
+
+      const role = (prof.data?.role as "admin" | "membro" | undefined) ?? "membro";
 
       setState({
         ordens: (ord.data as Ordem[]) || [],
@@ -72,7 +83,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         equipes: (eq.data || []).map((r) => r.nome),
         regioes: (rg.data || []).map((r) => r.nome),
         linhas: (ls.data || []).map((r) => r.nome),
-        userId: userData.user?.id ?? null,
+        userId: uid,
+        role,
+        isAdmin: role === "admin",
         loading: false,
         error: null,
       });

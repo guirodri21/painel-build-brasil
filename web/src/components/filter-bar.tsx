@@ -6,14 +6,71 @@ import { Input, Select } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { Search, X } from "lucide-react";
 
+function isoOf(d: Date) {
+  return d.toISOString().split("T")[0];
+}
+
+const PRESETS: { label: string; range: () => { de: string; ate: string } }[] = [
+  {
+    label: "Este mês",
+    range: () => {
+      const n = new Date();
+      return { de: isoOf(new Date(n.getFullYear(), n.getMonth(), 1)), ate: isoOf(new Date(n.getFullYear(), n.getMonth() + 1, 0)) };
+    },
+  },
+  {
+    label: "Mês passado",
+    range: () => {
+      const n = new Date();
+      return { de: isoOf(new Date(n.getFullYear(), n.getMonth() - 1, 1)), ate: isoOf(new Date(n.getFullYear(), n.getMonth(), 0)) };
+    },
+  },
+  {
+    label: "Este ano",
+    range: () => {
+      const n = new Date();
+      return { de: isoOf(new Date(n.getFullYear(), 0, 1)), ate: isoOf(new Date(n.getFullYear(), 11, 31)) };
+    },
+  },
+  {
+    label: "90 dias",
+    range: () => {
+      const ate = new Date();
+      const de = new Date();
+      de.setDate(de.getDate() - 89);
+      return { de: isoOf(de), ate: isoOf(ate) };
+    },
+  },
+];
+
 export function FilterBar() {
   const { regioes, equipes, linhas } = useData();
-  const { filtros, setFiltro, clear } = useFiltros();
+  const { filtros, setFiltro, setMany, clear } = useFiltros();
 
   const hasActive = Object.values(filtros).some(Boolean);
 
   return (
     <div className="rounded-xl border border-border bg-surface p-3 shadow-sm mb-5">
+      <div className="flex flex-wrap items-center gap-1.5 mb-3">
+        {PRESETS.map((p) => {
+          const r = p.range();
+          const active = filtros.de === r.de && filtros.ate === r.ate;
+          return (
+            <button
+              key={p.label}
+              onClick={() => setMany(r)}
+              className={
+                "rounded-md px-2.5 py-1 text-xs font-medium border transition-colors cursor-pointer " +
+                (active
+                  ? "border-primary text-primary bg-primary-soft"
+                  : "border-border text-muted hover:text-foreground hover:bg-surface-2")
+              }
+            >
+              {p.label}
+            </button>
+          );
+        })}
+      </div>
       <div className="flex flex-wrap items-end gap-2">
         <Field label="Região">
           <Select

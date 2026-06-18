@@ -135,6 +135,33 @@ export const EMPTY_FILTROS: Filtros = {
   busca: "",
 };
 
+/** Janela do período anterior, do mesmo tamanho da janela atual.
+ *  Sem de/ate definidos → compara mês corrente vs mês anterior. */
+export function previousPeriod(f: Filtros): { de: string; ate: string } {
+  const toISO = (d: Date) => d.toISOString().split("T")[0];
+  if (f.de && f.ate) {
+    const de = new Date(f.de + "T00:00:00");
+    const ate = new Date(f.ate + "T00:00:00");
+    const dias = Math.round((ate.getTime() - de.getTime()) / 86400000) + 1;
+    const prevAte = new Date(de);
+    prevAte.setDate(prevAte.getDate() - 1);
+    const prevDe = new Date(prevAte);
+    prevDe.setDate(prevDe.getDate() - (dias - 1));
+    return { de: toISO(prevDe), ate: toISO(prevAte) };
+  }
+  // sem datas: mês anterior completo
+  const now = new Date();
+  const ini = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const fim = new Date(now.getFullYear(), now.getMonth(), 0);
+  return { de: toISO(ini), ate: toISO(fim) };
+}
+
+/** Variação percentual entre atual e anterior. null se base = 0. */
+export function calcDelta(atual: number, anterior: number): number | null {
+  if (anterior === 0) return atual === 0 ? 0 : null;
+  return ((atual - anterior) / Math.abs(anterior)) * 100;
+}
+
 export function applyFiltros(ordens: Ordem[], f: Filtros): Ordem[] {
   const q = f.busca.toLowerCase();
   return ordens.filter((o) => {

@@ -6,6 +6,7 @@ import { EMPTY_FILTROS, type Filtros } from "@/lib/analytics";
 interface FiltersCtx {
   filtros: Filtros;
   setFiltro: (key: keyof Filtros, value: string) => void;
+  setMany: (partial: Partial<Filtros>) => void;
   clear: () => void;
 }
 
@@ -40,6 +41,11 @@ export function FiltersProvider({ children }: { children: React.ReactNode }) {
     [persist],
   );
 
+  const setMany = React.useCallback(
+    (partial: Partial<Filtros>) => persist({ ...filtrosRef.current, ...partial }),
+    [persist],
+  );
+
   // ref para evitar stale closure
   const filtrosRef = React.useRef(filtros);
   filtrosRef.current = filtros;
@@ -47,7 +53,7 @@ export function FiltersProvider({ children }: { children: React.ReactNode }) {
   const clear = React.useCallback(() => persist(EMPTY_FILTROS), [persist]);
 
   return (
-    <Ctx.Provider value={{ filtros, setFiltro, clear }}>
+    <Ctx.Provider value={{ filtros, setFiltro, setMany, clear }}>
       {children}
     </Ctx.Provider>
   );

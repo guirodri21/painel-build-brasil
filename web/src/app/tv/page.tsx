@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { useData } from "@/components/data-provider";
+import { BrandMark } from "@/components/brand";
 import { DonutChart, HBarChart, BalancoChart, ValueBarChart, CHART_COLORS } from "@/components/charts";
 import {
   calcVendas,
@@ -15,34 +16,63 @@ import {
   tempoMedioPorEquipe,
 } from "@/lib/analytics";
 import { formatCurrency, monthLabel, cn } from "@/lib/utils";
-import { Building2, Maximize, Minimize, X } from "lucide-react";
+import { Maximize, Minimize, X, Settings } from "lucide-react";
 
-const SCENE_MS = 15000;
 const SCENES = ["Visão Geral", "Vendas", "Operações", "Financeiro"];
+
+interface TvConfig {
+  enabled: boolean[];
+  intervalSec: number;
+}
+const DEFAULT_CONFIG: TvConfig = { enabled: [true, true, true, true], intervalSec: 15 };
+
+function loadConfig(): TvConfig {
+  if (typeof window === "undefined") return DEFAULT_CONFIG;
+  try {
+    const raw = localStorage.getItem("bb-tv-config");
+    if (raw) {
+      const c = JSON.parse(raw);
+      return {
+        enabled: Array.isArray(c.enabled) && c.enabled.length === 4 ? c.enabled : DEFAULT_CONFIG.enabled,
+        intervalSec: typeof c.intervalSec === "number" ? c.intervalSec : DEFAULT_CONFIG.intervalSec,
+      };
+    }
+  } catch {}
+  return DEFAULT_CONFIG;
+}
 
 export default function TvPage() {
   const router = useRouter();
   const { ordens, despesas, equipes, loading } = useData();
-  const [scene, setScene] = React.useState(0);
+  const [config, setConfig] = React.useState<TvConfig>(DEFAULT_CONFIG);
+  const [pointer, setPointer] = React.useState(0);
   const [now, setNow] = React.useState(() => new Date());
   const [fs, setFs] = React.useState(false);
+  const [showCfg, setShowCfg] = React.useState(false);
 
-  // Força tema escuro enquanto no modo TV
+  React.useEffect(() => setConfig(loadConfig()), []);
+
+  const active = config.enabled
+    .map((on, i) => (on ? i : -1))
+    .filter((i) => i >= 0);
+  const activeScenes = active.length ? active : [0, 1, 2, 3];
+  const scene = activeScenes[pointer % activeScenes.length];
+
+  // Força tema escuro
   React.useEffect(() => {
     const prev = document.documentElement.getAttribute("data-theme");
     document.documentElement.setAttribute("data-theme", "dark");
-    return () => {
-      if (prev) document.documentElement.setAttribute("data-theme", prev);
-    };
+    return () => { if (prev) document.documentElement.setAttribute("data-theme", prev); };
   }, []);
 
-  // Rotação automática de cenas
+  // Rotação automática (respeita intervalo e cenas ativas)
   React.useEffect(() => {
-    const id = setInterval(() => setScene((s) => (s + 1) % SCENES.length), SCENE_MS);
+    const ms = Math.max(5, config.intervalSec) * 1000;
+    const id = setInterval(() => setPointer((p) => p + 1), ms);
     return () => clearInterval(id);
-  }, []);
+  }, [config.intervalSec, activeScenes.length]);
 
-  // Relógio ao vivo
+  // Relógio
   React.useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(id);
@@ -59,6 +89,12 @@ export default function TvPage() {
     else document.documentElement.requestFullscreen().catch(() => {});
   }
 
+  function updateConfig(next: TvConfig) {
+    setConfig(next);
+    setPointer(0);
+    try { localStorage.setItem("bb-tv-config", JSON.stringify(next)); } catch {}
+  }
+
   const v = calcVendas(ordens);
   const op = calcOps(ordens);
   const { res, recTotal, despTotal } = calcRateio(ordens, despesas, equipes);
@@ -71,12 +107,9 @@ export default function TvPage() {
 
   return (
     <div className="fixed inset-0 bg-background text-foreground flex flex-col overflow-hidden">
-      {/* HEADER */}
       <header className="flex items-center justify-between px-8 py-4 border-b border-border shrink-0">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-lg bg-primary flex items-center justify-center">
-            <Building2 className="text-primary-fg" size={22} />
-          </div>
+          <BrandMark size={40} />
           <div>
             <div className="text-lg font-bold leading-tight">Build Brasil</div>
             <div className="text-xs text-muted">Painel de Resultados</div>
@@ -92,7 +125,15 @@ export default function TvPage() {
             <div className="text-2xl font-bold tabular-nums leading-none">{clock}</div>
             <div className="text-xs text-muted capitalize">{dateStr}</div>
           </div>
-          <button onClick={toggleFullscreen} className="ml-2 p-2 rounded-lg border border-border text-muted hover:text-foreground cursor-pointer" title="Tela cheia">
+          <div className="relative">
+            <button onClick={() => setShowCfg((s) => !s)} className="ml-2 p-2 rounded-lg border border-border text-muted hover:text-foreground cursor-pointer" title="Configurar">
+              <Settings size={18} />
+            </button>
+            {showCfg && (
+              <ConfigPanel config={config} onChange={updateConfig} onClose={() => setShowCfg(false)} />
+            )}
+          </div>
+          <button onClick={toggleFullscreen} className="p-2 rounded-lg border border-border text-muted hover:text-foreground cursor-pointer" title="Tela cheia">
             {fs ? <Minimize size={18} /> : <Maximize size={18} />}
           </button>
           <button onClick={() => router.push("/")} className="p-2 rounded-lg border border-border text-muted hover:text-foreground cursor-pointer" title="Sair do modo TV">
@@ -101,51 +142,70 @@ export default function TvPage() {
         </div>
       </header>
 
-      {/* PROGRESS / SCENE TITLE */}
       <div className="flex items-center justify-between px-8 pt-5 shrink-0">
         <h1 className="text-3xl font-bold tracking-tight">{SCENES[scene]}</h1>
         <div className="flex gap-2">
-          {SCENES.map((s, i) => (
-            <span
-              key={s}
-              className={cn(
-                "h-2 rounded-full transition-all duration-500",
-                i === scene ? "w-10 bg-primary" : "w-2 bg-border",
-              )}
-            />
+          {activeScenes.map((s, i) => (
+            <span key={s} className={cn("h-2 rounded-full transition-all duration-500", i === pointer % activeScenes.length ? "w-10 bg-primary" : "w-2 bg-border")} />
           ))}
         </div>
       </div>
 
-      {/* SCENE CONTENT */}
       <main key={scene} className="flex-1 px-8 py-5 overflow-hidden animate-in">
         {loading ? (
           <div className="h-full flex items-center justify-center text-muted text-lg">Carregando dados…</div>
         ) : scene === 0 ? (
-          <SceneGeral
-            recTotal={recTotal}
-            saldo={saldo}
-            ordens={v.n}
-            qualidade={op.qualMedia}
-            andamento={op.andamento}
-            res={res}
-          />
+          <SceneGeral recTotal={recTotal} saldo={saldo} ordens={v.n} qualidade={op.qualMedia} andamento={op.andamento} res={res} />
         ) : scene === 1 ? (
           <SceneVendas ordens={ordens} total={v.total} ticket={v.ticket} />
         ) : scene === 2 ? (
           <SceneOps ordens={ordens} op={op} />
         ) : (
-          <SceneFin
-            ordens={ordens}
-            despesas={despesas}
-            recTotal={recTotal}
-            despTotal={despTotal + ddTotal}
-            saldo={saldo}
-            margem={margem}
-          />
+          <SceneFin ordens={ordens} despesas={despesas} recTotal={recTotal} despTotal={despTotal + ddTotal} saldo={saldo} margem={margem} />
         )}
       </main>
     </div>
+  );
+}
+
+/* ===== Painel de configuração ===== */
+function ConfigPanel({ config, onChange, onClose }: { config: TvConfig; onChange: (c: TvConfig) => void; onClose: () => void }) {
+  return (
+    <>
+      <div className="fixed inset-0 z-40" onClick={onClose} />
+      <div className="absolute right-0 top-12 z-50 w-72 rounded-xl border border-border bg-surface shadow-lg p-4">
+        <div className="text-sm font-semibold mb-3">Configurar Modo TV</div>
+        <div className="space-y-2 mb-4">
+          <div className="text-xs text-muted mb-1">Telas no ciclo</div>
+          {SCENES.map((s, i) => (
+            <label key={s} className="flex items-center gap-2 text-sm cursor-pointer">
+              <input
+                type="checkbox"
+                checked={config.enabled[i]}
+                onChange={(e) => {
+                  const enabled = [...config.enabled];
+                  enabled[i] = e.target.checked;
+                  if (enabled.some(Boolean)) onChange({ ...config, enabled });
+                }}
+                className="accent-[var(--primary)]"
+              />
+              {s}
+            </label>
+          ))}
+        </div>
+        <div>
+          <div className="text-xs text-muted mb-1">Tempo por tela (segundos)</div>
+          <input
+            type="number"
+            min={5}
+            max={120}
+            value={config.intervalSec}
+            onChange={(e) => onChange({ ...config, intervalSec: Math.max(5, Math.min(120, Number(e.target.value) || 15)) })}
+            className="w-full h-9 rounded-lg border border-border bg-surface px-3 text-sm"
+          />
+        </div>
+      </div>
+    </>
   );
 }
 
@@ -157,9 +217,7 @@ function BigKpi({ label, value, tone = "default" }: { label: string; value: stri
   return (
     <div className="rounded-2xl border border-border bg-surface px-6 py-5 flex flex-col justify-center">
       <span className="text-sm font-medium text-muted">{label}</span>
-      <span className={cn("mt-2 text-[2.75rem] leading-none font-bold tracking-tight tabular-nums", color)}>
-        {value}
-      </span>
+      <span className={cn("mt-2 text-[2.75rem] leading-none font-bold tracking-tight tabular-nums", color)}>{value}</span>
     </div>
   );
 }
