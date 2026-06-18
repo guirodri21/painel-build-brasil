@@ -2,15 +2,22 @@
 
 import * as React from "react";
 
+/** Duração padrão (ms) do count-up; pode ser sobrescrita por contexto (ex: Modo TV). */
+const SpeedCtx = React.createContext<number>(900);
+
+export function AnimationSpeed({ value, children }: { value: number; children: React.ReactNode }) {
+  return <SpeedCtx.Provider value={value}>{children}</SpeedCtx.Provider>;
+}
+
 /**
  * Número que anima (count-up) do valor anterior até o novo valor.
  * `format` recebe o valor intermediário (float) durante a animação.
- * Respeita prefers-reduced-motion (pula direto para o valor final).
+ * `duration` sobrescreve o ritmo do contexto. Respeita prefers-reduced-motion.
  */
 export function AnimatedNumber({
   value,
   format,
-  duration = 900,
+  duration,
   className,
 }: {
   value: number;
@@ -18,6 +25,8 @@ export function AnimatedNumber({
   duration?: number;
   className?: string;
 }) {
+  const ctxDuration = React.useContext(SpeedCtx);
+  const dur = duration ?? ctxDuration;
   // Inicia do zero para sempre "subir" ao montar (carga da página / troca de cena no TV).
   const [display, setDisplay] = React.useState(0);
   const currentRef = React.useRef(0);
@@ -44,7 +53,7 @@ export function AnimatedNumber({
     let start = 0;
     const tick = (t: number) => {
       if (!start) start = t;
-      const p = Math.min((t - start) / duration, 1);
+      const p = Math.min((t - start) / dur, 1);
       const eased = 1 - Math.pow(1 - p, 3); // easeOutCubic
       const v = from + (to - from) * eased;
       currentRef.current = v;
@@ -57,7 +66,7 @@ export function AnimatedNumber({
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [value, duration]);
+  }, [value, dur]);
 
   return <span className={className}>{format ? format(display) : Math.round(display).toString()}</span>;
 }

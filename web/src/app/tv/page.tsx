@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { useData } from "@/components/data-provider";
 import { createClient } from "@/lib/supabase/client";
 import { BrandMark } from "@/components/brand";
-import { AnimatedNumber } from "@/components/animated-number";
+import { AnimatedNumber, AnimationSpeed } from "@/components/animated-number";
+import { Ticker } from "@/components/ticker";
 import { DonutChart, HBarChart, BalancoChart, ValueBarChart, CHART_COLORS } from "@/components/charts";
 import {
   calcVendas,
@@ -36,6 +37,9 @@ interface TvConfig {
   theme: Theme;
   fontScale: number;
   layout: Layout;
+  ticker: boolean;
+  tickerSpeed: number; // duração da volta (s); menor = mais rápido
+  animMs: number; // ritmo do count-up (ms)
 }
 const DEFAULT_CONFIG: TvConfig = {
   enabled: [true, true, true, true, true, true],
@@ -43,6 +47,9 @@ const DEFAULT_CONFIG: TvConfig = {
   theme: "dark",
   fontScale: 1,
   layout: "rotacao",
+  ticker: true,
+  tickerSpeed: 40,
+  animMs: 900,
 };
 
 function loadConfig(): TvConfig {
@@ -64,6 +71,9 @@ function loadConfig(): TvConfig {
         theme: c.theme === "light" ? "light" : "dark",
         fontScale: typeof c.fontScale === "number" ? Math.max(0.8, Math.min(1.4, c.fontScale)) : 1,
         layout: c.layout === "grade" ? "grade" : "rotacao",
+        ticker: typeof c.ticker === "boolean" ? c.ticker : DEFAULT_CONFIG.ticker,
+        tickerSpeed: typeof c.tickerSpeed === "number" ? Math.max(15, Math.min(90, c.tickerSpeed)) : DEFAULT_CONFIG.tickerSpeed,
+        animMs: typeof c.animMs === "number" ? Math.max(300, Math.min(2000, c.animMs)) : DEFAULT_CONFIG.animMs,
       };
     }
   } catch {}
@@ -151,6 +161,32 @@ export default function TvPage() {
     return map;
   }, [ordens]);
 
+  // Destaques do letreiro (ticker)
+  const tickerItems = React.useMemo(() => {
+    const items: string[] = [];
+    items.push(`💰 Receita total: ${formatCurrency(recTotal)}`);
+    items.push(`${saldo >= 0 ? "📈" : "📉"} Saldo geral: ${formatCurrency(saldo)}`);
+    items.push(`📊 Margem: ${margem.toFixed(1).replace(".", ",")}%`);
+    if (op.qualMedia > 0) items.push(`⭐ Qualidade média: ${op.qualMedia.toFixed(0)}`);
+    items.push(`📋 ${v.n} ordens · ${op.andamento} em aberto`);
+
+    const entries = Object.entries(res).filter(([, x]) => x.n > 0);
+    if (entries.length) {
+      const lider = [...entries].sort((a, b) => b[1].saldo - a[1].saldo)[0];
+      items.push(`🏆 Líder: ${lider[0]} (${formatCurrency(lider[1].saldo)})`);
+      entries
+        .filter(([, x]) => x.saldo < 0)
+        .forEach(([eq]) => items.push(`⚠️ ${eq}: saldo negativo`));
+    }
+
+    const porRegiao = Object.entries(groupBy(ordens, (o) => o.regiao))
+      .map(([name, arr]) => ({ name, total: sum(arr, (o) => o.valor_venda) }))
+      .sort((a, b) => b.total - a.total);
+    if (porRegiao.length) items.push(`📍 Região destaque: ${porRegiao[0].name} (${formatCurrency(porRegiao[0].total)})`);
+
+    return items;
+  }, [recTotal, saldo, margem, op, v.n, res, ordens]);
+
   const clock = now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
   const dateStr = now.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" });
 
@@ -227,6 +263,7 @@ export default function TvPage() {
         className={cn("flex-1 px-8 py-5 animate-in", isGrid ? "overflow-y-auto" : "overflow-hidden")}
         style={{ zoom: config.fontScale }}
       >
+        <AnimationSpeed value={config.animMs}>
         {loading ? (
           <div className="h-full flex items-center justify-center text-muted text-lg">Carregando dados…</div>
         ) : isGrid ? (
@@ -241,7 +278,14 @@ export default function TvPage() {
         ) : (
           renderScene(scene)
         )}
+        </AnimationSpeed>
       </main>
+
+      {!loading && config.ticker && tickerItems.length > 0 && (
+        <footer className="shrink-0 border-t border-border bg-surface/60 py-2.5">
+          <Ticker items={tickerItems} speed={config.tickerSpeed} />
+        </footer>
+      )}
     </div>
   );
 }
@@ -332,7 +376,7 @@ function ConfigPanel({ config, onChange, onClose }: { config: TvConfig; onChange
           </div>
         </div>
 
-        <div>
+        <div className="mb-4">
           <div className="text-xs text-muted mb-1">Escala da fonte ({config.fontScale.toFixed(2)}×)</div>
           <input
             type="range"
@@ -343,6 +387,52 @@ function ConfigPanel({ config, onChange, onClose }: { config: TvConfig; onChange
             onChange={(e) => onChange({ ...config, fontScale: Number(e.target.value) })}
             className="w-full accent-[var(--primary)] cursor-pointer"
           />
+        </div>
+
+        <div className="mb-4">
+          <div className="text-xs text-muted mb-1.5">Ritmo das animações</div>
+          <div className="grid grid-cols-3 gap-1.5">
+            {([["Rápido", 500], ["Normal", 900], ["Lento", 1500]] as [string, number][]).map(([lbl, ms]) => (
+              <button
+                key={ms}
+                onClick={() => onChange({ ...config, animMs: ms })}
+                className={cn(
+                  "rounded-lg border px-2 py-1.5 text-xs font-medium cursor-pointer transition-colors",
+                  config.animMs === ms ? "border-primary text-primary bg-primary-soft" : "border-border text-muted hover:text-foreground",
+                )}
+              >
+                {lbl}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <label className="flex items-center gap-2 text-sm cursor-pointer mb-2">
+            <input
+              type="checkbox"
+              checked={config.ticker}
+              onChange={(e) => onChange({ ...config, ticker: e.target.checked })}
+              className="accent-[var(--primary)]"
+            />
+            Letreiro de destaques (rodapé)
+          </label>
+          {config.ticker && (
+            <div className="grid grid-cols-3 gap-1.5">
+              {([["Rápido", 25], ["Médio", 40], ["Lento", 60]] as [string, number][]).map(([lbl, s]) => (
+                <button
+                  key={s}
+                  onClick={() => onChange({ ...config, tickerSpeed: s })}
+                  className={cn(
+                    "rounded-lg border px-2 py-1.5 text-xs font-medium cursor-pointer transition-colors",
+                    config.tickerSpeed === s ? "border-primary text-primary bg-primary-soft" : "border-border text-muted hover:text-foreground",
+                  )}
+                >
+                  {lbl}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </>

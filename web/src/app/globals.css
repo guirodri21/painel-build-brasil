@@ -213,12 +213,28 @@ body {
   animation: growBar 1.1s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+/* Letreiro/ticker rolando (marquee) */
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.marquee-track {
+  display: inline-flex;
+  white-space: nowrap;
+  will-change: transform;
+  animation: marquee var(--marquee-duration, 40s) linear infinite;
+}
+.marquee-viewport:hover .marquee-track {
+  animation-play-state: paused;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-in,
   .animate-pop,
   .stagger > *,
   .live-pulse,
-  .animate-bar {
+  .animate-bar,
+  .marquee-track {
     animation: none !important;
   }
 }
