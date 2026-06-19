@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { createClient } from "@/lib/supabase/client";
-import type { Ordem, DespesaGeral, Meta, Produto, EstoqueMovimento } from "@/lib/types";
+import type { Ordem, DespesaGeral, Meta, Produto, EstoqueMovimento, Cliente } from "@/lib/types";
 
 const FILIAL_KEY = "painel.filial";
 
@@ -12,6 +12,7 @@ interface RawData {
   metas: Meta[];
   produtos: Produto[];
   movimentos: EstoqueMovimento[];
+  clientesReg: Cliente[];
   equipes: string[];
   regioes: string[];
   linhas: string[];
@@ -19,6 +20,7 @@ interface RawData {
 }
 
 interface DataState extends RawData {
+  /** Nomes de clientes (registro + citados em ordens) para autocompletar/filtrar. */
   clientes: string[];
   /** Filial selecionada ("" = todas). */
   filial: string;
@@ -40,7 +42,7 @@ export function useData() {
 }
 
 const EMPTY_RAW: RawData = {
-  ordens: [], despesas: [], metas: [], produtos: [], movimentos: [],
+  ordens: [], despesas: [], metas: [], produtos: [], movimentos: [], clientesReg: [],
   equipes: [], regioes: [], linhas: [], filiais: [],
 };
 
@@ -71,7 +73,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const { data: userData } = await supabase.auth.getUser();
     const uid = userData.user?.id ?? null;
 
-    const [eq, rg, ls, fl, ord, desp, met, prod, mov, prof] = await Promise.allSettled([
+    const [eq, rg, ls, fl, ord, desp, met, prod, mov, cli, prof] = await Promise.allSettled([
       supabase.from("equipes").select("nome").order("nome"),
       supabase.from("regioes").select("nome").order("nome"),
       supabase.from("linhas_servico").select("nome").order("nome"),
@@ -81,6 +83,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       supabase.from("metas").select("*").order("mes", { ascending: false }),
       supabase.from("produtos").select("*").order("nome"),
       supabase.from("estoque_movimentos").select("*").order("created_at", { ascending: false }).limit(500),
+      supabase.from("clientes").select("*").order("nome"),
       uid ? supabase.from("profiles").select("role").eq("id", uid).single() : Promise.resolve({ data: null }),
     ]);
 
@@ -109,6 +112,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       metas: pick(met as never, "metas", [] as Meta[]),
       produtos: pick(prod as never, "produtos", [] as Produto[]),
       movimentos: pick(mov as never, "movimentações", [] as EstoqueMovimento[]),
+      clientesReg: pick(cli as never, "clientes", [] as Cliente[]),
     });
 
     const role =
@@ -158,8 +162,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const produtoIds = new Set(produtos.map((p) => p.id));
     const movimentos = f ? raw.movimentos.filter((m) => produtoIds.has(m.produto_id)) : raw.movimentos;
 
+    const clientesReg = byFilial(raw.clientesReg);
     const clientes = Array.from(
-      new Set(ordens.map((o) => o.cliente).filter((c): c is string => !!c)),
+      new Set([
+        ...clientesReg.map((c) => c.nome),
+        ...ordens.map((o) => o.cliente).filter((c): c is string => !!c),
+      ]),
     ).sort((a, b) => a.localeCompare(b));
 
     return {
@@ -169,6 +177,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       metas: byFilial(raw.metas),
       produtos,
       movimentos,
+      clientesReg,
       clientes,
       filial,
       setFilial,

@@ -38,6 +38,22 @@ export interface Lookup {
   nome: string;
 }
 
+export interface Cliente {
+  id: string;
+  filial: string | null;
+  nome: string;
+  telefone: string | null;
+  email: string | null;
+  documento: string | null;
+  endereco: string | null;
+  contato: string | null;
+  obs: string | null;
+  ativo: boolean;
+  created_by: string | null;
+  created_at: string;
+  updated_at?: string | null;
+}
+
 export interface Meta {
   id: string;
   equipe: string;

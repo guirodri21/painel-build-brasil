@@ -20,7 +20,7 @@ export function OrdemModal({
   onClose: () => void;
   ordem?: Ordem | null;
 }) {
-  const { regioes, equipes, linhas, userId, filial, refresh } = useData();
+  const { regioes, equipes, linhas, clientes, userId, filial, refresh } = useData();
   const toast = useToast();
   const [saving, setSaving] = React.useState(false);
   const formRef = React.useRef<HTMLFormElement>(null);
@@ -105,7 +105,10 @@ export function OrdemModal({
           </div>
           <div>
             <Label>Cliente</Label>
-            <Input type="text" name="cliente" placeholder="(opcional)" defaultValue={ordem?.cliente ?? ""} />
+            <Input type="text" name="cliente" list="clientes-list" placeholder="(opcional)" defaultValue={ordem?.cliente ?? ""} />
+            <datalist id="clientes-list">
+              {clientes.map((c) => <option key={c} value={c} />)}
+            </datalist>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
