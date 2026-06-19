@@ -87,7 +87,7 @@ CREATE POLICY "metas_delete" ON metas FOR DELETE
 
 -- 3. AUDITORIA: updated_at + trigger ----------------------------
 CREATE OR REPLACE FUNCTION set_updated_at()
-RETURNS trigger LANGUAGE plpgsql AS $$
+RETURNS trigger LANGUAGE plpgsql SET search_path = public AS $$
 BEGIN
   NEW.updated_at := now();
   RETURN NEW;
