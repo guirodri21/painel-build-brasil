@@ -114,6 +114,16 @@ export interface EstoqueMovimento {
   created_at: string;
 }
 
+export interface Notificacao {
+  id: string;
+  user_id: string;
+  titulo: string;
+  mensagem: string | null;
+  link: string | null;
+  lida: boolean;
+  created_at: string;
+}
+
 export interface ComissaoRegra {
   id: string;
   filial: string | null;

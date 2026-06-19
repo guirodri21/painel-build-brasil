@@ -8,6 +8,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { useData } from "@/components/data-provider";
 import { useToast } from "@/components/ui/toast";
 import { ChangePasswordModal } from "@/components/change-password-modal";
+import { NotificationBell } from "@/components/notification-bell";
 import { cn } from "@/lib/utils";
 
 export function Topbar({ onMenu }: { onMenu: () => void }) {
@@ -67,6 +68,8 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
         <RefreshCw size={15} className={cn(loading && "animate-spin")} />
         <span className="hidden sm:inline">Atualizar</span>
       </button>
+
+      <NotificationBell />
 
       <ThemeToggle />
 

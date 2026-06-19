@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
+import { notificarAdmins } from "@/lib/notifications";
 
 /** Eventos que podem disparar webhooks de saída. */
 export const EVENTOS = [
@@ -49,5 +50,10 @@ export function alertarSeEstoqueBaixo(
       minimo: produto.estoque_minimo,
       unidade: produto.unidade,
     });
+    notificarAdmins(
+      "Estoque baixo",
+      `${produto.nome}: saldo ${saldoNovo} ${produto.unidade} (mín. ${produto.estoque_minimo}).`,
+      "/estoque",
+    );
   }
 }
