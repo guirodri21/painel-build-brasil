@@ -19,7 +19,7 @@ export function ProdutoModal({
   onClose: () => void;
   produto?: Produto | null;
 }) {
-  const { userId, produtos, refresh } = useData();
+  const { userId, produtos, filial, refresh } = useData();
   const toast = useToast();
   const [saving, setSaving] = React.useState(false);
 
@@ -64,7 +64,7 @@ export function ProdutoModal({
     // Criação: insere o produto e, se houver estoque inicial, lança a entrada
     const { data: novo, error } = await supabase
       .from("produtos")
-      .insert([{ ...rec, created_by: userId }])
+      .insert([{ ...rec, filial: filial || "Matriz", created_by: userId }])
       .select("id")
       .single();
 

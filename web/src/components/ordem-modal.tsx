@@ -20,7 +20,7 @@ export function OrdemModal({
   onClose: () => void;
   ordem?: Ordem | null;
 }) {
-  const { regioes, equipes, linhas, userId, refresh } = useData();
+  const { regioes, equipes, linhas, userId, filial, refresh } = useData();
   const toast = useToast();
   const [saving, setSaving] = React.useState(false);
   const formRef = React.useRef<HTMLFormElement>(null);
@@ -50,7 +50,7 @@ export function OrdemModal({
     const supabase = createClient();
     const { error } = ordem
       ? await supabase.from("ordens").update(rec).eq("id", ordem.id)
-      : await supabase.from("ordens").insert([{ ...rec, created_by: userId }]);
+      : await supabase.from("ordens").insert([{ ...rec, filial: filial || "Matriz", created_by: userId }]);
 
     setSaving(false);
     if (error) {

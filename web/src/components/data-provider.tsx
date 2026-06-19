@@ -4,7 +4,9 @@ import * as React from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Ordem, DespesaGeral, Meta, Produto, EstoqueMovimento } from "@/lib/types";
 
-interface DataState {
+const FILIAL_KEY = "painel.filial";
+
+interface RawData {
   ordens: Ordem[];
   despesas: DespesaGeral[];
   metas: Meta[];
@@ -13,7 +15,14 @@ interface DataState {
   equipes: string[];
   regioes: string[];
   linhas: string[];
+  filiais: string[];
+}
+
+interface DataState extends RawData {
   clientes: string[];
+  /** Filial selecionada ("" = todas). */
+  filial: string;
+  setFilial: (f: string) => void;
   userId: string | null;
   role: "admin" | "membro" | null;
   isAdmin: boolean;
@@ -30,95 +39,92 @@ export function useData() {
   return ctx;
 }
 
+const EMPTY_RAW: RawData = {
+  ordens: [], despesas: [], metas: [], produtos: [], movimentos: [],
+  equipes: [], regioes: [], linhas: [], filiais: [],
+};
+
 export function DataProvider({ children }: { children: React.ReactNode }) {
   const supabase = React.useMemo(() => createClient(), []);
-  const [state, setState] = React.useState<
-    Omit<DataState, "refresh">
-  >({
-    ordens: [],
-    despesas: [],
-    metas: [],
-    produtos: [],
-    movimentos: [],
-    equipes: [],
-    regioes: [],
-    linhas: [],
-    clientes: [],
-    userId: null,
-    role: null,
-    isAdmin: false,
-    loading: true,
-    error: null,
-  });
+  const [raw, setRaw] = React.useState<RawData>(EMPTY_RAW);
+  const [meta, setMeta] = React.useState<{
+    userId: string | null;
+    role: "admin" | "membro" | null;
+    loading: boolean;
+    error: string | null;
+  }>({ userId: null, role: null, loading: true, error: null });
+  const [filial, setFilialState] = React.useState<string>("");
+
+  // Restaura a filial salva
+  React.useEffect(() => {
+    const saved = typeof window !== "undefined" ? localStorage.getItem(FILIAL_KEY) : null;
+    if (saved) setFilialState(saved);
+  }, []);
+
+  const setFilial = React.useCallback((f: string) => {
+    setFilialState(f);
+    if (typeof window !== "undefined") localStorage.setItem(FILIAL_KEY, f);
+  }, []);
 
   const load = React.useCallback(async () => {
-    setState((s) => ({ ...s, loading: true, error: null }));
-    try {
-      const { data: userData } = await supabase.auth.getUser();
-      const uid = userData.user?.id ?? null;
+    setMeta((m) => ({ ...m, loading: true, error: null }));
+    const { data: userData } = await supabase.auth.getUser();
+    const uid = userData.user?.id ?? null;
 
-      const [
-        eq,
-        rg,
-        ls,
-        ord,
-        desp,
-        met,
-        prod,
-        mov,
-        prof,
-      ] = await Promise.all([
-        supabase.from("equipes").select("nome").order("nome"),
-        supabase.from("regioes").select("nome").order("nome"),
-        supabase.from("linhas_servico").select("nome").order("nome"),
-        supabase.from("ordens").select("*").order("data", { ascending: false }),
-        supabase.from("despesas_gerais").select("*").order("data", { ascending: false }),
-        supabase.from("metas").select("*").order("mes", { ascending: false }),
-        supabase.from("produtos").select("*").order("nome"),
-        supabase.from("estoque_movimentos").select("*").order("created_at", { ascending: false }).limit(500),
-        uid
-          ? supabase.from("profiles").select("role").eq("id", uid).single()
-          : Promise.resolve({ data: null, error: null }),
-      ]);
+    const [eq, rg, ls, fl, ord, desp, met, prod, mov, prof] = await Promise.allSettled([
+      supabase.from("equipes").select("nome").order("nome"),
+      supabase.from("regioes").select("nome").order("nome"),
+      supabase.from("linhas_servico").select("nome").order("nome"),
+      supabase.from("filiais").select("nome").eq("ativo", true).order("nome"),
+      supabase.from("ordens").select("*").order("data", { ascending: false }),
+      supabase.from("despesas_gerais").select("*").order("data", { ascending: false }),
+      supabase.from("metas").select("*").order("mes", { ascending: false }),
+      supabase.from("produtos").select("*").order("nome"),
+      supabase.from("estoque_movimentos").select("*").order("created_at", { ascending: false }).limit(500),
+      uid ? supabase.from("profiles").select("role").eq("id", uid).single() : Promise.resolve({ data: null }),
+    ]);
 
-      const err = eq.error || rg.error || ls.error || ord.error || desp.error || met.error || prod.error || mov.error;
-      if (err) throw err;
+    // Extrai dados de cada resultado sem deixar uma falha derrubar o resto.
+    const failures: string[] = [];
+    const pick = <T,>(r: PromiseSettledResult<{ data: T | null; error?: unknown } | { data: T | null }>, label: string, fallback: T): T => {
+      if (r.status === "fulfilled") {
+        const e = (r.value as { error?: unknown }).error;
+        if (e) { failures.push(label); return fallback; }
+        return (r.value.data as T) ?? fallback;
+      }
+      failures.push(label);
+      return fallback;
+    };
 
-      const role = (prof.data?.role as "admin" | "membro" | undefined) ?? "membro";
+    const names = (r: PromiseSettledResult<{ data: { nome: string }[] | null; error?: unknown }>, label: string) =>
+      pick(r, label, [] as { nome: string }[]).map((x) => x.nome);
 
-      const ordens = (ord.data as Ordem[]) || [];
-      const clientes = Array.from(
-        new Set(ordens.map((o) => o.cliente).filter((c): c is string => !!c)),
-      ).sort((a, b) => a.localeCompare(b));
+    setRaw({
+      equipes: names(eq as never, "equipes"),
+      regioes: names(rg as never, "regiões"),
+      linhas: names(ls as never, "linhas de serviço"),
+      filiais: names(fl as never, "filiais"),
+      ordens: pick(ord as never, "ordens", [] as Ordem[]),
+      despesas: pick(desp as never, "despesas", [] as DespesaGeral[]),
+      metas: pick(met as never, "metas", [] as Meta[]),
+      produtos: pick(prod as never, "produtos", [] as Produto[]),
+      movimentos: pick(mov as never, "movimentações", [] as EstoqueMovimento[]),
+    });
 
-      setState({
-        ordens,
-        despesas: (desp.data as DespesaGeral[]) || [],
-        metas: (met.data as Meta[]) || [],
-        produtos: (prod.data as Produto[]) || [],
-        movimentos: (mov.data as EstoqueMovimento[]) || [],
-        equipes: (eq.data || []).map((r) => r.nome),
-        regioes: (rg.data || []).map((r) => r.nome),
-        linhas: (ls.data || []).map((r) => r.nome),
-        clientes,
-        userId: uid,
-        role,
-        isAdmin: role === "admin",
-        loading: false,
-        error: null,
-      });
-    } catch (e) {
-      setState((s) => ({
-        ...s,
-        loading: false,
-        error: e instanceof Error ? e.message : "Erro ao carregar dados.",
-      }));
-    }
+    const role =
+      (prof.status === "fulfilled"
+        ? ((prof.value as { data: { role?: string } | null }).data?.role as "admin" | "membro" | undefined)
+        : undefined) ?? "membro";
+
+    setMeta({
+      userId: uid,
+      role,
+      loading: false,
+      error: failures.length ? `Falha ao carregar: ${failures.join(", ")}.` : null,
+    });
   }, [supabase]);
 
-  React.useEffect(() => {
-    load();
-  }, [load]);
+  React.useEffect(() => { load(); }, [load]);
 
   // Realtime: recarrega ao detectar mudanças
   React.useEffect(() => {
@@ -141,7 +147,39 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     };
   }, [supabase, load]);
 
-  return (
-    <Ctx.Provider value={{ ...state, refresh: load }}>{children}</Ctx.Provider>
-  );
+  // Aplica o filtro de filial centralmente (vazio = todas)
+  const value = React.useMemo<DataState>(() => {
+    const f = filial;
+    const byFilial = <T extends { filial?: string | null }>(arr: T[]) =>
+      f ? arr.filter((x) => (x.filial ?? "Matriz") === f) : arr;
+
+    const ordens = byFilial(raw.ordens);
+    const produtos = byFilial(raw.produtos);
+    const produtoIds = new Set(produtos.map((p) => p.id));
+    const movimentos = f ? raw.movimentos.filter((m) => produtoIds.has(m.produto_id)) : raw.movimentos;
+
+    const clientes = Array.from(
+      new Set(ordens.map((o) => o.cliente).filter((c): c is string => !!c)),
+    ).sort((a, b) => a.localeCompare(b));
+
+    return {
+      ...raw,
+      ordens,
+      despesas: byFilial(raw.despesas),
+      metas: byFilial(raw.metas),
+      produtos,
+      movimentos,
+      clientes,
+      filial,
+      setFilial,
+      userId: meta.userId,
+      role: meta.role,
+      isAdmin: meta.role === "admin",
+      loading: meta.loading,
+      error: meta.error,
+      refresh: load,
+    };
+  }, [raw, filial, setFilial, meta, load]);
+
+  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

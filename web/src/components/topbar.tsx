@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 
 export function Topbar({ onMenu }: { onMenu: () => void }) {
   const router = useRouter();
-  const { refresh, loading } = useData();
+  const { refresh, loading, filiais, filial, setFilial } = useData();
   const toast = useToast();
   const [pwOpen, setPwOpen] = React.useState(false);
   const [email, setEmail] = React.useState("");
@@ -43,6 +43,20 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
       >
         <Menu size={20} />
       </button>
+
+      {filiais.length > 1 && (
+        <select
+          value={filial}
+          onChange={(e) => setFilial(e.target.value)}
+          title="Filial"
+          className="h-9 rounded-lg border border-border bg-surface px-2.5 text-sm text-foreground cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+        >
+          <option value="">Todas as filiais</option>
+          {filiais.map((f) => (
+            <option key={f} value={f}>{f}</option>
+          ))}
+        </select>
+      )}
 
       <div className="flex-1" />
 

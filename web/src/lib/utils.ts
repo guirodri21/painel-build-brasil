@@ -38,7 +38,13 @@ export function formatMoney(value: number): string {
 }
 
 export function todayISO(): string {
-  return new Date().toISOString().split("T")[0];
+  // Data de hoje no fuso de São Paulo (evita virar o dia em UTC à noite).
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
 }
 
 export function monthLabel(ym: string): string {

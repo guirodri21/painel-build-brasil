@@ -19,7 +19,7 @@ export function DespesaModal({
   onClose: () => void;
   despesa?: DespesaGeral | null;
 }) {
-  const { userId, refresh } = useData();
+  const { userId, filial, refresh } = useData();
   const toast = useToast();
   const [saving, setSaving] = React.useState(false);
 
@@ -36,7 +36,7 @@ export function DespesaModal({
     const supabase = createClient();
     const { error } = despesa
       ? await supabase.from("despesas_gerais").update(rec).eq("id", despesa.id)
-      : await supabase.from("despesas_gerais").insert([{ ...rec, created_by: userId }]);
+      : await supabase.from("despesas_gerais").insert([{ ...rec, filial: filial || "Matriz", created_by: userId }]);
 
     setSaving(false);
     if (error) {

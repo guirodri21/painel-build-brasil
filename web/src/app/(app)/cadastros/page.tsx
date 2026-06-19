@@ -19,7 +19,7 @@ import { Plus, Pencil, Trash2 } from "lucide-react";
 import type { DespesaGeral } from "@/lib/types";
 
 export default function CadastrosPage() {
-  const { equipes, regioes, linhas, despesas, userId, loading, refresh } = useData();
+  const { equipes, regioes, linhas, filiais, despesas, userId, isAdmin, loading, refresh } = useData();
   const toast = useToast();
   const [despOpen, setDespOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<DespesaGeral | null>(null);
@@ -52,6 +52,7 @@ export default function CadastrosPage() {
         <LookupManager title="Equipes" table="equipes" items={equipes} />
         <LookupManager title="Regiões" table="regioes" items={regioes} />
         <LookupManager title="Linhas de Serviço" table="linhas_servico" items={linhas} />
+        {isAdmin && <LookupManager title="Filiais" table="filiais" items={filiais} />}
       </div>
 
       <div className="mb-5">

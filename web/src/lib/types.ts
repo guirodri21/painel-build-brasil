@@ -14,8 +14,12 @@ export interface Ordem {
   tempo_execucao_h: number | null;
   qualidade: number | null;
   resumo: string | null;
+  filial?: string | null;
+  data_agendada?: string | null;
+  hora_agendada?: string | null;
   created_by: string | null;
   created_at: string;
+  updated_at?: string | null;
 }
 
 export interface DespesaGeral {
@@ -24,6 +28,7 @@ export interface DespesaGeral {
   categoria: DespesaCategoria;
   descricao: string | null;
   valor: number;
+  filial?: string | null;
   created_by: string | null;
   created_at: string;
 }
@@ -36,9 +41,11 @@ export interface Lookup {
 export interface Meta {
   id: string;
   equipe: string;
+  funcionario_id?: string | null;
   mes: string; // YYYY-MM-01
   meta_receita: number;
   meta_qualidade: number | null;
+  filial?: string | null;
   created_by: string | null;
   created_at: string;
 }
@@ -73,6 +80,7 @@ export interface Produto {
   custo_unitario: number;
   localizacao: string | null;
   ativo: boolean;
+  filial?: string | null;
   created_by: string | null;
   created_at: string;
 }

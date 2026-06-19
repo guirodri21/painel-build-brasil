@@ -16,7 +16,7 @@ export function LookupManager({
   items,
 }: {
   title: string;
-  table: "equipes" | "regioes" | "linhas_servico";
+  table: "equipes" | "regioes" | "linhas_servico" | "filiais";
   items: string[];
 }) {
   const { refresh } = useData();
