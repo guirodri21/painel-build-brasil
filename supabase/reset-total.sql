@@ -15,6 +15,8 @@ DELETE FROM alertas_log;
 DELETE FROM metas;
 DELETE FROM despesas_gerais;
 DELETE FROM ordens;
+DELETE FROM estoque_movimentos;
+DELETE FROM produtos;
 
 -- Cadastros base (lookups)
 DELETE FROM linhas_servico;

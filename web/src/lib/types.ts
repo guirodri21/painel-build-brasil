@@ -60,6 +60,45 @@ export interface WhatsappConfig {
   notificar_equipe?: boolean;
 }
 
+export type MovimentoTipo = "entrada" | "saida" | "ajuste";
+
+export interface Produto {
+  id: string;
+  sku: string | null;
+  nome: string;
+  categoria: string | null;
+  unidade: string;
+  estoque_atual: number;
+  estoque_minimo: number;
+  custo_unitario: number;
+  localizacao: string | null;
+  ativo: boolean;
+  created_by: string | null;
+  created_at: string;
+}
+
+export interface EstoqueMovimento {
+  id: string;
+  produto_id: string;
+  tipo: MovimentoTipo;
+  quantidade: number;
+  custo_unitario: number | null;
+  motivo: string | null;
+  referencia: string | null;
+  saldo_apos: number;
+  created_by: string | null;
+  created_at: string;
+}
+
+export const MOVIMENTO_LABELS: Record<MovimentoTipo, string> = {
+  entrada: "Entrada",
+  saida: "Saída",
+  ajuste: "Ajuste",
+};
+
+/** Unidades de medida sugeridas no cadastro de produtos. */
+export const UNIDADES = ["un", "cx", "pç", "kg", "g", "m", "m²", "L", "ml", "par", "rolo", "saco"];
+
 export interface Funcionario {
   id: string;
   nome: string;

@@ -2,12 +2,14 @@
 
 import * as React from "react";
 import { createClient } from "@/lib/supabase/client";
-import type { Ordem, DespesaGeral, Meta } from "@/lib/types";
+import type { Ordem, DespesaGeral, Meta, Produto, EstoqueMovimento } from "@/lib/types";
 
 interface DataState {
   ordens: Ordem[];
   despesas: DespesaGeral[];
   metas: Meta[];
+  produtos: Produto[];
+  movimentos: EstoqueMovimento[];
   equipes: string[];
   regioes: string[];
   linhas: string[];
@@ -36,6 +38,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     ordens: [],
     despesas: [],
     metas: [],
+    produtos: [],
+    movimentos: [],
     equipes: [],
     regioes: [],
     linhas: [],
@@ -60,6 +64,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         ord,
         desp,
         met,
+        prod,
+        mov,
         prof,
       ] = await Promise.all([
         supabase.from("equipes").select("nome").order("nome"),
@@ -68,12 +74,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         supabase.from("ordens").select("*").order("data", { ascending: false }),
         supabase.from("despesas_gerais").select("*").order("data", { ascending: false }),
         supabase.from("metas").select("*").order("mes", { ascending: false }),
+        supabase.from("produtos").select("*").order("nome"),
+        supabase.from("estoque_movimentos").select("*").order("created_at", { ascending: false }).limit(500),
         uid
           ? supabase.from("profiles").select("role").eq("id", uid).single()
           : Promise.resolve({ data: null, error: null }),
       ]);
 
-      const err = eq.error || rg.error || ls.error || ord.error || desp.error || met.error;
+      const err = eq.error || rg.error || ls.error || ord.error || desp.error || met.error || prod.error || mov.error;
       if (err) throw err;
 
       const role = (prof.data?.role as "admin" | "membro" | undefined) ?? "membro";
@@ -87,6 +95,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         ordens,
         despesas: (desp.data as DespesaGeral[]) || [],
         metas: (met.data as Meta[]) || [],
+        produtos: (prod.data as Produto[]) || [],
+        movimentos: (mov.data as EstoqueMovimento[]) || [],
         equipes: (eq.data || []).map((r) => r.nome),
         regioes: (rg.data || []).map((r) => r.nome),
         linhas: (ls.data || []).map((r) => r.nome),
@@ -122,6 +132,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       .on("postgres_changes", { event: "*", schema: "public", table: "ordens" }, debounced)
       .on("postgres_changes", { event: "*", schema: "public", table: "despesas_gerais" }, debounced)
       .on("postgres_changes", { event: "*", schema: "public", table: "metas" }, debounced)
+      .on("postgres_changes", { event: "*", schema: "public", table: "produtos" }, debounced)
+      .on("postgres_changes", { event: "*", schema: "public", table: "estoque_movimentos" }, debounced)
       .subscribe();
     return () => {
       clearTimeout(timer);

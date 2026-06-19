@@ -27,6 +27,16 @@ export function formatPercent(value: number, digits = 1): string {
   return value.toFixed(digits).replace(".", ",") + "%";
 }
 
+/** Número no padrão pt-BR, sem casas decimais desnecessárias (até 2). */
+export function formatNumber(value: number): string {
+  return value.toLocaleString("pt-BR", { maximumFractionDigits: 2 });
+}
+
+/** Moeda BRL com centavos (ex.: custo unitário). */
+export function formatMoney(value: number): string {
+  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
 export function todayISO(): string {
   return new Date().toISOString().split("T")[0];
 }
