@@ -139,7 +139,11 @@ export function ChamadosImport({ open, onClose }: { open: boolean; onClose: () =
       if (!registros.length) { toast("Nenhuma linha válida encontrada.", "error"); setBusy(false); return; }
 
       const supabase = createClient();
-      const comId = registros.filter((r) => r.goalfy_card_id);
+      // Deduplica por chave (tickets repetidos na planilha) — mantém a última linha,
+      // senão o upsert dá "ON CONFLICT cannot affect row a second time".
+      const mapaUnicos = new Map<string, Record<string, unknown>>();
+      for (const r of registros) if (r.goalfy_card_id) mapaUnicos.set(String(r.goalfy_card_id), r);
+      const comId = Array.from(mapaUnicos.values());
       const semId = registros.filter((r) => !r.goalfy_card_id);
       let ok = 0; let err: string | null = null;
 
