@@ -11,6 +11,7 @@ import { todayISO } from "@/lib/utils";
 import { fireEvent } from "@/lib/integrations";
 import { OrdemMateriais } from "@/components/ordem-materiais";
 import { OrdemAnexos } from "@/components/ordem-anexos";
+import { OrdemChecklist } from "@/components/ordem-checklist";
 import type { Ordem } from "@/lib/types";
 
 export function OrdemModal({
@@ -149,6 +150,7 @@ export function OrdemModal({
 
           {ordem ? (
             <>
+              <OrdemChecklist ordemId={ordem.id} linhaServico={ordem.linha_servico} filial={ordem.filial ?? null} />
               <OrdemMateriais ordemId={ordem.id} filial={ordem.filial ?? null} />
               <OrdemAnexos ordemId={ordem.id} filial={ordem.filial ?? null} />
             </>

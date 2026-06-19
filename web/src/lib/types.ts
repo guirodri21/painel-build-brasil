@@ -114,6 +114,23 @@ export interface EstoqueMovimento {
   created_at: string;
 }
 
+export interface ChecklistTemplate {
+  id: string;
+  linha_servico: string;
+  item: string;
+  ordem_exibicao: number;
+  created_at: string;
+}
+
+export interface OrdemChecklistItem {
+  id: string;
+  ordem_id: string;
+  item: string;
+  feito: boolean;
+  obs: string | null;
+  created_at: string;
+}
+
 export type AnexoTipo = "foto" | "antes" | "depois" | "assinatura" | "doc";
 
 export interface OrdemAnexo {

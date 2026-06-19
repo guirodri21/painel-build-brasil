@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { LookupManager } from "@/components/lookup-manager";
 import { FuncionariosManager } from "@/components/funcionarios-manager";
+import { ChecklistManager } from "@/components/checklist-manager";
 import { DespesaModal } from "@/components/despesa-modal";
 import { ConfirmDialog } from "@/components/ui/confirm";
 import { formatCurrency, formatDate, cn } from "@/lib/utils";
@@ -58,6 +59,12 @@ export default function CadastrosPage() {
       <div className="mb-5">
         <FuncionariosManager />
       </div>
+
+      {isAdmin && (
+        <div className="mb-5">
+          <ChecklistManager />
+        </div>
+      )}
 
       <Card>
         <CardHeader>
