@@ -114,6 +114,27 @@ export interface EstoqueMovimento {
   created_at: string;
 }
 
+export type AnexoTipo = "foto" | "antes" | "depois" | "assinatura" | "doc";
+
+export interface OrdemAnexo {
+  id: string;
+  ordem_id: string;
+  path: string;
+  tipo: AnexoTipo;
+  legenda: string | null;
+  filial: string | null;
+  created_by: string | null;
+  created_at: string;
+}
+
+export const ANEXO_TIPO_LABELS: Record<AnexoTipo, string> = {
+  foto: "Foto",
+  antes: "Antes",
+  depois: "Depois",
+  assinatura: "Assinatura",
+  doc: "Documento",
+};
+
 export interface OrdemMaterial {
   id: string;
   ordem_id: string;

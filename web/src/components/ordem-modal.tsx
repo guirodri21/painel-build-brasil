@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { todayISO } from "@/lib/utils";
 import { fireEvent } from "@/lib/integrations";
 import { OrdemMateriais } from "@/components/ordem-materiais";
+import { OrdemAnexos } from "@/components/ordem-anexos";
 import type { Ordem } from "@/lib/types";
 
 export function OrdemModal({
@@ -135,10 +136,13 @@ export function OrdemModal({
           </div>
 
           {ordem ? (
-            <OrdemMateriais ordemId={ordem.id} filial={ordem.filial ?? null} />
+            <>
+              <OrdemMateriais ordemId={ordem.id} filial={ordem.filial ?? null} />
+              <OrdemAnexos ordemId={ordem.id} filial={ordem.filial ?? null} />
+            </>
           ) : (
             <p className="text-xs text-muted italic">
-              Salve a ordem para lançar materiais consumidos (baixa no estoque).
+              Salve a ordem para lançar materiais consumidos e anexar fotos.
             </p>
           )}
         </ModalBody>
