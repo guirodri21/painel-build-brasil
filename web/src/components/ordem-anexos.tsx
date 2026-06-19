@@ -6,6 +6,7 @@ import { useData } from "@/components/data-provider";
 import { useToast } from "@/components/ui/toast";
 import { Select } from "@/components/ui/field";
 import { Badge } from "@/components/ui/badge";
+import { AssinaturaPad } from "@/components/assinatura-pad";
 import { ANEXO_TIPO_LABELS } from "@/lib/types";
 import type { OrdemAnexo, AnexoTipo } from "@/lib/types";
 import { Paperclip, Upload, Trash2, FileText } from "lucide-react";
@@ -110,6 +111,10 @@ export function OrdemAnexos({ ordemId, filial }: { ordemId: string; filial: stri
           <Upload size={15} /> {busy ? "Enviando..." : "Enviar arquivo"}
           <input type="file" accept="image/*,application/pdf" className="hidden" onChange={onPick} disabled={busy} />
         </label>
+      </div>
+
+      <div className="mt-3">
+        <AssinaturaPad ordemId={ordemId} filial={filial} onSaved={carregar} />
       </div>
     </div>
   );
