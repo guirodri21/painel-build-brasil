@@ -114,6 +114,15 @@ export interface EstoqueMovimento {
   created_at: string;
 }
 
+export interface ComissaoRegra {
+  id: string;
+  filial: string | null;
+  equipe: string;
+  base: "receita" | "margem";
+  percentual: number;
+  created_at: string;
+}
+
 export type OrcamentoStatus = "rascunho" | "enviado" | "aprovado" | "recusado";
 
 export interface Orcamento {
