@@ -47,6 +47,8 @@ export function OrdemModal({
         ? parseInt(fd.get("qualidade") as string, 10)
         : null,
       resumo: (fd.get("resumo") as string) || null,
+      data_agendada: (fd.get("data_agendada") as string) || null,
+      hora_agendada: (fd.get("hora_agendada") as string) || null,
     };
 
     const supabase = createClient();
@@ -128,6 +130,16 @@ export function OrdemModal({
             <div>
               <Label>Qualidade (0–100)</Label>
               <Input type="number" name="qualidade" min="0" max="100" placeholder="se avaliado" defaultValue={ordem?.qualidade ?? ""} />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label>Data agendada</Label>
+              <Input type="date" name="data_agendada" defaultValue={ordem?.data_agendada ?? ""} />
+            </div>
+            <div>
+              <Label>Hora agendada</Label>
+              <Input type="time" name="hora_agendada" defaultValue={ordem?.hora_agendada?.slice(0, 5) ?? ""} />
             </div>
           </div>
           <div>
