@@ -8,6 +8,7 @@ import { Modal, ModalBody, ModalFooter } from "@/components/ui/modal";
 import { Input, Select, Textarea, Label } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { formatNumber } from "@/lib/utils";
+import { alertarSeEstoqueBaixo } from "@/lib/integrations";
 import type { Produto, MovimentoTipo } from "@/lib/types";
 
 export function MovimentoModal({
@@ -63,6 +64,11 @@ export function MovimentoModal({
     if (error) {
       // A trigger devolve "Estoque insuficiente..." quando a saída excede o saldo
       return toast("Erro: " + error.message, "error");
+    }
+    // Alerta de estoque baixo (saída/ajuste que cruza o mínimo)
+    if (selecionado && tipo !== "entrada") {
+      const saldoNovo = tipo === "ajuste" ? quantidade : selecionado.estoque_atual - quantidade;
+      alertarSeEstoqueBaixo(selecionado, saldoNovo);
     }
     await refresh();
     toast("Movimentação registrada.");

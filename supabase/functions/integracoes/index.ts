@@ -100,6 +100,8 @@ function montarMensagem(evento: string, dados: Record<string, unknown>): string 
       return `🎯 *Nova meta* — Equipe ${o.equipe ?? "—"}\nReceita alvo: ${moeda(o.meta_receita)}`;
     case "meta.atualizada":
       return `🎯 *Meta atualizada* — Equipe ${o.equipe ?? "—"}\nReceita alvo: ${moeda(o.meta_receita)}`;
+    case "estoque.baixo":
+      return `⚠️ *Estoque baixo* — ${o.produto ?? "Produto"}\nSaldo: ${o.saldo ?? 0} ${o.unidade ?? ""}\nMínimo: ${o.minimo ?? 0}`;
     default:
       return `📣 Painel Build — evento: ${evento}`;
   }
@@ -172,6 +174,14 @@ Deno.serve(async (req) => {
 
       // -- Notificações de WhatsApp --
       await dispararWhatsapp(admin, evento, payload, results);
+
+      // -- Log de alertas de estoque --
+      if (evento === "estoque.baixo") {
+        await admin.from("alertas_log").insert({
+          resumo: `Estoque baixo: ${payload.produto ?? "?"} (saldo ${payload.saldo ?? 0} ${payload.unidade ?? ""}, mín ${payload.minimo ?? 0})`,
+          qtd_alertas: 1,
+        });
+      }
 
       return json({ ok: true, disparados: results.length, results });
     }

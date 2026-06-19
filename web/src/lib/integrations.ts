@@ -6,6 +6,7 @@ export const EVENTOS = [
   { id: "ordem.atualizada", label: "Ordem atualizada" },
   { id: "meta.criada", label: "Meta criada" },
   { id: "meta.atualizada", label: "Meta atualizada" },
+  { id: "estoque.baixo", label: "Estoque abaixo do mínimo" },
 ] as const;
 
 export type EventoId = (typeof EVENTOS)[number]["id"];
@@ -33,5 +34,20 @@ export function fireEvent(evento: EventoId, payload: Record<string, unknown>): v
       .catch(() => {});
   } catch {
     /* ignora */
+  }
+}
+
+/** Dispara alerta de estoque baixo se o saldo novo cruzar o mínimo. */
+export function alertarSeEstoqueBaixo(
+  produto: { nome: string; estoque_minimo: number; unidade: string },
+  saldoNovo: number,
+): void {
+  if (saldoNovo <= produto.estoque_minimo) {
+    fireEvent("estoque.baixo", {
+      produto: produto.nome,
+      saldo: saldoNovo,
+      minimo: produto.estoque_minimo,
+      unidade: produto.unidade,
+    });
   }
 }

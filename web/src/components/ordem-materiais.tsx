@@ -7,6 +7,7 @@ import { useToast } from "@/components/ui/toast";
 import { Input, Select, Label } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { formatMoney, formatNumber } from "@/lib/utils";
+import { alertarSeEstoqueBaixo } from "@/lib/integrations";
 import type { OrdemMaterial } from "@/lib/types";
 import { Plus, Trash2, Package } from "lucide-react";
 
@@ -49,6 +50,8 @@ export function OrdemMateriais({ ordemId, filial }: { ordemId: string; filial: s
       toast("Erro: " + error.message, "error"); // ex.: "Estoque insuficiente..."
       return;
     }
+    const p = prodPorId.get(produtoId);
+    if (p) alertarSeEstoqueBaixo(p, p.estoque_atual - quantidade);
     setProdutoId("");
     setQtd("");
     await carregar();
