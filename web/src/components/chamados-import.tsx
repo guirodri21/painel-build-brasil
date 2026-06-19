@@ -6,7 +6,8 @@ import { useData } from "@/components/data-provider";
 import { useToast } from "@/components/ui/toast";
 import { Modal, ModalBody, ModalFooter } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
-import { Upload, FileSpreadsheet } from "lucide-react";
+import { FileSpreadsheet } from "lucide-react";
+import * as XLSX from "xlsx";
 
 const norm = (s: string) =>
   s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
@@ -62,8 +63,18 @@ export function ChamadosImport({ open, onClose }: { open: boolean; onClose: () =
     setBusy(true);
     setResumo(null);
     try {
-      const text = await file.text();
-      const rows = parseCSV(text);
+      const nome = file.name.toLowerCase();
+      const excel = nome.endsWith(".xlsx") || nome.endsWith(".xls");
+      let rows: string[][];
+      if (excel) {
+        const buf = await file.arrayBuffer();
+        const wb = XLSX.read(buf, { type: "array" });
+        const sheet = wb.Sheets[wb.SheetNames[0]];
+        const raw = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, blankrows: false, defval: "" });
+        rows = raw.map((r) => (r as unknown[]).map((c) => (c == null ? "" : String(c))));
+      } else {
+        rows = parseCSV(await file.text());
+      }
       if (rows.length < 2) { toast("Planilha vazia ou sem cabeçalho.", "error"); setBusy(false); return; }
 
       const header = rows[0].map((h) => MAP[norm(h)] ?? null);
@@ -110,26 +121,26 @@ export function ChamadosImport({ open, onClose }: { open: boolean; onClose: () =
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="Importar chamados (CSV)" className="max-w-lg">
+    <Modal open={open} onClose={onClose} title="Importar chamados (CSV / Excel)" className="max-w-lg">
       <ModalBody>
         <p className="text-sm text-muted">
-          Exporte o board do Goalfy em <strong>CSV</strong> e selecione o arquivo. O painel reconhece
+          Exporte o board do Goalfy em <strong>CSV ou Excel</strong> e selecione o arquivo. O painel reconhece
           automaticamente as colunas: cliente, região, descrição, prioridade, ticket, fase, valor, responsável,
           e o <strong>ID do card</strong> (para não duplicar em reimportações).
         </p>
 
         <label className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border py-8 cursor-pointer hover:bg-surface-2 transition-colors">
           <FileSpreadsheet size={28} className="text-muted" />
-          <span className="text-sm font-medium">{busy ? "Importando..." : "Clique para escolher o CSV"}</span>
-          <span className="text-xs text-muted">.csv (separado por , ou ;)</span>
-          <input type="file" accept=".csv,text/csv" className="hidden" onChange={onFile} disabled={busy} />
+          <span className="text-sm font-medium">{busy ? "Importando..." : "Clique para escolher a planilha"}</span>
+          <span className="text-xs text-muted">.xlsx, .xls ou .csv</span>
+          <input type="file" accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" className="hidden" onChange={onFile} disabled={busy} />
         </label>
 
         {resumo && <p className="text-sm text-green font-medium">✓ {resumo}</p>}
 
         <p className="text-[11px] text-muted">
-          Dica: no Goalfy, abra o board → <em>Ações em massa</em> ou o menu de exportação → exportar como CSV/Excel.
-          Se exportar em Excel (.xlsx), salve como CSV antes.
+          Dica: no Goalfy, abra o board → <em>Ações em massa</em> ou o menu de exportação → exportar como Excel/CSV.
+          Pode soltar o <strong>.xlsx</strong> direto aqui — não precisa converter.
         </p>
       </ModalBody>
       <ModalFooter>
