@@ -12,6 +12,7 @@ import { MetaModal } from "@/components/meta-modal";
 import { ConfirmDialog } from "@/components/ui/confirm";
 import { groupBy, sum } from "@/lib/analytics";
 import { formatCurrency, monthLabel, cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 import { Plus, Pencil, Trash2, Target } from "lucide-react";
 import type { Meta } from "@/lib/types";
 
@@ -21,6 +22,15 @@ export default function MetasPage() {
   const [open, setOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<Meta | null>(null);
   const [delId, setDelId] = React.useState<string | null>(null);
+  const [funcMap, setFuncMap] = React.useState<Record<string, string>>({});
+
+  React.useEffect(() => {
+    createClient().from("funcionarios").select("id,nome").then(({ data }) => {
+      const m: Record<string, string> = {};
+      for (const f of data ?? []) m[f.id] = f.nome;
+      setFuncMap(m);
+    });
+  }, []);
 
   // realizado por equipe+mês
   const realizado = React.useMemo(() => {
@@ -80,19 +90,30 @@ export default function MetasPage() {
                 </thead>
                 <tbody>
                   {metas.map((m) => {
+                    const individual = !!m.funcionario_id;
                     const key = `${m.equipe}|${m.mes.substring(0, 7)}`;
-                    const real = realizado[key];
+                    const real = individual ? undefined : realizado[key];
                     const receitaReal = real?.receita ?? 0;
-                    const pct = m.meta_receita > 0 ? (receitaReal / m.meta_receita) * 100 : 0;
+                    const pct = !individual && m.meta_receita > 0 ? (receitaReal / m.meta_receita) * 100 : 0;
                     const own = userId && m.created_by === userId;
                     const qualReal = real?.qualidade;
                     return (
                       <tr key={m.id} className="border-b border-border last:border-0 hover:bg-surface-2 transition-colors">
                         <Td className="font-medium">{monthLabel(m.mes.substring(0, 7))}</Td>
-                        <Td className="font-semibold">{m.equipe}</Td>
+                        <Td className="font-semibold">
+                          {individual ? (
+                            <span className="flex items-center gap-2">
+                              {funcMap[m.funcionario_id!] ?? "Funcionário"}
+                              <Badge tone="blue">individual</Badge>
+                            </span>
+                          ) : m.equipe}
+                        </Td>
                         <Td className="text-right">{formatCurrency(m.meta_receita)}</Td>
-                        <Td className="text-right">{formatCurrency(receitaReal)}</Td>
+                        <Td className="text-right">{individual ? "—" : formatCurrency(receitaReal)}</Td>
                         <Td>
+                          {individual ? (
+                            <span className="text-xs text-muted">acompanhamento manual</span>
+                          ) : (
                           <div className="flex items-center gap-2">
                             <span className="h-2 flex-1 rounded-full bg-surface-2 overflow-hidden min-w-[80px]">
                               <span
@@ -108,6 +129,7 @@ export default function MetasPage() {
                               {pct.toFixed(0)}%
                             </span>
                           </div>
+                          )}
                         </Td>
                         <Td className="text-right text-xs">
                           {m.meta_qualidade ?? "—"} / {qualReal != null ? qualReal.toFixed(0) : "—"}

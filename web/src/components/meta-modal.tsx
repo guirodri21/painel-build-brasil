@@ -19,17 +19,31 @@ export function MetaModal({
   onClose: () => void;
   meta?: Meta | null;
 }) {
-  const { equipes, userId, refresh } = useData();
+  const { equipes, userId, filial, refresh } = useData();
   const toast = useToast();
   const [saving, setSaving] = React.useState(false);
+  const [tipo, setTipo] = React.useState<"equipe" | "funcionario">(meta?.funcionario_id ? "funcionario" : "equipe");
+  const [funcs, setFuncs] = React.useState<{ id: string; nome: string; equipe: string | null }[]>([]);
+
+  React.useEffect(() => {
+    if (open) {
+      createClient().from("funcionarios").select("id,nome,equipe").eq("ativo", true).order("nome")
+        .then(({ data }) => setFuncs(data ?? []));
+    }
+  }, [open]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setSaving(true);
     const fd = new FormData(e.currentTarget);
     const mesInput = fd.get("mes") as string; // YYYY-MM
+    const funcionarioId = tipo === "funcionario" ? (fd.get("funcionario_id") as string) : "";
+    const equipe = tipo === "funcionario"
+      ? (funcs.find((f) => f.id === funcionarioId)?.equipe ?? equipes[0] ?? "")
+      : (fd.get("equipe") as string);
     const rec = {
-      equipe: fd.get("equipe") as string,
+      equipe,
+      funcionario_id: funcionarioId || null,
       mes: mesInput + "-01",
       meta_receita: parseFloat(fd.get("meta_receita") as string) || 0,
       meta_qualidade: fd.get("meta_qualidade")
@@ -39,13 +53,13 @@ export function MetaModal({
     const supabase = createClient();
     const { error } = meta
       ? await supabase.from("metas").update(rec).eq("id", meta.id)
-      : await supabase.from("metas").insert([{ ...rec, created_by: userId }]);
+      : await supabase.from("metas").insert([{ ...rec, filial: filial || "Matriz", created_by: userId }]);
 
     setSaving(false);
     if (error) {
       toast(
         error.code === "23505"
-          ? "Já existe meta para essa equipe neste mês."
+          ? "Já existe meta para esse alvo neste mês."
           : "Erro: " + error.message,
         "error",
       );
@@ -61,14 +75,31 @@ export function MetaModal({
     <Modal open={open} onClose={onClose} title={meta ? "Editar Meta" : "Nova Meta"} className="max-w-md">
       <form onSubmit={handleSubmit}>
         <ModalBody>
+          <div>
+            <Label>Tipo de meta *</Label>
+            <Select value={tipo} onChange={(e) => setTipo(e.target.value as "equipe" | "funcionario")}>
+              <option value="equipe">Por equipe</option>
+              <option value="funcionario">Por funcionário</option>
+            </Select>
+          </div>
           <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label>Equipe *</Label>
-              <Select name="equipe" required defaultValue={meta?.equipe ?? ""}>
-                <option value="">Selecione</option>
-                {equipes.map((r) => <option key={r} value={r}>{r}</option>)}
-              </Select>
-            </div>
+            {tipo === "equipe" ? (
+              <div>
+                <Label>Equipe *</Label>
+                <Select name="equipe" required defaultValue={meta?.equipe ?? ""}>
+                  <option value="">Selecione</option>
+                  {equipes.map((r) => <option key={r} value={r}>{r}</option>)}
+                </Select>
+              </div>
+            ) : (
+              <div>
+                <Label>Funcionário *</Label>
+                <Select name="funcionario_id" required defaultValue={meta?.funcionario_id ?? ""}>
+                  <option value="">Selecione</option>
+                  {funcs.map((f) => <option key={f.id} value={f.id}>{f.nome}</option>)}
+                </Select>
+              </div>
+            )}
             <div>
               <Label>Mês *</Label>
               <Input type="month" name="mes" required defaultValue={meta?.mes?.substring(0, 7) ?? ""} />
