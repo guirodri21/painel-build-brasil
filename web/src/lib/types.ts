@@ -114,6 +114,37 @@ export interface EstoqueMovimento {
   created_at: string;
 }
 
+export type OrcamentoStatus = "rascunho" | "enviado" | "aprovado" | "recusado";
+
+export interface Orcamento {
+  id: string;
+  filial: string | null;
+  cliente: string | null;
+  validade: string | null;
+  status: OrcamentoStatus;
+  observacoes: string | null;
+  valor_total: number;
+  ordem_id: string | null;
+  created_by: string | null;
+  created_at: string;
+}
+
+export interface OrcamentoItem {
+  id: string;
+  orcamento_id: string;
+  descricao: string;
+  quantidade: number;
+  valor_unitario: number;
+  ordem_exibicao: number;
+}
+
+export const ORCAMENTO_STATUS_LABELS: Record<OrcamentoStatus, string> = {
+  rascunho: "Rascunho",
+  enviado: "Enviado",
+  aprovado: "Aprovado",
+  recusado: "Recusado",
+};
+
 export type ContaTipo = "pagar" | "receber";
 
 export interface Conta {
