@@ -73,7 +73,54 @@ O Goalfy precisa **fazer uma requisição HTTP de saída** (automação/webhook 
 
 ---
 
+## 3. Goalfy → Painel (board de Chamados) ⭐ recomendado
+
+Espelha os cards do board do Goalfy no módulo **Chamados** do painel (mesmas 9 fases),
+via a Edge Function `chamados-ingest` (upsert pelo id do card — mover de fase atualiza o
+mesmo chamado, sem duplicar).
+
+**Configurar no painel:**
+1. **Integrações → Nova → API de entrada** → copie o **token** gerado.
+
+**Configurar no Goalfy (automação):**
+1. **Acionador (gatilho):** use **"Quando um card é criado"** e **"Quando um card é movido para uma fase"** (uma automação para cada, ou um fluxo com os dois).
+2. **Ação:** **"Requisição HTTP"** com:
+   - **Método:** `POST`
+   - **URL:** `https://acezmxkbqzdwwdsoaqnu.supabase.co/functions/v1/chamados-ingest`
+   - **Header:** `x-api-key: <token do passo 1>`
+   - **Body (JSON):** mapeie as variáveis do card do Goalfy:
+
+```json
+{
+  "card_id":     "{{id do card}}",
+  "titulo":      "{{título da demanda}}",
+  "cliente":     "{{cliente/solicitante}}",
+  "regiao":      "{{região}}",
+  "descricao":   "{{descrição}}",
+  "prioridade":  "{{prioridade}}",
+  "ticket_ref":  "{{ticket trilogo}}",
+  "fase":        "{{nome da fase atual}}",
+  "valor":       0,
+  "responsavel": "{{responsável}}"
+}
+```
+
+**Regras importantes:**
+- `card_id` é a **chave de idempotência** — garante que mover/atualizar o card no Goalfy
+  **atualiza** o mesmo chamado no painel (não cria duplicado).
+- `fase` deve ser **exatamente** o nome da coluna (Triagem, Em Orçamento, Proposta Enviada,
+  Planejamento, Em Execução, Resolvido / Análise, Fechamento Financeiro, A Faturar, Concluído).
+  As fases ficam em `chamado_fases` (editáveis pelo admin).
+- `valor` é opcional — preencha com o campo financeiro do card (se houver) para alimentar os KPIs.
+
+**Resposta de sucesso:** `201` com `{ "ok": true, "sincronizados": N }`.
+
+> Para a **carga inicial** dos 695 cards, use uma automação/ação em massa no Goalfy que
+> dispare a Requisição HTTP para cada card existente (ou rode o gatilho "card movido" uma vez).
+
 ## Onde o código vive
 - Saída/WhatsApp/dispatch: [`supabase/functions/integracoes/index.ts`](../supabase/functions/integracoes/index.ts)
-- Entrada: [`supabase/functions/ingest/index.ts`](../supabase/functions/ingest/index.ts)
+- Entrada (ordens): [`supabase/functions/ingest/index.ts`](../supabase/functions/ingest/index.ts)
+- Entrada (chamados/board): [`supabase/functions/chamados-ingest/index.ts`](../supabase/functions/chamados-ingest/index.ts)
+- Board de chamados (front): [`web/src/app/(app)/chamados/page.tsx`](../web/src/app/(app)/chamados/page.tsx)
 - Eventos e helpers no front: [`web/src/lib/integrations.ts`](../web/src/lib/integrations.ts)

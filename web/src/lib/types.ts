@@ -114,6 +114,33 @@ export interface EstoqueMovimento {
   created_at: string;
 }
 
+export interface ChamadoFase {
+  id: string;
+  nome: string;
+  ordem: number;
+  cor: string | null;
+  final: boolean;
+}
+
+export interface Chamado {
+  id: string;
+  filial: string | null;
+  goalfy_card_id: string | null;
+  titulo: string | null;
+  cliente: string | null;
+  regiao: string | null;
+  descricao: string | null;
+  prioridade: string | null;
+  ticket_ref: string | null;
+  fase: string;
+  valor: number;
+  responsavel: string | null;
+  aberto_em: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at?: string | null;
+}
+
 export interface Notificacao {
   id: string;
   user_id: string;

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { createClient } from "@/lib/supabase/client";
-import type { Ordem, DespesaGeral, Meta, Produto, EstoqueMovimento, Cliente, Conta } from "@/lib/types";
+import type { Ordem, DespesaGeral, Meta, Produto, EstoqueMovimento, Cliente, Conta, Chamado, ChamadoFase } from "@/lib/types";
 
 const FILIAL_KEY = "painel.filial";
 
@@ -14,6 +14,8 @@ interface RawData {
   movimentos: EstoqueMovimento[];
   clientesReg: Cliente[];
   contas: Conta[];
+  chamados: Chamado[];
+  chamadoFases: ChamadoFase[];
   equipes: string[];
   regioes: string[];
   linhas: string[];
@@ -44,6 +46,7 @@ export function useData() {
 
 const EMPTY_RAW: RawData = {
   ordens: [], despesas: [], metas: [], produtos: [], movimentos: [], clientesReg: [], contas: [],
+  chamados: [], chamadoFases: [],
   equipes: [], regioes: [], linhas: [], filiais: [],
 };
 
@@ -74,7 +77,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const { data: userData } = await supabase.auth.getUser();
     const uid = userData.user?.id ?? null;
 
-    const [eq, rg, ls, fl, ord, desp, met, prod, mov, cli, con, prof] = await Promise.allSettled([
+    const [eq, rg, ls, fl, ord, desp, met, prod, mov, cli, con, cha, fas, prof] = await Promise.allSettled([
       supabase.from("equipes").select("nome").order("nome"),
       supabase.from("regioes").select("nome").order("nome"),
       supabase.from("linhas_servico").select("nome").order("nome"),
@@ -86,6 +89,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       supabase.from("estoque_movimentos").select("*").order("created_at", { ascending: false }).limit(500),
       supabase.from("clientes").select("*").order("nome"),
       supabase.from("contas").select("*").order("vencimento"),
+      supabase.from("chamados").select("*").order("created_at", { ascending: false }),
+      supabase.from("chamado_fases").select("*").order("ordem"),
       uid ? supabase.from("profiles").select("role").eq("id", uid).single() : Promise.resolve({ data: null }),
     ]);
 
@@ -116,6 +121,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       movimentos: pick(mov as never, "movimentações", [] as EstoqueMovimento[]),
       clientesReg: pick(cli as never, "clientes", [] as Cliente[]),
       contas: pick(con as never, "contas", [] as Conta[]),
+      chamados: pick(cha as never, "chamados", [] as Chamado[]),
+      chamadoFases: pick(fas as never, "fases", [] as ChamadoFase[]),
     });
 
     const role =
@@ -149,6 +156,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       .on("postgres_changes", { event: "*", schema: "public", table: "estoque_movimentos" }, debounced)
       .on("postgres_changes", { event: "*", schema: "public", table: "contas" }, debounced)
       .on("postgres_changes", { event: "*", schema: "public", table: "clientes" }, debounced)
+      .on("postgres_changes", { event: "*", schema: "public", table: "chamados" }, debounced)
       .subscribe();
     return () => {
       clearTimeout(timer);
@@ -183,6 +191,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       produtos,
       movimentos,
       contas: byFilial(raw.contas),
+      chamados: byFilial(raw.chamados),
       clientesReg,
       clientes,
       filial,
