@@ -114,6 +114,17 @@ export interface EstoqueMovimento {
   created_at: string;
 }
 
+export interface OrdemMaterial {
+  id: string;
+  ordem_id: string;
+  produto_id: string;
+  quantidade: number;
+  custo_unitario_snapshot: number | null;
+  filial: string | null;
+  created_by: string | null;
+  created_at: string;
+}
+
 export const MOVIMENTO_LABELS: Record<MovimentoTipo, string> = {
   entrada: "Entrada",
   saida: "Saída",

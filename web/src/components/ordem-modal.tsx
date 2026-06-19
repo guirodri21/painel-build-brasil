@@ -9,6 +9,7 @@ import { Input, Select, Textarea, Label } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { todayISO } from "@/lib/utils";
 import { fireEvent } from "@/lib/integrations";
+import { OrdemMateriais } from "@/components/ordem-materiais";
 import type { Ordem } from "@/lib/types";
 
 export function OrdemModal({
@@ -132,6 +133,14 @@ export function OrdemModal({
             <Label>Resumo</Label>
             <Textarea name="resumo" placeholder="Descrição breve" defaultValue={ordem?.resumo ?? ""} />
           </div>
+
+          {ordem ? (
+            <OrdemMateriais ordemId={ordem.id} filial={ordem.filial ?? null} />
+          ) : (
+            <p className="text-xs text-muted italic">
+              Salve a ordem para lançar materiais consumidos (baixa no estoque).
+            </p>
+          )}
         </ModalBody>
         <ModalFooter>
           <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
