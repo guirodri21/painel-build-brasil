@@ -114,6 +114,24 @@ export interface EstoqueMovimento {
   created_at: string;
 }
 
+export type ContaTipo = "pagar" | "receber";
+
+export interface Conta {
+  id: string;
+  filial: string | null;
+  tipo: ContaTipo;
+  descricao: string;
+  categoria: string | null;
+  valor: number;
+  vencimento: string;
+  pago: boolean;
+  pago_em: string | null;
+  cliente: string | null;
+  ordem_id: string | null;
+  created_by: string | null;
+  created_at: string;
+}
+
 export interface ChecklistTemplate {
   id: string;
   linha_servico: string;
