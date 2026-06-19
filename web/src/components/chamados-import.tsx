@@ -23,6 +23,7 @@ add("descricao", ["descricao", "descrição", "description", "obs", "observacao"
 add("prioridade", ["prioridade", "priority"]);
 add("ticket_ref", ["ticket", "ticket trilogo", "ticket trílogo", "ticket_trilogo", "nº ticket", "no ticket"]);
 add("fase", ["fase", "etapa", "status", "coluna", "fase atual", "estagio", "estágio"]);
+add("titulo", ["titulo da demanda", "título da demanda"]); // sobrescreve "Título" genérico
 add("valor", ["valor", "valor proposta", "valor da proposta", "valor faturado", "preco", "preço"]);
 add("responsavel", ["responsavel", "responsável", "responsible", "responsaveis", "responsáveis"]);
 
@@ -88,6 +89,8 @@ export function ChamadosImport({ open, onClose }: { open: boolean; onClose: () =
           r[campo] = v;
         });
         if (!r.fase) r.fase = "Triagem";
+        // Sem coluna de ID no Goalfy → usa o Ticket Trílogo como chave anti-duplicação
+        if (!r.goalfy_card_id && r.ticket_ref) r.goalfy_card_id = "tkt:" + String(r.ticket_ref);
         return r;
       }).filter((r) => r.titulo || r.cliente || r.descricao || r.goalfy_card_id);
 
