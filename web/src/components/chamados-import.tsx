@@ -26,6 +26,33 @@ add("fase", ["fase", "etapa", "status", "coluna", "fase atual", "estagio", "est�
 add("titulo", ["titulo da demanda", "título da demanda"]); // sobrescreve "Título" genérico
 add("valor", ["valor", "valor proposta", "valor da proposta", "valor faturado", "preco", "preço"]);
 add("responsavel", ["responsavel", "responsável", "responsible", "responsaveis", "responsáveis"]);
+add("equipe", ["equipe", "equipe responsavel", "equipe responsável"]);
+add("tipo_demanda", ["tipo de demanda", "tipo demanda", "tipo"]);
+add("custo_real", ["custo real", "custo"]);
+add("margem", ["margem"]);
+add("prazo", ["data de vencimento", "vencimento", "prazo", "sla / prazo", "sla/prazo"]);
+add("centro_custo", ["centro de custo (cc)", "centro de custo", "centro custo", "cc"]);
+add("status_faturamento", ["status do faturamento", "status faturamento"]);
+add("nota_fiscal", ["nota fiscal", "nf"]);
+add("motivo_perda", ["motivo da perda", "motivo perda", "motivo"]);
+add("concluido_em", ["concluido em", "concluído em", "data de conclusao", "data de conclusão"]);
+add("local_demanda", ["local da demanda", "local"]);
+add("telefone", ["telefone para contato", "telefone", "contato"]);
+
+/** Converte data BR (DD/MM/AAAA), ISO ou serial Excel para YYYY-MM-DD. */
+function parseDate(v: string): string | null {
+  if (!v) return null;
+  const s = v.trim();
+  let m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (m) return `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
+  m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+  const n = Number(s);
+  if (!isNaN(n) && n > 30000 && n < 60000) {
+    return new Date(Math.round((n - 25569) * 86400000)).toISOString().split("T")[0];
+  }
+  return null;
+}
 
 /** Parser CSV simples com suporte a aspas e delimitador , ou ; */
 function parseCSV(text: string): string[][] {
@@ -78,16 +105,31 @@ export function ChamadosImport({ open, onClose }: { open: boolean; onClose: () =
       }
       if (rows.length < 2) { toast("Planilha vazia ou sem cabeçalho.", "error"); setBusy(false); return; }
 
-      const header = rows[0].map((h) => MAP[norm(h)] ?? null);
+      const rawHeader = rows[0];
+      const header = rawHeader.map((h) => MAP[norm(h)] ?? null);
+      const numericos = new Set(["valor", "custo_real", "margem"]);
+      const datas = new Set(["prazo", "concluido_em", "aberto_em"]);
+      // Colunas "Tempo total na fase X" → coletadas em tempos_fase
+      const tempoCols = rawHeader.map((h) => {
+        const m = norm(h).match(/^tempo total na fase (.+)$/);
+        return m ? m[1] : null;
+      });
+
+      const num = (v: string) => v ? Number(v.replace(/[^\d.,-]/g, "").replace(/\./g, "").replace(",", ".")) || 0 : 0;
+
       const registros = rows.slice(1).map((cols) => {
         const r: Record<string, unknown> = { filial: filial || "Matriz", created_by: userId };
+        const tempos: Record<string, string> = {};
         header.forEach((campo, i) => {
-          if (!campo) return;
-          let v: unknown = (cols[i] ?? "").trim();
-          if (v === "") v = null;
-          if (campo === "valor") v = v ? Number(String(v).replace(/[^\d.,-]/g, "").replace(/\./g, "").replace(",", ".")) || 0 : 0;
-          r[campo] = v;
+          const raw = (cols[i] ?? "").trim();
+          if (campo) {
+            if (numericos.has(campo)) r[campo] = num(raw);
+            else if (datas.has(campo)) r[campo] = parseDate(raw);
+            else r[campo] = raw === "" ? null : raw;
+          }
+          if (tempoCols[i] && raw) tempos[tempoCols[i] as string] = raw;
         });
+        if (Object.keys(tempos).length) r.tempos_fase = tempos;
         if (!r.fase) r.fase = "Triagem";
         // Sem coluna de ID no Goalfy → usa o Ticket Trílogo como chave anti-duplicação
         if (!r.goalfy_card_id && r.ticket_ref) r.goalfy_card_id = "tkt:" + String(r.ticket_ref);

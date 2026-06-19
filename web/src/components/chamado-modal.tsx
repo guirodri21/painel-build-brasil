@@ -7,6 +7,8 @@ import { useToast } from "@/components/ui/toast";
 import { Modal, ModalBody, ModalFooter } from "@/components/ui/modal";
 import { Input, Select, Textarea, Label } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
+import { todayISO } from "@/lib/utils";
+import { Receipt } from "lucide-react";
 import type { Chamado } from "@/lib/types";
 
 export function ChamadoModal({
@@ -23,7 +25,27 @@ export function ChamadoModal({
   const { userId, filial, chamadoFases, clientes, refresh } = useData();
   const toast = useToast();
   const [saving, setSaving] = React.useState(false);
+  const [gerando, setGerando] = React.useState(false);
   const editando = !!chamado;
+
+  async function gerarConta() {
+    if (!chamado) return;
+    setGerando(true);
+    const { error } = await createClient().from("contas").insert([{
+      tipo: "receber",
+      descricao: `Chamado ${chamado.ticket_ref ?? ""} — ${chamado.cliente ?? chamado.titulo ?? ""}`.trim(),
+      categoria: "Chamado",
+      valor: chamado.valor || 0,
+      vencimento: chamado.prazo ?? todayISO(),
+      cliente: chamado.cliente,
+      filial: filial || "Matriz",
+      created_by: userId,
+    }]);
+    setGerando(false);
+    if (error) { toast("Erro: " + error.message, "error"); return; }
+    await refresh();
+    toast("Conta a receber gerada em Contas.");
+  }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -39,6 +61,11 @@ export function ChamadoModal({
       fase: fd.get("fase") as string,
       valor: parseFloat(fd.get("valor") as string) || 0,
       responsavel: (fd.get("responsavel") as string)?.trim() || null,
+      equipe: (fd.get("equipe") as string)?.trim() || null,
+      prazo: (fd.get("prazo") as string) || null,
+      custo_real: fd.get("custo_real") ? parseFloat(fd.get("custo_real") as string) : null,
+      status_faturamento: (fd.get("status_faturamento") as string)?.trim() || null,
+      motivo_perda: (fd.get("motivo_perda") as string)?.trim() || null,
     };
     const supabase = createClient();
     const { error } = editando
@@ -90,12 +117,32 @@ export function ChamadoModal({
               <Input name="ticket_ref" defaultValue={chamado?.ticket_ref ?? ""} />
             </div>
             <div>
-              <Label>Valor (R$)</Label>
+              <Label>Valor proposta (R$)</Label>
               <Input type="number" name="valor" step="0.01" min="0" defaultValue={chamado?.valor || ""} />
             </div>
-            <div className="col-span-2">
+            <div>
+              <Label>Custo real (R$)</Label>
+              <Input type="number" name="custo_real" step="0.01" min="0" defaultValue={chamado?.custo_real ?? ""} />
+            </div>
+            <div>
+              <Label>Equipe</Label>
+              <Input name="equipe" defaultValue={chamado?.equipe ?? ""} />
+            </div>
+            <div>
               <Label>Responsável</Label>
               <Input name="responsavel" defaultValue={chamado?.responsavel ?? ""} />
+            </div>
+            <div>
+              <Label>Prazo / vencimento</Label>
+              <Input type="date" name="prazo" defaultValue={chamado?.prazo ?? ""} />
+            </div>
+            <div>
+              <Label>Status faturamento</Label>
+              <Input name="status_faturamento" defaultValue={chamado?.status_faturamento ?? ""} />
+            </div>
+            <div className="col-span-2">
+              <Label>Motivo da perda (se recusado)</Label>
+              <Input name="motivo_perda" defaultValue={chamado?.motivo_perda ?? ""} />
             </div>
             <div className="col-span-2">
               <Label>Descrição</Label>
@@ -107,6 +154,11 @@ export function ChamadoModal({
           )}
         </ModalBody>
         <ModalFooter>
+          {editando && (
+            <Button type="button" variant="outline" onClick={gerarConta} disabled={gerando} className="mr-auto">
+              <Receipt size={15} /> {gerando ? "Gerando..." : "Gerar conta a receber"}
+            </Button>
+          )}
           <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
           <Button type="submit" disabled={saving}>{saving ? "Salvando..." : "Salvar"}</Button>
         </ModalFooter>
