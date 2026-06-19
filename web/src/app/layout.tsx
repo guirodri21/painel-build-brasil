@@ -1,7 +1,8 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, IBM_Plex_Mono } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import { PwaRegister } from "@/components/pwa-register";
 import "./globals.css";
 
 const inter = Inter({
@@ -18,6 +19,12 @@ const mono = IBM_Plex_Mono({
 export const metadata: Metadata = {
   title: "Build Brasil — Painel de Resultados",
   description: "Sistema de gestão de resultados — Build Brasil Engenharia",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: { capable: true, statusBarStyle: "default", title: "Build Brasil" },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#2563eb",
 };
 
 const themeScript = `
@@ -39,6 +46,7 @@ export default function RootLayout({
       </head>
       <body className="min-h-screen antialiased">
         {children}
+        <PwaRegister />
         <Analytics />
         <SpeedInsights />
       </body>
