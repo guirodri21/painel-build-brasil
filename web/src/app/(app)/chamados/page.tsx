@@ -1,7 +1,9 @@
 "use client";
 
 import * as React from "react";
+import { createClient } from "@/lib/supabase/client";
 import { useData } from "@/components/data-provider";
+import { useToast } from "@/components/ui/toast";
 import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
 import { KpiSkeletonRow, Skeleton } from "@/components/ui/skeleton";
@@ -33,8 +35,23 @@ function prioTone(p: string | null | undefined): "red" | "yellow" | "gray" {
 const horas = (s: string | undefined) => (s ? parseFloat(String(s).replace(",", ".")) || 0 : 0);
 
 export default function ChamadosPage() {
-  const { chamados, chamadoFases, loading } = useData();
+  const { chamados, chamadoFases, refresh, loading } = useData();
+  const toast = useToast();
   const [aba, setAba] = React.useState<Aba>("board");
+  const [dragId, setDragId] = React.useState<string | null>(null);
+  const [overFase, setOverFase] = React.useState<string | null>(null);
+
+  async function moverFase(fase: string) {
+    const id = dragId;
+    setDragId(null); setOverFase(null);
+    if (!id) return;
+    const atual = chamados.find((c) => c.id === id);
+    if (!atual || atual.fase === fase) return;
+    const { error } = await createClient().from("chamados").update({ fase }).eq("id", id);
+    if (error) { toast("Erro ao mover: " + error.message, "error"); return; }
+    await refresh();
+    toast(`Movido para "${fase}".`);
+  }
   const [busca, setBusca] = React.useState("");
   const [fRegiao, setFRegiao] = React.useState("");
   const [fPrioridade, setFPrioridade] = React.useState("");
@@ -130,7 +147,12 @@ export default function ChamadosPage() {
                 const items = porFase.get(col.nome) ?? [];
                 const total = sum(items, (c) => c.valor);
                 return (
-                  <div key={col.nome} className="w-72 shrink-0 rounded-xl border border-border bg-surface-2/40 flex flex-col">
+                  <div key={col.nome}
+                    onDragOver={(e) => { e.preventDefault(); setOverFase(col.nome); }}
+                    onDragLeave={() => setOverFase((f) => (f === col.nome ? null : f))}
+                    onDrop={() => moverFase(col.nome)}
+                    className={cn("w-72 shrink-0 rounded-xl border bg-surface-2/40 flex flex-col transition-colors",
+                      overFase === col.nome ? "border-primary bg-primary-soft/30" : "border-border")}>
                     <div className="flex items-center justify-between gap-2 px-3 py-2.5 border-b border-border">
                       <div className="flex items-center gap-2 min-w-0">
                         <span className={cn("h-2.5 w-2.5 rounded-full shrink-0", DOT[col.cor] ?? "bg-muted")} />
@@ -142,7 +164,11 @@ export default function ChamadosPage() {
                     <div className="p-2 space-y-2 flex-1 max-h-[64vh] overflow-y-auto">
                       {items.map((c) => (
                         <button key={c.id} onClick={() => abrir(c)}
-                          className={cn("w-full text-left rounded-lg border bg-surface hover:border-border-strong p-2.5 transition-colors cursor-pointer",
+                          draggable
+                          onDragStart={() => setDragId(c.id)}
+                          onDragEnd={() => { setDragId(null); setOverFase(null); }}
+                          className={cn("w-full text-left rounded-lg border bg-surface hover:border-border-strong p-2.5 transition-all cursor-grab active:cursor-grabbing",
+                            dragId === c.id && "opacity-40",
                             atrasado(c) ? "border-l-4 border-l-red border-border" : "border-border")}>
                           <div className="flex items-center justify-between gap-2 mb-1">
                             <span className="text-sm font-medium truncate">{c.titulo || "Chamado"}</span>

@@ -19,13 +19,13 @@ import {
   tempoMedioPorEquipe,
 } from "@/lib/analytics";
 import { formatCurrency, monthLabel, cn } from "@/lib/utils";
-import type { Meta, Ordem } from "@/lib/types";
+import type { Meta, Ordem, Chamado, ChamadoFase } from "@/lib/types";
 import {
   Maximize, Minimize, X, Settings, ChevronLeft, ChevronRight,
   Pause, Play, Sun, Moon,
 } from "lucide-react";
 
-const SCENES = ["Visão Geral", "Vendas", "Operações", "Financeiro", "Metas", "Ranking"];
+const SCENES = ["Visão Geral", "Vendas", "Operações", "Financeiro", "Metas", "Ranking", "Chamados"];
 const N_SCENES = SCENES.length;
 
 type Layout = "rotacao" | "grade";
@@ -42,7 +42,7 @@ interface TvConfig {
   animMs: number; // ritmo do count-up (ms)
 }
 const DEFAULT_CONFIG: TvConfig = {
-  enabled: [true, true, true, true, true, true],
+  enabled: [true, true, true, true, true, true, true],
   intervalSec: 15,
   theme: "dark",
   fontScale: 1,
@@ -82,7 +82,7 @@ function loadConfig(): TvConfig {
 
 export default function TvPage() {
   const router = useRouter();
-  const { ordens, despesas, metas, equipes, loading } = useData();
+  const { ordens, despesas, metas, equipes, chamados, chamadoFases, loading } = useData();
   const [config, setConfig] = React.useState<TvConfig>(DEFAULT_CONFIG);
   const [pointer, setPointer] = React.useState(0);
   const [paused, setPaused] = React.useState(false);
@@ -197,7 +197,8 @@ export default function TvPage() {
       case 2: return <SceneOps ordens={ordens} op={op} />;
       case 3: return <SceneFin ordens={ordens} despesas={despesas} recTotal={recTotal} despTotal={despTotal + ddTotal} saldo={saldo} margem={margem} />;
       case 4: return <SceneMetas metas={metas} realizado={realizado} />;
-      default: return <SceneRanking res={res} />;
+      case 5: return <SceneRanking res={res} />;
+      default: return <SceneChamados chamados={chamados} fases={chamadoFases} />;
     }
   }
 
@@ -623,6 +624,50 @@ function SceneRanking({ res }: { res: Record<string, { rec: number; saldo: numbe
           </span>
         </div>
       ))}
+    </div>
+  );
+}
+
+/* ===== Cena: Chamados ===== */
+function SceneChamados({ chamados, fases }: { chamados: Chamado[]; fases: ChamadoFase[] }) {
+  if (!chamados.length)
+    return <div className="h-full flex items-center justify-center text-muted text-lg">Nenhum chamado importado.</div>;
+
+  const hoje = new Date().toISOString().split("T")[0];
+  const finais = new Set(fases.filter((f) => f.final).map((f) => f.nome));
+  const emAberto = chamados.filter((c) => !finais.has(c.fase));
+  const atrasados = emAberto.filter((c) => c.prazo && c.prazo < hoje).length;
+  const pipeline = sum(emAberto, (c) => c.valor);
+
+  const porFase = fases
+    .map((f) => {
+      const items = chamados.filter((c) => c.fase === f.nome);
+      return { nome: f.nome, n: items.length, valor: sum(items, (c) => c.valor) };
+    })
+    .filter((x) => x.n > 0);
+  const maxN = Math.max(1, ...porFase.map((x) => x.n));
+
+  return (
+    <div className="h-full flex flex-col gap-5">
+      <div className="stagger grid grid-cols-4 gap-4">
+        <BigKpi label="Total de Chamados" value={chamados.length} format={(n) => Math.round(n).toString()} />
+        <BigKpi label="Em Aberto" value={emAberto.length} format={(n) => Math.round(n).toString()} tone="teal" />
+        <BigKpi label="Atrasados (SLA)" value={atrasados} format={(n) => Math.round(n).toString()} tone={atrasados > 0 ? "red" : "default"} />
+        <BigKpi label="Pipeline" value={pipeline} format={(n) => formatCurrency(n)} tone="green" />
+      </div>
+      <div className="flex-1 rounded-2xl border border-border bg-surface p-5 flex flex-col gap-2.5 justify-center overflow-hidden">
+        {porFase.map((x) => (
+          <div key={x.nome}>
+            <div className="flex items-center justify-between text-base mb-1">
+              <span className="font-semibold">{x.nome}</span>
+              <span className="text-muted tabular-nums">{x.n}{x.valor > 0 ? ` · ${formatCurrency(x.valor)}` : ""}</span>
+            </div>
+            <span className="block h-3 rounded-full bg-surface-2 overflow-hidden">
+              <span className="animate-bar block h-full rounded-full bg-primary transition-all duration-700" style={{ width: `${Math.max(3, (x.n / maxN) * 100)}%` }} />
+            </span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
