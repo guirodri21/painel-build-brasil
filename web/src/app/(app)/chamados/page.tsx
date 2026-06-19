@@ -9,10 +9,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/field";
 import { ChamadoModal } from "@/components/chamado-modal";
+import { ChamadosImport } from "@/components/chamados-import";
 import { sum } from "@/lib/analytics";
 import { formatCurrency, formatNumber, cn } from "@/lib/utils";
 import type { Chamado } from "@/lib/types";
-import { Plus, Search, Ticket, AlertTriangle, DollarSign, Layers } from "lucide-react";
+import { Plus, Search, Ticket, AlertTriangle, DollarSign, Layers, Upload } from "lucide-react";
 
 type Tone = "green" | "yellow" | "blue" | "red" | "orange" | "gray";
 
@@ -34,6 +35,7 @@ export default function ChamadosPage() {
   const { chamados, chamadoFases, loading } = useData();
   const [busca, setBusca] = React.useState("");
   const [modal, setModal] = React.useState(false);
+  const [importar, setImportar] = React.useState(false);
   const [edit, setEdit] = React.useState<Chamado | null>(null);
   const [faseNova, setFaseNova] = React.useState<string | undefined>();
 
@@ -81,6 +83,7 @@ export default function ChamadosPage() {
           <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted" />
           <Input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar..." className="pl-8 w-52" />
         </div>
+        <Button variant="secondary" onClick={() => setImportar(true)}><Upload size={16} /> Importar CSV</Button>
         <Button onClick={() => abrir(null)}><Plus size={16} /> Novo Card</Button>
       </PageHeader>
 
@@ -144,6 +147,7 @@ export default function ChamadosPage() {
       )}
 
       {modal && <ChamadoModal open={modal} onClose={() => { setModal(false); setEdit(null); setFaseNova(undefined); }} chamado={edit} faseInicial={faseNova} />}
+      {importar && <ChamadosImport open={importar} onClose={() => setImportar(false)} />}
     </>
   );
 }

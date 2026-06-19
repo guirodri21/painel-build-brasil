@@ -46,8 +46,23 @@ Deno.serve(async (req) => {
     .eq("tipo", "entrada").eq("ativo", true).eq("secret", apiKey).maybeSingle();
   if (!integ) return json({ error: "Token inválido ou integração inativa." }, 403);
 
+  // Aceita JSON (Raw) ou key/value (form-urlencoded / multipart) do Goalfy
   let body: unknown;
-  try { body = await req.json(); } catch { return json({ error: "JSON inválido." }, 400); }
+  const ct = req.headers.get("content-type") ?? "";
+  try {
+    if (ct.includes("application/json")) {
+      body = await req.json();
+    } else if (ct.includes("multipart/form-data") || ct.includes("application/x-www-form-urlencoded")) {
+      const fd = await req.formData();
+      body = Object.fromEntries(Array.from(fd.entries()).map(([k, v]) => [k, String(v)]));
+    } else {
+      const txt = await req.text();
+      try { body = JSON.parse(txt); }
+      catch { body = Object.fromEntries(new URLSearchParams(txt)); }
+    }
+  } catch {
+    return json({ error: "Corpo inválido." }, 400);
+  }
 
   const arr = Array.isArray(body)
     ? body
