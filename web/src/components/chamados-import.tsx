@@ -38,6 +38,7 @@ add("motivo_perda", ["motivo da perda", "motivo perda", "motivo"]);
 add("concluido_em", ["concluido em", "concluído em", "data de conclusao", "data de conclusão"]);
 add("local_demanda", ["local da demanda", "local"]);
 add("telefone", ["telefone para contato", "telefone", "contato"]);
+add("fase_desde", ["data na fase atual", "data na fase", "entrou na fase atual"]);
 
 /** Converte data BR (DD/MM/AAAA), ISO ou serial Excel para YYYY-MM-DD. */
 function parseDate(v: string): string | null {
@@ -108,7 +109,7 @@ export function ChamadosImport({ open, onClose }: { open: boolean; onClose: () =
       const rawHeader = rows[0];
       const header = rawHeader.map((h) => MAP[norm(h)] ?? null);
       const numericos = new Set(["valor", "custo_real", "margem"]);
-      const datas = new Set(["prazo", "concluido_em", "aberto_em"]);
+      const datas = new Set(["prazo", "concluido_em", "aberto_em", "fase_desde"]);
       // Colunas "Tempo total na fase X" → coletadas em tempos_fase
       const tempoCols = rawHeader.map((h) => {
         const m = norm(h).match(/^tempo total na fase (.+)$/);

@@ -8,6 +8,7 @@ export const EVENTOS = [
   { id: "meta.criada", label: "Meta criada" },
   { id: "meta.atualizada", label: "Meta atualizada" },
   { id: "estoque.baixo", label: "Estoque abaixo do mínimo" },
+  { id: "chamado.critico", label: "Chamado crítico (alta prioridade / recusado)" },
 ] as const;
 
 export type EventoId = (typeof EVENTOS)[number]["id"];
@@ -36,6 +37,22 @@ export function fireEvent(evento: EventoId, payload: Record<string, unknown>): v
   } catch {
     /* ignora */
   }
+}
+
+/** Dispara alerta (WhatsApp + in-app) quando um chamado é/vira crítico:
+ *  prioridade Alta ou foi para uma fase de recusa. */
+export function alertarChamadoCritico(
+  c: { titulo?: string | null; cliente?: string | null; regiao?: string | null; prioridade?: string | null; ticket_ref?: string | null; fase?: string | null },
+  faseAnterior?: string | null,
+): void {
+  const prioAlta = (c.prioridade ?? "").toLowerCase().startsWith("alta");
+  const recusou = (c.fase ?? "").toLowerCase().includes("recus") && faseAnterior !== c.fase;
+  if (!prioAlta && !recusou) return;
+  const titulo = recusou ? "Chamado recusado" : "Chamado de alta prioridade";
+  fireEvent("chamado.critico", {
+    titulo, cliente: c.cliente, regiao: c.regiao, prioridade: c.prioridade, ticket_ref: c.ticket_ref, fase: c.fase,
+  });
+  notificarAdmins(titulo, `${c.cliente ?? c.titulo ?? "Chamado"} — ${c.regiao ?? ""} (${c.fase ?? ""})`.trim(), "/chamados");
 }
 
 /** Dispara alerta de estoque baixo se o saldo novo cruzar o mínimo. */

@@ -34,6 +34,19 @@ function prioTone(p: string | null | undefined): "red" | "yellow" | "gray" {
 }
 const horas = (s: string | undefined) => (s ? parseFloat(String(s).replace(",", ".")) || 0 : 0);
 
+function diasDesde(iso?: string | null): number | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return null;
+  return Math.floor((Date.now() - d.getTime()) / 86400000);
+}
+function agingTone(d: number): Tone {
+  if (d >= 14) return "red";
+  if (d >= 7) return "orange";
+  if (d >= 3) return "yellow";
+  return "gray";
+}
+
 export default function ChamadosPage() {
   const { chamados, chamadoFases, refresh, loading } = useData();
   const toast = useToast();
@@ -180,7 +193,12 @@ export default function ChamadosPage() {
                           <div className="flex items-center justify-between mt-1.5 text-[11px] text-muted">
                             <span className="flex items-center gap-2">
                               {c.ticket_ref && <span># {c.ticket_ref}</span>}
-                              {atrasado(c) && <span className="text-red flex items-center gap-0.5"><Clock size={10} /> {formatDate(c.prazo!)}</span>}
+                              {(() => {
+                                const d = diasDesde(c.fase_desde ?? c.created_at);
+                                if (d == null || fasesFinais.has(c.fase)) return null;
+                                const t = agingTone(d);
+                                return <span className={cn("flex items-center gap-0.5", t === "red" && "text-red", t === "orange" && "text-orange", t === "yellow" && "text-yellow")}><Clock size={10} /> {d}d</span>;
+                              })()}
                             </span>
                             {c.valor > 0 && <span className="font-medium text-foreground">{formatCurrency(c.valor)}</span>}
                           </div>

@@ -8,6 +8,8 @@ import { Modal, ModalBody, ModalFooter } from "@/components/ui/modal";
 import { Input, Select, Textarea, Label } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { todayISO } from "@/lib/utils";
+import { ChamadoAtividade } from "@/components/chamado-atividade";
+import { alertarChamadoCritico } from "@/lib/integrations";
 import { Receipt } from "lucide-react";
 import type { Chamado } from "@/lib/types";
 
@@ -74,6 +76,7 @@ export function ChamadoModal({
 
     setSaving(false);
     if (error) { toast("Erro: " + error.message, "error"); return; }
+    alertarChamadoCritico({ ...rec, ticket_ref: rec.ticket_ref ?? null }, chamado?.fase);
     await refresh();
     toast(editando ? "Chamado atualizado." : "Chamado criado.");
     onClose();
@@ -152,6 +155,7 @@ export function ChamadoModal({
           {chamado?.goalfy_card_id && (
             <p className="text-[11px] text-muted">Sincronizado do Goalfy (card {chamado.goalfy_card_id}).</p>
           )}
+          {editando && <ChamadoAtividade chamadoId={chamado!.id} />}
         </ModalBody>
         <ModalFooter>
           {editando && (

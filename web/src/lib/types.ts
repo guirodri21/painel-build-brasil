@@ -149,6 +149,7 @@ export interface Chamado {
   local_demanda?: string | null;
   telefone?: string | null;
   tempos_fase?: Record<string, string> | null;
+  fase_desde?: string | null;
   created_by: string | null;
   created_at: string;
   updated_at?: string | null;
