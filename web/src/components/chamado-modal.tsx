@@ -9,7 +9,7 @@ import { Input, Select, Textarea, Label } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { todayISO } from "@/lib/utils";
 import { ChamadoAtividade } from "@/components/chamado-atividade";
-import { alertarChamadoCritico } from "@/lib/integrations";
+import { alertarChamadoCritico, fireEvent } from "@/lib/integrations";
 import { Receipt } from "lucide-react";
 import type { Chamado } from "@/lib/types";
 
@@ -77,6 +77,8 @@ export function ChamadoModal({
     setSaving(false);
     if (error) { toast("Erro: " + error.message, "error"); return; }
     alertarChamadoCritico({ ...rec, ticket_ref: rec.ticket_ref ?? null }, chamado?.fase);
+    // Ponte para o Goalfy (webhooks de saída inscritos no evento)
+    fireEvent(editando ? "chamado.atualizado" : "chamado.criado", { ...rec, id: chamado?.id, goalfy_card_id: chamado?.goalfy_card_id });
     await refresh();
     toast(editando ? "Chamado atualizado." : "Chamado criado.");
     onClose();

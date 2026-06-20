@@ -102,6 +102,12 @@ function montarMensagem(evento: string, dados: Record<string, unknown>): string 
       return `🎯 *Meta atualizada* — Equipe ${o.equipe ?? "—"}\nReceita alvo: ${moeda(o.meta_receita)}`;
     case "estoque.baixo":
       return `⚠️ *Estoque baixo* — ${o.produto ?? "Produto"}\nSaldo: ${o.saldo ?? 0} ${o.unidade ?? ""}\nMínimo: ${o.minimo ?? 0}`;
+    case "chamado.critico":
+      return `🚨 *${o.titulo ?? "Chamado crítico"}* — ${o.cliente ?? "Cliente"}\nRegião: ${o.regiao ?? "—"}\nPrioridade: ${o.prioridade ?? "—"}\nFase: ${o.fase ?? "—"}`;
+    case "chamado.criado":
+      return `🆕 *Novo chamado* — ${o.cliente ?? o.titulo ?? "Chamado"}\nRegião: ${o.regiao ?? "—"}\nFase: ${o.fase ?? "—"}`;
+    case "chamado.atualizado":
+      return `✏️ *Chamado atualizado* — ${o.cliente ?? o.titulo ?? "Chamado"}\nFase: ${o.fase ?? "—"}`;
     default:
       return `📣 Painel Build — evento: ${evento}`;
   }

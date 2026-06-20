@@ -56,8 +56,10 @@ export function Sidebar({
   onClose: () => void;
 }) {
   const pathname = usePathname();
-  const { isAdmin } = useData();
-  const nav = isAdmin ? [...NAV, ...ADMIN_NAV] : NAV;
+  const { isAdmin, podeFinanceiro } = useData();
+  const FINANCEIRO = new Set(["/financeiro", "/contas", "/comissoes"]);
+  const base = podeFinanceiro ? NAV : NAV.filter((n) => !FINANCEIRO.has(n.href));
+  const nav = isAdmin ? [...base, ...ADMIN_NAV] : base;
 
   return (
     <>

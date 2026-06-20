@@ -9,6 +9,8 @@ export const EVENTOS = [
   { id: "meta.atualizada", label: "Meta atualizada" },
   { id: "estoque.baixo", label: "Estoque abaixo do mínimo" },
   { id: "chamado.critico", label: "Chamado crítico (alta prioridade / recusado)" },
+  { id: "chamado.criado", label: "Chamado criado (envia ao Goalfy)" },
+  { id: "chamado.atualizado", label: "Chamado atualizado (envia ao Goalfy)" },
 ] as const;
 
 export type EventoId = (typeof EVENTOS)[number]["id"];

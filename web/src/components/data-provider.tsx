@@ -31,6 +31,7 @@ interface DataState extends RawData {
   userId: string | null;
   role: "admin" | "membro" | null;
   isAdmin: boolean;
+  podeFinanceiro: boolean;
   loading: boolean;
   error: string | null;
   refresh: () => Promise<void>;
@@ -56,9 +57,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [meta, setMeta] = React.useState<{
     userId: string | null;
     role: "admin" | "membro" | null;
+    podeFinanceiro: boolean;
     loading: boolean;
     error: string | null;
-  }>({ userId: null, role: null, loading: true, error: null });
+  }>({ userId: null, role: null, podeFinanceiro: true, loading: true, error: null });
   const [filial, setFilialState] = React.useState<string>("");
 
   // Restaura a filial salva
@@ -91,7 +93,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       supabase.from("contas").select("*").order("vencimento"),
       supabase.from("chamados").select("*").order("created_at", { ascending: false }),
       supabase.from("chamado_fases").select("*").order("ordem"),
-      uid ? supabase.from("profiles").select("role").eq("id", uid).single() : Promise.resolve({ data: null }),
+      uid ? supabase.from("profiles").select("role, pode_financeiro").eq("id", uid).single() : Promise.resolve({ data: null }),
     ]);
 
     // Extrai dados de cada resultado sem deixar uma falha derrubar o resto.
@@ -125,14 +127,16 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       chamadoFases: pick(fas as never, "fases", [] as ChamadoFase[]),
     });
 
-    const role =
-      (prof.status === "fulfilled"
-        ? ((prof.value as { data: { role?: string } | null }).data?.role as "admin" | "membro" | undefined)
-        : undefined) ?? "membro";
+    const profData = prof.status === "fulfilled"
+      ? (prof.value as { data: { role?: string; pode_financeiro?: boolean } | null }).data
+      : null;
+    const role = (profData?.role as "admin" | "membro" | undefined) ?? "membro";
+    const podeFinanceiro = profData?.pode_financeiro !== false;
 
     setMeta({
       userId: uid,
       role,
+      podeFinanceiro,
       loading: false,
       error: failures.length ? `Falha ao carregar: ${failures.join(", ")}.` : null,
     });
@@ -199,6 +203,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       userId: meta.userId,
       role: meta.role,
       isAdmin: meta.role === "admin",
+      podeFinanceiro: meta.role === "admin" || meta.podeFinanceiro,
       loading: meta.loading,
       error: meta.error,
       refresh: load,

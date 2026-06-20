@@ -13,7 +13,7 @@ import { Input, Select, Label } from "@/components/ui/field";
 import { Modal, ModalBody, ModalFooter } from "@/components/ui/modal";
 import { ConfirmDialog } from "@/components/ui/confirm";
 import { formatDate, cn } from "@/lib/utils";
-import { Plus, Trash2, ShieldCheck, ShieldOff, Lock } from "lucide-react";
+import { Plus, Trash2, ShieldCheck, ShieldOff, Lock, DollarSign } from "lucide-react";
 
 interface AdminUser {
   id: string;
@@ -27,6 +27,7 @@ export default function UsuariosPage() {
   const { isAdmin, userId, loading } = useData();
   const toast = useToast();
   const [users, setUsers] = React.useState<AdminUser[] | null>(null);
+  const [fin, setFin] = React.useState<Record<string, boolean>>({});
   const [busy, setBusy] = React.useState(false);
   const [novoOpen, setNovoOpen] = React.useState(false);
   const [delUser, setDelUser] = React.useState<AdminUser | null>(null);
@@ -42,11 +43,25 @@ export default function UsuariosPage() {
     try {
       const data = await call({ action: "list" });
       setUsers(data.users);
+      const { data: profs } = await createClient().from("profiles").select("id, pode_financeiro");
+      const map: Record<string, boolean> = {};
+      for (const p of profs ?? []) map[p.id] = p.pode_financeiro !== false;
+      setFin(map);
     } catch (e) {
       toast(e instanceof Error ? e.message : "Erro ao listar.", "error");
       setUsers([]);
     }
   }, [call, toast]);
+
+  async function toggleFin(u: AdminUser) {
+    const novo = !(fin[u.id] ?? true);
+    setBusy(true);
+    const { error } = await createClient().from("profiles").update({ pode_financeiro: novo }).eq("id", u.id);
+    setBusy(false);
+    if (error) { toast("Erro: " + error.message, "error"); return; }
+    setFin((m) => ({ ...m, [u.id]: novo }));
+    toast(novo ? "Acesso financeiro liberado." : "Acesso financeiro bloqueado.");
+  }
 
   React.useEffect(() => {
     if (isAdmin) load();
@@ -137,6 +152,13 @@ export default function UsuariosPage() {
                         </Td>
                         <Td className="text-right">
                           <div className="flex justify-end gap-1">
+                            {u.role !== "admin" && (
+                              <button disabled={busy} onClick={() => toggleFin(u)}
+                                className={cn("p-1.5 rounded-md hover:bg-surface-2 cursor-pointer", (fin[u.id] ?? true) ? "text-green" : "text-muted")}
+                                title={(fin[u.id] ?? true) ? "Acesso financeiro: liberado (clique p/ bloquear)" : "Acesso financeiro: bloqueado (clique p/ liberar)"}>
+                                <DollarSign size={15} />
+                              </button>
+                            )}
                             {u.role === "admin" ? (
                               <button disabled={busy || self} onClick={() => setRole(u, "membro")}
                                 className="p-1.5 rounded-md text-muted hover:text-orange hover:bg-orange-soft disabled:opacity-30 cursor-pointer" title="Tornar membro">
