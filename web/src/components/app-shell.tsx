@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Sidebar } from "@/components/sidebar";
 import { Topbar } from "@/components/topbar";
+import { CommandPalette } from "@/components/command-palette";
 import { useData } from "@/components/data-provider";
 import { Button } from "@/components/ui/button";
 import { AlertTriangle } from "lucide-react";
@@ -13,6 +14,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen">
+      <CommandPalette />
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div className="lg:pl-60">
         <Topbar onMenu={() => setSidebarOpen(true)} />

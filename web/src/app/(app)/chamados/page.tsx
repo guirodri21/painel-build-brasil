@@ -265,6 +265,20 @@ function ChamadosDashboard({ chamados, fases, fasesFinais }: { chamados: Chamado
     return Array.from(acc.entries()).map(([k, v]) => ({ k, media: v.soma / v.n })).sort((a, b) => b.media - a.media).slice(0, 8);
   })();
 
+  // Produtividade: total, concluídos e valor por responsável/equipe
+  const prod = (key: (c: Chamado) => string | null | undefined) => {
+    const m = new Map<string, { n: number; concl: number; valor: number }>();
+    for (const c of chamados) {
+      const k = key(c) || "—";
+      const cur = m.get(k) ?? { n: 0, concl: 0, valor: 0 };
+      cur.n++; cur.valor += c.valor; if (fasesFinais.has(c.fase)) cur.concl++;
+      m.set(k, cur);
+    }
+    return Array.from(m.entries()).map(([k, v]) => ({ k, ...v })).sort((a, b) => b.n - a.n).slice(0, 10);
+  };
+  const porResp = prod((c) => c.responsavel).filter((x) => x.k !== "—");
+  const porEquipe = prod((c) => c.equipe).filter((x) => x.k !== "—");
+
   const maxFase = Math.max(1, ...porFase.map((x) => x.n));
   const maxGarg = Math.max(1, ...gargalos.map((x) => x.media));
 
@@ -320,6 +334,46 @@ function ChamadosDashboard({ chamados, fases, fasesFinais }: { chamados: Chamado
             : <p className="text-sm text-muted">Nenhuma perda registrada.</p>}
         </CardBody>
       </Card>
+
+      {porResp.length > 0 && (
+        <Card>
+          <CardHeader><CardTitle>Produtividade por responsável</CardTitle></CardHeader>
+          <CardBody className="p-0"><ProdTable linhas={porResp} /></CardBody>
+        </Card>
+      )}
+      {porEquipe.length > 0 && (
+        <Card>
+          <CardHeader><CardTitle>Produtividade por equipe</CardTitle></CardHeader>
+          <CardBody className="p-0"><ProdTable linhas={porEquipe} /></CardBody>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+function ProdTable({ linhas }: { linhas: { k: string; n: number; concl: number; valor: number }[] }) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b border-border text-left text-xs text-muted uppercase tracking-wide">
+            <th className="px-4 py-2 font-semibold">Nome</th>
+            <th className="px-4 py-2 font-semibold text-right">Total</th>
+            <th className="px-4 py-2 font-semibold text-right">Concluídos</th>
+            <th className="px-4 py-2 font-semibold text-right">Valor</th>
+          </tr>
+        </thead>
+        <tbody>
+          {linhas.map((x) => (
+            <tr key={x.k} className="border-b border-border last:border-0 hover:bg-surface-2">
+              <td className="px-4 py-2 font-medium truncate max-w-[160px]">{x.k}</td>
+              <td className="px-4 py-2 text-right tabular-nums">{x.n}</td>
+              <td className="px-4 py-2 text-right tabular-nums">{x.concl} <span className="text-muted text-xs">({x.n ? Math.round((x.concl / x.n) * 100) : 0}%)</span></td>
+              <td className="px-4 py-2 text-right tabular-nums">{formatCurrency(x.valor)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }

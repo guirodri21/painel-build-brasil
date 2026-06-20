@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Menu, RefreshCw, LogOut, KeyRound } from "lucide-react";
+import { Menu, RefreshCw, LogOut, KeyRound, Search } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useData } from "@/components/data-provider";
@@ -60,6 +60,16 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
       )}
 
       <div className="flex-1" />
+
+      <button
+        onClick={() => window.dispatchEvent(new Event("open-palette"))}
+        className="hidden sm:inline-flex h-9 items-center gap-2 rounded-lg border border-border px-3 text-sm text-muted hover:text-foreground hover:bg-surface-2 transition-colors cursor-pointer"
+        title="Busca global (Ctrl+K)"
+      >
+        <Search size={15} />
+        <span className="hidden md:inline">Buscar</span>
+        <kbd className="hidden md:inline text-[10px] border border-border rounded px-1">Ctrl K</kbd>
+      </button>
 
       <button
         onClick={handleRefresh}
