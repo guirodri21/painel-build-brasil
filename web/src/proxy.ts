@@ -1,7 +1,8 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PUBLIC_ROUTES = ["/login"];
+// "/f/" = formulários públicos de entrada dos Quadros (sem login)
+const PUBLIC_ROUTES = ["/login", "/f/"];
 
 /** CSP com nonce por requisição. Scripts exigem nonce; estilos seguem
  *  'unsafe-inline' (recharts/inline styles). */
