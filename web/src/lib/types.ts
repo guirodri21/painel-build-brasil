@@ -324,6 +324,133 @@ export const INTEGRACAO_TIPO_LABELS: Record<IntegracaoTipo, string> = {
   whatsapp: "Bot de WhatsApp",
 };
 
+// ============================================================
+// Motor de Quadros (estilo Goalfy)
+// ============================================================
+export type CampoTipo =
+  | "texto" | "texto_longo" | "numero" | "moeda" | "data" | "selecao" | "usuario" | "checkbox";
+
+export interface Quadro {
+  id: string;
+  nome: string;
+  descricao: string | null;
+  icone: string | null;
+  cor: string | null;
+  ordem: number;
+  ativo: boolean;
+  filial: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at?: string | null;
+}
+
+export interface QuadroFase {
+  id: string;
+  quadro_id: string;
+  nome: string;
+  ordem: number;
+  cor: string | null;
+  final: boolean;
+}
+
+export interface QuadroCampo {
+  id: string;
+  quadro_id: string;
+  chave: string;
+  label: string;
+  tipo: CampoTipo;
+  opcoes: string[];
+  obrigatorio: boolean;
+  mostrar_no_card: boolean;
+  ordem: number;
+}
+
+export interface QuadroCard {
+  id: string;
+  quadro_id: string;
+  titulo: string | null;
+  fase: string;
+  valores: Record<string, unknown>;
+  responsavel: string | null;
+  valor: number;
+  prioridade: string | null;
+  prazo: string | null;
+  ordem_coluna: number;
+  fase_desde: string | null;
+  origem: string | null;
+  filial: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at?: string | null;
+}
+
+export type AutomacaoGatilho = "card_criado" | "card_movido" | "prazo_vencido";
+export type AcaoTipo = "notificar" | "mover_fase" | "definir_campo" | "webhook";
+
+export interface AutomacaoAcao {
+  tipo: AcaoTipo;
+  /** mover_fase */
+  fase?: string;
+  /** definir_campo */
+  campo?: string;
+  valor?: string;
+  /** notificar */
+  mensagem?: string;
+}
+
+export interface AutomacaoConfig {
+  /** para gatilho card_movido: a fase que dispara */
+  fase?: string;
+  acoes: AutomacaoAcao[];
+}
+
+export interface QuadroAutomacao {
+  id: string;
+  quadro_id: string;
+  nome: string;
+  ativo: boolean;
+  gatilho: AutomacaoGatilho;
+  config: AutomacaoConfig;
+  ordem: number;
+  created_at: string;
+}
+
+export interface QuadroFormulario {
+  id: string;
+  quadro_id: string;
+  slug: string;
+  titulo: string;
+  descricao: string | null;
+  fase_destino: string | null;
+  campos: string[];
+  ativo: boolean;
+  created_at: string;
+}
+
+export const CAMPO_TIPO_LABELS: Record<CampoTipo, string> = {
+  texto: "Texto",
+  texto_longo: "Texto longo",
+  numero: "Número",
+  moeda: "Moeda (R$)",
+  data: "Data",
+  selecao: "Seleção",
+  usuario: "Responsável/Pessoa",
+  checkbox: "Sim/Não",
+};
+
+export const GATILHO_LABELS: Record<AutomacaoGatilho, string> = {
+  card_criado: "Quando um card é criado",
+  card_movido: "Quando um card move para uma fase",
+  prazo_vencido: "Quando o prazo vence",
+};
+
+export const ACAO_LABELS: Record<AcaoTipo, string> = {
+  notificar: "Notificar administradores",
+  mover_fase: "Mover para a fase",
+  definir_campo: "Definir um campo",
+  webhook: "Disparar webhook (Goalfy/externo)",
+};
+
 export const STATUS_LABELS: Record<OrdemStatus, string> = {
   em_andamento: "Em andamento",
   execucao_parcial: "Execução parcial",
