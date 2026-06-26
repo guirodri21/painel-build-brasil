@@ -10,6 +10,7 @@ import { KpiCard } from "@/components/kpi-card";
 import { KpiSkeletonRow, Skeleton } from "@/components/ui/skeleton";
 import { Card, CardHeader, CardTitle, CardBody } from "@/components/ui/card";
 import { ValueBarChart, DonutChart, CHART_COLORS } from "@/components/charts";
+import { OperacaoPipelineKpis } from "@/components/operacao-pipeline-kpis";
 import { OrdemModal } from "@/components/ordem-modal";
 import { Button } from "@/components/ui/button";
 import { exportOrdensCSV } from "@/lib/export";
@@ -80,6 +81,11 @@ export default function OperacoesPage() {
           <Plus size={16} /> Nova Ordem
         </Button>
       </PageHeader>
+
+      {/* Indicadores Operacionais — lidos do Pipeline Operacional */}
+      <OperacaoPipelineKpis />
+
+      <h2 className="text-sm font-semibold text-muted mb-2">Execução técnica (registro de ordens)</h2>
       <FilterBar />
 
       <div className="stagger grid gap-3 mb-5 grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
