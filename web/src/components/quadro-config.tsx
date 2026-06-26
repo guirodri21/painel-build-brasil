@@ -171,6 +171,12 @@ function AutomacoesConfig({ quadroId, fases, campos, automacoes, onChange }: {
 }) {
   const [editando, setEditando] = React.useState<QuadroAutomacao | null>(null);
   const [criando, setCriando] = React.useState(false);
+  // Lista de quadros (alvos possíveis da ação "criar card em outro quadro").
+  const [quadros, setQuadros] = React.useState<{ id: string; nome: string }[]>([]);
+  React.useEffect(() => {
+    createClient().from("quadros").select("id, nome").eq("ativo", true).order("nome")
+      .then(({ data }) => setQuadros((data as { id: string; nome: string }[]) ?? []));
+  }, []);
 
   async function toggle(a: QuadroAutomacao) {
     await createClient().from("quadro_automacoes").update({ ativo: !a.ativo }).eq("id", a.id);
@@ -209,7 +215,7 @@ function AutomacoesConfig({ quadroId, fases, campos, automacoes, onChange }: {
         ))}
         {(criando || editando) && (
           <AutomacaoEditor
-            quadroId={quadroId} fases={fases} campos={campos} automacao={editando}
+            quadroId={quadroId} fases={fases} campos={campos} quadros={quadros} automacao={editando}
             onClose={() => { setCriando(false); setEditando(null); }}
             onSaved={async () => { setCriando(false); setEditando(null); await onChange(); }}
           />
@@ -219,14 +225,16 @@ function AutomacoesConfig({ quadroId, fases, campos, automacoes, onChange }: {
   );
 }
 
-function AutomacaoEditor({ quadroId, fases, campos, automacao, onClose, onSaved }: {
-  quadroId: string; fases: QuadroFase[]; campos: QuadroCampo[]; automacao: QuadroAutomacao | null;
-  onClose: () => void; onSaved: () => void | Promise<void>;
+function AutomacaoEditor({ quadroId, fases, campos, quadros, automacao, onClose, onSaved }: {
+  quadroId: string; fases: QuadroFase[]; campos: QuadroCampo[]; quadros: { id: string; nome: string }[];
+  automacao: QuadroAutomacao | null; onClose: () => void; onSaved: () => void | Promise<void>;
 }) {
   const toast = useToast();
   const [nome, setNome] = React.useState(automacao?.nome ?? "");
   const [gatilho, setGatilho] = React.useState<AutomacaoGatilho>(automacao?.gatilho ?? "card_movido");
   const [fase, setFase] = React.useState(automacao?.config.fase ?? fases[0]?.nome ?? "");
+  const [label, setLabel] = React.useState(automacao?.config.label ?? "");
+  const [cor, setCor] = React.useState(automacao?.config.cor ?? "blue");
   const [acoes, setAcoes] = React.useState<AutomacaoAcao[]>(automacao?.config.acoes ?? [{ tipo: "notificar", mensagem: "" }]);
   const [saving, setSaving] = React.useState(false);
 
@@ -236,8 +244,13 @@ function AutomacaoEditor({ quadroId, fases, campos, automacao, onClose, onSaved 
 
   async function salvar() {
     if (!nome.trim()) return toast("Dê um nome à automação.", "error");
+    if (gatilho === "botao" && !label.trim()) return toast("Defina o rótulo do botão.", "error");
     setSaving(true);
-    const config = { ...(gatilho === "card_movido" ? { fase } : {}), acoes };
+    const config = {
+      ...(gatilho === "card_movido" ? { fase } : {}),
+      ...(gatilho === "botao" ? { label: label.trim(), cor } : {}),
+      acoes,
+    };
     const rec = { quadro_id: quadroId, nome: nome.trim(), gatilho, config };
     const supabase = createClient();
     const { error } = automacao
@@ -268,6 +281,21 @@ function AutomacaoEditor({ quadroId, fases, campos, automacao, onClose, onSaved 
         )}
       </div>
 
+      {gatilho === "botao" && (
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <Label>Rótulo do botão</Label>
+            <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Ex.: Solicitar Compra" />
+          </div>
+          <div>
+            <Label>Cor</Label>
+            <Select value={cor} onChange={(e) => setCor(e.target.value)}>
+              {CORES.map((c) => <option key={c} value={c}>{c}</option>)}
+            </Select>
+          </div>
+        </div>
+      )}
+
       <div className="space-y-2">
         <Label>Faz</Label>
         {acoes.map((a, i) => (
@@ -292,6 +320,21 @@ function AutomacaoEditor({ quadroId, fases, campos, automacao, onClose, onSaved 
                     {campos.map((c) => <option key={c.id} value={c.chave}>{c.label}</option>)}
                   </Select>
                   <Input value={a.valor ?? ""} onChange={(e) => setAcao(i, { valor: e.target.value })} placeholder="Valor" className="w-1/2" />
+                </div>
+              )}
+              {a.tipo === "criar_card" && (
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <Select value={a.quadro_destino ?? ""} onChange={(e) => setAcao(i, { quadro_destino: e.target.value })} className="w-1/2">
+                      <option value="">Quadro destino</option>
+                      {quadros.map((q) => <option key={q.id} value={q.id}>{q.nome}</option>)}
+                    </Select>
+                    <Input value={a.fase_destino ?? ""} onChange={(e) => setAcao(i, { fase_destino: e.target.value })} placeholder="Fase de destino (ex.: Solicitação)" className="w-1/2" />
+                  </div>
+                  <label className="flex items-center gap-1.5 text-[11px] text-muted cursor-pointer">
+                    <input type="checkbox" checked={!!a.copiar_valor} onChange={(e) => setAcao(i, { copiar_valor: e.target.checked })} className="h-3.5 w-3.5" />
+                    copiar o valor (R$) do card de origem
+                  </label>
                 </div>
               )}
               {a.tipo === "webhook" && <p className="text-[11px] text-muted pt-2">Dispara o evento <code>quadro.automacao</code> nos webhooks de saída (ex.: Goalfy).</p>}

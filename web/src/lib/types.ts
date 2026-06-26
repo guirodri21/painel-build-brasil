@@ -384,8 +384,8 @@ export interface QuadroCard {
   updated_at?: string | null;
 }
 
-export type AutomacaoGatilho = "card_criado" | "card_movido" | "prazo_vencido";
-export type AcaoTipo = "notificar" | "mover_fase" | "definir_campo" | "webhook";
+export type AutomacaoGatilho = "card_criado" | "card_movido" | "prazo_vencido" | "botao";
+export type AcaoTipo = "notificar" | "mover_fase" | "definir_campo" | "webhook" | "criar_card";
 
 export interface AutomacaoAcao {
   tipo: AcaoTipo;
@@ -396,11 +396,21 @@ export interface AutomacaoAcao {
   valor?: string;
   /** notificar */
   mensagem?: string;
+  /** criar_card: id do quadro de destino (ex.: Suprimentos, Financeiro) */
+  quadro_destino?: string;
+  /** criar_card: fase de destino no quadro alvo */
+  fase_destino?: string;
+  /** criar_card: copia o valor (R$) do card de origem para o novo card */
+  copiar_valor?: boolean;
 }
 
 export interface AutomacaoConfig {
   /** para gatilho card_movido: a fase que dispara */
   fase?: string;
+  /** para gatilho botao: rótulo exibido no botão */
+  label?: string;
+  /** para gatilho botao: cor do botão (chave do mapa DOT) */
+  cor?: string;
   acoes: AutomacaoAcao[];
 }
 
@@ -442,6 +452,7 @@ export const GATILHO_LABELS: Record<AutomacaoGatilho, string> = {
   card_criado: "Quando um card é criado",
   card_movido: "Quando um card move para uma fase",
   prazo_vencido: "Quando o prazo vence",
+  botao: "Botão no card (manual)",
 };
 
 export const ACAO_LABELS: Record<AcaoTipo, string> = {
@@ -449,6 +460,7 @@ export const ACAO_LABELS: Record<AcaoTipo, string> = {
   mover_fase: "Mover para a fase",
   definir_campo: "Definir um campo",
   webhook: "Disparar webhook (Goalfy/externo)",
+  criar_card: "Criar card em outro quadro",
 };
 
 export const STATUS_LABELS: Record<OrdemStatus, string> = {

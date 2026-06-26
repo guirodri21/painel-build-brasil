@@ -8,8 +8,9 @@ import { ConfirmDialog } from "@/components/ui/confirm";
 import { Modal, ModalBody, ModalFooter } from "@/components/ui/modal";
 import { Input, Select, Textarea, Label } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
-import { runAutomacoes, validarObrigatorios } from "@/lib/quadros";
-import { Trash2 } from "lucide-react";
+import { runAutomacoes, runBotao, botoesDeAcao, validarObrigatorios } from "@/lib/quadros";
+import { cn } from "@/lib/utils";
+import { Trash2, Zap } from "lucide-react";
 import type { Quadro, QuadroFase, QuadroCampo, QuadroCard, QuadroAutomacao } from "@/lib/types";
 
 /** Renderiza o input certo para um campo personalizado. */
@@ -113,6 +114,18 @@ export function QuadroCardModal({
     onClose();
   }
 
+  const botoes = React.useMemo(() => botoesDeAcao(automacoes), [automacoes]);
+
+  async function clicarBotao(a: QuadroAutomacao) {
+    if (!card) return;
+    setSaving(true);
+    const feitos = await runBotao(quadro.id, quadro.nome, a, card);
+    setSaving(false);
+    await onSaved();
+    toast(feitos.length ? `Feito: ${feitos.join(", ")}` : "Ação executada.");
+    onClose();
+  }
+
   async function excluir() {
     if (!card) return;
     setConfirmDel(false);
@@ -173,6 +186,38 @@ export function QuadroCardModal({
               ))}
             </div>
           )}
+          {/* Vínculo de origem (card criado por botão de outro quadro) */}
+          {typeof card?.valores?.card_origem === "string" && (
+            <p className="text-[11px] text-muted border-t border-border pt-3">
+              Vinculado a: <span className="font-medium text-foreground">{card.valores.card_origem as string}</span>
+            </p>
+          )}
+
+          {/* Botões de ação (gatilho manual) */}
+          {editando && botoes.length > 0 && (
+            <div className="border-t border-border pt-4">
+              <Label>Ações</Label>
+              <div className="flex flex-wrap gap-2">
+                {botoes.map((a) => (
+                  <button
+                    key={a.id}
+                    type="button"
+                    disabled={saving}
+                    onClick={() => clicarBotao(a)}
+                    className={cn(
+                      "inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer disabled:opacity-50",
+                      "border-border text-foreground hover:border-primary hover:text-primary hover:bg-primary-soft",
+                    )}
+                    title={a.nome}
+                  >
+                    <Zap size={13} />
+                    {a.config.label ?? a.nome}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {card?.origem === "formulario" && <p className="text-[11px] text-muted">Criado via formulário público.</p>}
         </ModalBody>
         <ModalFooter>

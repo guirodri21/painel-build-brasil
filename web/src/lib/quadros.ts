@@ -48,23 +48,16 @@ function dispatchWebhook(evento: string, payload: Record<string, unknown>): void
 }
 
 /**
- * Executa as automações de um quadro para um card, no gatilho informado.
- * Roda no cliente, logo após a mutação. Aplica ações em ordem e devolve
- * a lista de mensagens (para feedback via toast).
+ * Aplica, em ordem, as ações das automações informadas a um card.
+ * Núcleo compartilhado por `runAutomacoes` (gatilhos automáticos) e
+ * `runBotao` (gatilho manual via botão). Devolve mensagens para o toast.
  */
-export async function runAutomacoes(
+async function aplicarAutomacoes(
   quadroId: string,
   quadroNome: string,
-  automacoes: QuadroAutomacao[],
+  aplicaveis: QuadroAutomacao[],
   card: QuadroCard,
-  gatilho: AutomacaoGatilho,
 ): Promise<string[]> {
-  const aplicaveis = automacoes.filter((a) => {
-    if (!a.ativo || a.gatilho !== gatilho) return false;
-    // card_movido pode ser restrito a uma fase específica
-    if (gatilho === "card_movido" && a.config.fase) return a.config.fase === card.fase;
-    return true;
-  });
   if (!aplicaveis.length) return [];
 
   const supabase = createClient();
@@ -97,6 +90,30 @@ export async function runAutomacoes(
           }
           break;
         }
+        case "criar_card": {
+          if (acao.quadro_destino && acao.fase_destino) {
+            const novo = {
+              quadro_id: acao.quadro_destino,
+              titulo: card.titulo ?? "Solicitação",
+              fase: acao.fase_destino,
+              valor: acao.copiar_valor ? card.valor : 0,
+              responsavel: card.responsavel,
+              prioridade: card.prioridade,
+              prazo: card.prazo,
+              origem: "vinculo",
+              filial: card.filial ?? "Matriz",
+              valores: {
+                card_origem: `${quadroNome} · ${card.titulo ?? card.id.slice(0, 8)}`,
+                card_origem_id: card.id,
+                card_origem_quadro: quadroId,
+              },
+              created_by: card.created_by,
+            };
+            const { error } = await supabase.from("quadro_cards").insert([novo]);
+            if (!error) feitos.push(`Criou card vinculado (${a.config.label ?? a.nome})`);
+          }
+          break;
+        }
         case "webhook": {
           dispatchWebhook("quadro.automacao", {
             quadro: quadroNome, automacao: a.nome,
@@ -114,6 +131,45 @@ export async function runAutomacoes(
     await supabase.from("quadro_cards").update(patch).eq("id", card.id);
   }
   return feitos;
+}
+
+/**
+ * Executa as automações automáticas de um quadro para um card, no gatilho
+ * informado (card_criado | card_movido | prazo_vencido). Botões manuais
+ * (gatilho "botao") são ignorados aqui — use `runBotao`.
+ */
+export async function runAutomacoes(
+  quadroId: string,
+  quadroNome: string,
+  automacoes: QuadroAutomacao[],
+  card: QuadroCard,
+  gatilho: AutomacaoGatilho,
+): Promise<string[]> {
+  const aplicaveis = automacoes.filter((a) => {
+    if (!a.ativo || a.gatilho !== gatilho) return false;
+    // card_movido pode ser restrito a uma fase específica
+    if (gatilho === "card_movido" && a.config.fase) return a.config.fase === card.fase;
+    return true;
+  });
+  return aplicarAutomacoes(quadroId, quadroNome, aplicaveis, card);
+}
+
+/**
+ * Executa um único botão de ação (automação com gatilho "botao") sobre um card.
+ * Usado pelos botões "Solicitar Compra/Pagamento/Faturamento", "Retrabalho" etc.
+ */
+export async function runBotao(
+  quadroId: string,
+  quadroNome: string,
+  automacao: QuadroAutomacao,
+  card: QuadroCard,
+): Promise<string[]> {
+  return aplicarAutomacoes(quadroId, quadroNome, [automacao], card);
+}
+
+/** Filtra os botões de ação ativos de um quadro (gatilho "botao"). */
+export function botoesDeAcao(automacoes: QuadroAutomacao[]): QuadroAutomacao[] {
+  return automacoes.filter((a) => a.ativo && a.gatilho === "botao");
 }
 
 /** Valida campos obrigatórios; devolve a primeira mensagem de erro, ou null. */
