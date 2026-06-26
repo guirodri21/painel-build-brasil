@@ -14,7 +14,8 @@ import { Input, Select } from "@/components/ui/field";
 import { ChamadoModal } from "@/components/chamado-modal";
 import { ChamadosImport } from "@/components/chamados-import";
 import { sum } from "@/lib/analytics";
-import { formatCurrency, formatNumber, formatDate, todayISO, cn } from "@/lib/utils";
+import { garantirOperacaoDeChamado, FASES_COMERCIAL_APROVADO } from "@/lib/quadros";
+import { formatCurrency, formatNumber, todayISO, cn } from "@/lib/utils";
 import type { Chamado } from "@/lib/types";
 import { Plus, Search, Ticket, AlertTriangle, DollarSign, Layers, Upload, Clock } from "lucide-react";
 
@@ -62,8 +63,14 @@ export default function ChamadosPage() {
     if (!atual || atual.fase === fase) return;
     const { error } = await createClient().from("chamados").update({ fase }).eq("id", id);
     if (error) { toast("Erro ao mover: " + error.message, "error"); return; }
+    // Vínculo COM→OP: ao aprovar, garante card no Pipeline Operacional.
+    let opMsg = "";
+    if (FASES_COMERCIAL_APROVADO.includes(fase)) {
+      const r = await garantirOperacaoDeChamado({ ...atual, fase });
+      if (r === "criado") opMsg = " Card de Operação gerado.";
+    }
     await refresh();
-    toast(`Movido para "${fase}".`);
+    toast(`Movido para "${fase}".${opMsg}`);
   }
   const [busca, setBusca] = React.useState("");
   const [fRegiao, setFRegiao] = React.useState("");

@@ -10,7 +10,8 @@ import { Button } from "@/components/ui/button";
 import { todayISO } from "@/lib/utils";
 import { ChamadoAtividade } from "@/components/chamado-atividade";
 import { alertarChamadoCritico, fireEvent } from "@/lib/integrations";
-import { Receipt } from "lucide-react";
+import { garantirOperacaoDeChamado, FASES_COMERCIAL_APROVADO } from "@/lib/quadros";
+import { Receipt, Wrench } from "lucide-react";
 import type { Chamado } from "@/lib/types";
 
 export function ChamadoModal({
@@ -28,7 +29,17 @@ export function ChamadoModal({
   const toast = useToast();
   const [saving, setSaving] = React.useState(false);
   const [gerando, setGerando] = React.useState(false);
+  const [gerandoOp, setGerandoOp] = React.useState(false);
   const editando = !!chamado;
+
+  async function gerarOperacao() {
+    if (!chamado) return;
+    setGerandoOp(true);
+    const r = await garantirOperacaoDeChamado(chamado);
+    setGerandoOp(false);
+    if (r === "sem-pipeline") { toast("Quadro 'Pipeline Operacional' não encontrado.", "error"); return; }
+    toast(r === "criado" ? "Operação gerada no Pipeline Operacional." : "Já existe uma Operação para este chamado.");
+  }
 
   async function gerarConta() {
     if (!chamado) return;
@@ -70,17 +81,33 @@ export function ChamadoModal({
       motivo_perda: (fd.get("motivo_perda") as string)?.trim() || null,
     };
     const supabase = createClient();
-    const { error } = editando
-      ? await supabase.from("chamados").update(rec).eq("id", chamado!.id)
-      : await supabase.from("chamados").insert([{ ...rec, filial: filial || "Matriz", created_by: userId }]);
+    let salvo: Chamado | null = null;
+    let error;
+    if (editando) {
+      ({ error } = await supabase.from("chamados").update(rec).eq("id", chamado!.id));
+      salvo = { ...chamado!, ...rec } as Chamado;
+    } else {
+      const res = await supabase.from("chamados")
+        .insert([{ ...rec, filial: filial || "Matriz", created_by: userId }])
+        .select("*").single();
+      error = res.error;
+      salvo = (res.data as Chamado) ?? null;
+    }
 
     setSaving(false);
     if (error) { toast("Erro: " + error.message, "error"); return; }
     alertarChamadoCritico({ ...rec, ticket_ref: rec.ticket_ref ?? null }, chamado?.fase);
     // Ponte para o Goalfy (webhooks de saída inscritos no evento)
     fireEvent(editando ? "chamado.atualizado" : "chamado.criado", { ...rec, id: chamado?.id, goalfy_card_id: chamado?.goalfy_card_id });
+
+    // Vínculo COM→OP: ao salvar numa fase aprovada, garante o card de Operação.
+    let opMsg = "";
+    if (salvo && FASES_COMERCIAL_APROVADO.includes(rec.fase)) {
+      const r = await garantirOperacaoDeChamado(salvo);
+      if (r === "criado") opMsg = " Operação gerada.";
+    }
     await refresh();
-    toast(editando ? "Chamado atualizado." : "Chamado criado.");
+    toast((editando ? "Chamado atualizado." : "Chamado criado.") + opMsg);
     onClose();
   }
 
@@ -161,9 +188,14 @@ export function ChamadoModal({
         </ModalBody>
         <ModalFooter>
           {editando && (
-            <Button type="button" variant="outline" onClick={gerarConta} disabled={gerando} className="mr-auto">
-              <Receipt size={15} /> {gerando ? "Gerando..." : "Gerar conta a receber"}
-            </Button>
+            <>
+              <Button type="button" variant="outline" onClick={gerarConta} disabled={gerando} className="mr-auto">
+                <Receipt size={15} /> {gerando ? "Gerando..." : "Gerar conta a receber"}
+              </Button>
+              <Button type="button" variant="outline" onClick={gerarOperacao} disabled={gerandoOp}>
+                <Wrench size={15} /> {gerandoOp ? "Gerando..." : "Gerar Operação"}
+              </Button>
+            </>
           )}
           <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
           <Button type="submit" disabled={saving}>{saving ? "Salvando..." : "Salvar"}</Button>

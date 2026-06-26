@@ -2,8 +2,18 @@ import { createClient } from "@/lib/supabase/client";
 import { notificarAdmins } from "@/lib/notifications";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type {
-  QuadroCampo, QuadroCard, QuadroAutomacao, AutomacaoGatilho, CampoTipo,
+  QuadroCampo, QuadroCard, QuadroAutomacao, AutomacaoGatilho, CampoTipo, Chamado,
 } from "@/lib/types";
+
+/** Nome do quadro que serve de Pipeline Operacional (destino do vínculo COM→OP). */
+export const NOME_PIPELINE_OPERACIONAL = "Pipeline Operacional";
+/** Fase inicial do Pipeline Operacional onde a demanda comercial aterrissa. */
+export const FASE_ENTRADA_OPERACAO = "Entrada da Operacao";
+/**
+ * Fases do Pipeline Comercial (Chamados) que indicam demanda aprovada/validada:
+ * ao entrar numa delas, deve existir um card no Pipeline Operacional.
+ */
+export const FASES_COMERCIAL_APROVADO = ["Planejamento", "Em Execução"];
 
 /** Cores disponíveis para fases/quadros (chaves do mapa DOT no front). */
 export const CORES = ["blue", "teal", "green", "yellow", "orange", "red", "gray"] as const;
@@ -204,6 +214,50 @@ export async function runBotao(
 /** Filtra os botões de ação ativos de um quadro (gatilho "botao"). */
 export function botoesDeAcao(automacoes: QuadroAutomacao[]): QuadroAutomacao[] {
   return automacoes.filter((a) => a.ativo && a.gatilho === "botao");
+}
+
+/**
+ * Vínculo COM→OP: garante (idempotente) que exista um card no Pipeline
+ * Operacional vinculado a um chamado comercial aprovado. Não duplica — se já
+ * houver um card OP para o chamado, não cria outro.
+ *
+ * @returns "criado" se gerou um novo card OP, "existente" se já havia, ou
+ *          "sem-pipeline" se o quadro Pipeline Operacional não existe.
+ */
+export async function garantirOperacaoDeChamado(
+  chamado: Chamado,
+): Promise<"criado" | "existente" | "sem-pipeline"> {
+  const supabase = createClient();
+
+  const { data: q } = await supabase
+    .from("quadros").select("id")
+    .eq("nome", NOME_PIPELINE_OPERACIONAL).eq("ativo", true).limit(1).maybeSingle();
+  const quadroId = (q as { id: string } | null)?.id;
+  if (!quadroId) return "sem-pipeline";
+
+  const { data: existente } = await supabase
+    .from("quadro_cards").select("id")
+    .eq("quadro_id", quadroId).eq("valores->>card_origem_id", chamado.id).limit(1).maybeSingle();
+  if (existente) return "existente";
+
+  const ref = chamado.ticket_ref ? `#${chamado.ticket_ref}` : chamado.id.slice(0, 8);
+  const { error } = await supabase.from("quadro_cards").insert([{
+    quadro_id: quadroId,
+    titulo: chamado.titulo || chamado.cliente || "Operação",
+    fase: FASE_ENTRADA_OPERACAO,
+    valor: chamado.valor || 0,
+    responsavel: chamado.responsavel ?? null,
+    prioridade: chamado.prioridade ?? null,
+    prazo: chamado.prazo ?? null,
+    origem: "comercial",
+    filial: chamado.filial ?? "Matriz",
+    valores: {
+      origem_com: ref,
+      card_origem: `Chamado ${ref} · ${chamado.cliente ?? chamado.titulo ?? ""}`.trim(),
+      card_origem_id: chamado.id,
+    },
+  }]);
+  return error ? "existente" : "criado";
 }
 
 /** Valida campos obrigatórios; devolve a primeira mensagem de erro, ou null. */
