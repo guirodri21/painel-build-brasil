@@ -13,11 +13,12 @@ import { Badge } from "@/components/ui/badge";
 import { Input, Select } from "@/components/ui/field";
 import { ChamadoModal } from "@/components/chamado-modal";
 import { ChamadosImport } from "@/components/chamados-import";
+import { ChamadoFasesConfig } from "@/components/chamado-fases-config";
 import { sum } from "@/lib/analytics";
 import { garantirOperacaoDeChamado, FASES_COMERCIAL_APROVADO } from "@/lib/quadros";
 import { formatCurrency, formatNumber, todayISO, cn } from "@/lib/utils";
 import type { Chamado } from "@/lib/types";
-import { Plus, Search, Ticket, AlertTriangle, DollarSign, Layers, Upload, Clock } from "lucide-react";
+import { Plus, Search, Ticket, AlertTriangle, DollarSign, Layers, Upload, Clock, SlidersHorizontal } from "lucide-react";
 
 type Tone = "green" | "yellow" | "blue" | "red" | "orange" | "gray" | "teal";
 type Aba = "board" | "dashboard";
@@ -49,9 +50,10 @@ function agingTone(d: number): Tone {
 }
 
 export default function ChamadosPage() {
-  const { chamados, chamadoFases, refresh, loading } = useData();
+  const { chamados, chamadoFases, isAdmin, refresh, loading } = useData();
   const toast = useToast();
   const [aba, setAba] = React.useState<Aba>("board");
+  const [configFases, setConfigFases] = React.useState(false);
   const [dragId, setDragId] = React.useState<string | null>(null);
   const [overFase, setOverFase] = React.useState<string | null>(null);
 
@@ -127,6 +129,7 @@ export default function ChamadosPage() {
   return (
     <>
       <PageHeader title="Pipeline Comercial" subtitle="Fluxo comercial — board de chamados (espelho do Goalfy)">
+        {isAdmin && <Button variant="secondary" onClick={() => setConfigFases(true)}><SlidersHorizontal size={16} /> Fases</Button>}
         <Button variant="secondary" onClick={() => setImportar(true)}><Upload size={16} /> Importar CSV</Button>
         <Button onClick={() => abrir(null)}><Plus size={16} /> Novo Card</Button>
       </PageHeader>
@@ -230,6 +233,7 @@ export default function ChamadosPage() {
 
       {modal && <ChamadoModal open={modal} onClose={() => { setModal(false); setEdit(null); setFaseNova(undefined); }} chamado={edit} faseInicial={faseNova} />}
       {importar && <ChamadosImport open={importar} onClose={() => setImportar(false)} />}
+      {configFases && <ChamadoFasesConfig open={configFases} onClose={() => setConfigFases(false)} />}
     </>
   );
 }
