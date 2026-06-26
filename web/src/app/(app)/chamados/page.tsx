@@ -115,11 +115,11 @@ export default function ChamadosPage() {
   function abrir(c: Chamado | null, fase?: string) { setEdit(c); setFaseNova(fase); setModal(true); }
 
   if (loading)
-    return (<><PageHeader title="Chamados" /><KpiSkeletonRow count={4} /><Skeleton className="h-96" /></>);
+    return (<><PageHeader title="Pipeline Comercial" /><KpiSkeletonRow count={4} /><Skeleton className="h-96" /></>);
 
   return (
     <>
-      <PageHeader title="Chamados" subtitle="Board de chamados — espelho do Goalfy">
+      <PageHeader title="Pipeline Comercial" subtitle="Fluxo comercial — board de chamados (espelho do Goalfy)">
         <Button variant="secondary" onClick={() => setImportar(true)}><Upload size={16} /> Importar CSV</Button>
         <Button onClick={() => abrir(null)}><Plus size={16} /> Novo Card</Button>
       </PageHeader>

@@ -10,9 +10,6 @@ import { KpiCard } from "@/components/kpi-card";
 import { KpiSkeletonRow, Skeleton } from "@/components/ui/skeleton";
 import { Card, CardHeader, CardTitle, CardBody } from "@/components/ui/card";
 import { ValueBarChart, DonutChart, CHART_COLORS } from "@/components/charts";
-import { OrdensTable } from "@/components/ordens-table";
-import { OrdensCards } from "@/components/ordens-cards";
-import { OrdensKanban } from "@/components/ordens-kanban";
 import { OrdemModal } from "@/components/ordem-modal";
 import { Button } from "@/components/ui/button";
 import { exportOrdensCSV } from "@/lib/export";
@@ -25,26 +22,16 @@ import {
   taxaConclusaoPorEquipe,
   statusDistribution,
 } from "@/lib/analytics";
-import { cn } from "@/lib/utils";
 import {
   Plus, Clock, Star, CheckCircle2, Loader, Receipt, CheckCheck,
-  CalendarDays, FileSpreadsheet, Table2, LayoutGrid, Columns3,
+  CalendarDays, FileSpreadsheet,
 } from "lucide-react";
-
-type View = "tabela" | "cards" | "kanban";
-
-const VIEWS: { id: View; label: string; icon: React.ComponentType<{ size?: number }> }[] = [
-  { id: "tabela", label: "Tabela", icon: Table2 },
-  { id: "cards", label: "Cards", icon: LayoutGrid },
-  { id: "kanban", label: "Kanban", icon: Columns3 },
-];
 
 export default function OperacoesPage() {
   const { ordens, loading } = useData();
   const { filtros } = useFiltros();
   const toast = useToast();
   const [novaOpen, setNovaOpen] = React.useState(false);
-  const [view, setView] = React.useState<View>("tabela");
 
   const d = React.useMemo(() => applyFiltros(ordens, filtros), [ordens, filtros]);
   const op = calcOps(d);
@@ -76,7 +63,7 @@ export default function OperacoesPage() {
   if (loading)
     return (
       <>
-        <PageHeader title="Operações" />
+        <PageHeader title="Indicadores Operação" />
         <Skeleton className="h-16 mb-5" />
         <KpiSkeletonRow />
         <Skeleton className="h-96" />
@@ -85,7 +72,7 @@ export default function OperacoesPage() {
 
   return (
     <>
-      <PageHeader title="Operações" subtitle="Execução, qualidade e registro de ordens">
+      <PageHeader title="Indicadores Operação" subtitle="Visão executiva de execução e qualidade">
         <Button variant="secondary" onClick={handleCSV}>
           <FileSpreadsheet size={16} /> Exportar CSV
         </Button>
@@ -127,33 +114,9 @@ export default function OperacoesPage() {
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Registro de Ordens</CardTitle>
-          <div className="flex gap-1 rounded-lg border border-border p-0.5">
-            {VIEWS.map(({ id, label, icon: Icon }) => (
-              <button
-                key={id}
-                onClick={() => setView(id)}
-                className={cn(
-                  "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors cursor-pointer",
-                  view === id ? "bg-primary-soft text-primary" : "text-muted hover:text-foreground",
-                )}
-                title={label}
-              >
-                <Icon size={14} /> {label}
-              </button>
-            ))}
-          </div>
-        </CardHeader>
-        <CardBody className={view === "tabela" ? "p-0" : undefined}>
-          {view === "tabela" && <OrdensTable ordens={d} />}
-          {view === "cards" && <OrdensCards ordens={d} />}
-          {view === "kanban" && <OrdensKanban ordens={d} />}
-        </CardBody>
-      </Card>
       <p className="text-xs text-muted italic mt-2">
         Nota: obras grandes seguem cronograma próprio — tempos são estimativas registradas.
+        O registro e o board de ordens ficam em <strong>Pipeline Operacional</strong>.
       </p>
 
       {novaOpen && <OrdemModal open={novaOpen} onClose={() => setNovaOpen(false)} />}

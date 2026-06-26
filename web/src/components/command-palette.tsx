@@ -44,7 +44,7 @@ export function CommandPalette() {
       }
     }
     for (const c of clientesReg) if (m(c.nome) || m(c.telefone) || m(c.documento)) out.push({ tipo: "Cliente", label: c.nome, sub: c.telefone || c.email || "—", href: "/clientes", icon: Contact });
-    for (const o of ordens) if (m(o.cliente) || m(o.linha_servico) || m(o.equipe) || m(o.resumo)) out.push({ tipo: "Ordem", label: o.cliente || o.linha_servico, sub: `${o.equipe} · ${o.data}`, href: "/operacoes", icon: Wrench });
+    for (const o of ordens) if (m(o.cliente) || m(o.linha_servico) || m(o.equipe) || m(o.resumo)) out.push({ tipo: "Ordem", label: o.cliente || o.linha_servico, sub: `${o.equipe} · ${o.data}`, href: "/operacoes/pipeline", icon: Wrench });
     for (const p of produtos) if (m(p.nome) || m(p.sku)) out.push({ tipo: "Produto", label: p.nome, sub: p.sku || "—", href: "/estoque", icon: Package });
     return out.slice(0, 30);
   }, [q, chamados, clientesReg, ordens, produtos]);

@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -21,34 +22,92 @@ import {
   Users,
   Plug,
   MonitorPlay,
+  BarChart3,
+  GaugeCircle,
+  Briefcase,
+  HardHat,
+  Settings,
+  ChevronDown,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useData } from "@/components/data-provider";
 import { BrandLogo } from "@/components/brand";
 
-const NAV = [
-  { href: "/", label: "Visão Geral", icon: LayoutDashboard },
-  { href: "/vendas", label: "Vendas", icon: TrendingUp },
-  { href: "/operacoes", label: "Operações", icon: Wrench },
-  { href: "/chamados", label: "Chamados", icon: KanbanSquare },
-  { href: "/quadros", label: "Quadros", icon: LayoutGrid },
-  { href: "/agenda", label: "Agenda", icon: CalendarDays },
-  { href: "/clientes", label: "Clientes", icon: Contact },
-  { href: "/orcamentos", label: "Orçamentos", icon: FileSignature },
-  { href: "/financeiro", label: "Financeiro", icon: Wallet },
-  { href: "/contas", label: "Contas", icon: Receipt },
-  { href: "/estoque", label: "Estoque", icon: Package },
-  { href: "/comissoes", label: "Comissões", icon: Percent },
-  { href: "/metas", label: "Metas", icon: Target },
-  { href: "/cadastros", label: "Cadastros", icon: Database },
-  { href: "/relatorios", label: "Relatórios", icon: FileText },
+type Icon = React.ComponentType<{ size?: number; className?: string }>;
+type NavItem = { href: string; label: string; icon: Icon };
+type NavGroup = {
+  id: string;
+  label: string;
+  icon: Icon;
+  gate?: "financeiro" | "admin";
+  items: NavItem[];
+};
+
+/** Item solto no topo (sem grupo). */
+const HOME: NavItem = { href: "/", label: "Visão Geral", icon: LayoutDashboard };
+
+/** As 4 áreas principais + Admin/Config. */
+const GROUPS: NavGroup[] = [
+  {
+    id: "comercial",
+    label: "Comercial / Vendas",
+    icon: Briefcase,
+    items: [
+      { href: "/vendas", label: "Performance Comercial", icon: BarChart3 },
+      { href: "/chamados", label: "Pipeline Comercial", icon: KanbanSquare },
+      { href: "/clientes", label: "Clientes", icon: Contact },
+      { href: "/orcamentos", label: "Orçamentos", icon: FileSignature },
+      { href: "/metas", label: "Metas", icon: Target },
+    ],
+  },
+  {
+    id: "operacional",
+    label: "Operacional",
+    icon: HardHat,
+    items: [
+      { href: "/operacoes", label: "Indicadores Operação", icon: GaugeCircle },
+      { href: "/operacoes/pipeline", label: "Pipeline Operacional", icon: Wrench },
+      { href: "/agenda", label: "Agenda", icon: CalendarDays },
+    ],
+  },
+  {
+    id: "financeiro",
+    label: "Financeiro",
+    icon: Wallet,
+    gate: "financeiro",
+    items: [
+      { href: "/financeiro", label: "Financeiro", icon: TrendingUp },
+      { href: "/contas", label: "Contas", icon: Receipt },
+      { href: "/comissoes", label: "Comissões", icon: Percent },
+    ],
+  },
+  {
+    id: "estoque",
+    label: "Estoque",
+    icon: Package,
+    items: [{ href: "/estoque", label: "Estoque", icon: Package }],
+  },
+  {
+    id: "admin",
+    label: "Admin / Config",
+    icon: Settings,
+    gate: "admin",
+    items: [
+      { href: "/quadros", label: "Quadros", icon: LayoutGrid },
+      { href: "/cadastros", label: "Cadastros", icon: Database },
+      { href: "/relatorios", label: "Relatórios", icon: FileText },
+      { href: "/integracoes", label: "Integrações", icon: Plug },
+      { href: "/usuarios", label: "Usuários", icon: Users },
+    ],
+  },
 ];
 
-const ADMIN_NAV = [
-  { href: "/integracoes", label: "Integrações", icon: Plug },
-  { href: "/usuarios", label: "Usuários", icon: Users },
-];
+/** Casa a rota ativa com um item (mais específico primeiro). */
+function isActive(href: string, pathname: string): boolean {
+  if (href === "/") return pathname === "/";
+  return pathname === href || pathname.startsWith(href + "/");
+}
 
 export function Sidebar({
   open,
@@ -59,9 +118,33 @@ export function Sidebar({
 }) {
   const pathname = usePathname();
   const { isAdmin, podeFinanceiro } = useData();
-  const FINANCEIRO = new Set(["/financeiro", "/contas", "/comissoes"]);
-  const base = podeFinanceiro ? NAV : NAV.filter((n) => !FINANCEIRO.has(n.href));
-  const nav = isAdmin ? [...base, ...ADMIN_NAV] : base;
+
+  const visibleGroups = React.useMemo(
+    () =>
+      GROUPS.filter((g) => {
+        if (g.gate === "financeiro") return podeFinanceiro;
+        if (g.gate === "admin") return isAdmin;
+        return true;
+      }),
+    [isAdmin, podeFinanceiro],
+  );
+
+  // Grupo que contém a rota ativa (para auto-expandir).
+  const activeGroupId = React.useMemo(
+    () =>
+      visibleGroups.find((g) => g.items.some((it) => isActive(it.href, pathname)))
+        ?.id ?? null,
+    [visibleGroups, pathname],
+  );
+
+  // Sobreposições explícitas do usuário (clique no cabeçalho). Sem override,
+  // o grupo da rota ativa abre por padrão — derivado, sem efeito colateral.
+  const [overrides, setOverrides] = React.useState<Record<string, boolean>>({});
+
+  const isOpen = (id: string) => overrides[id] ?? id === activeGroupId;
+
+  const toggle = (id: string) =>
+    setOverrides((prev) => ({ ...prev, [id]: !isOpen(id) }));
 
   return (
     <>
@@ -88,24 +171,48 @@ export function Sidebar({
         </div>
 
         <nav className="flex-1 overflow-y-auto p-3 space-y-1">
-          {nav.map(({ href, label, icon: Icon }) => {
-            const active =
-              href === "/" ? pathname === "/" : pathname.startsWith(href);
+          {/* Visão Geral (topo, sem grupo) */}
+          <NavLink item={HOME} active={isActive(HOME.href, pathname)} onClose={onClose} />
+
+          {visibleGroups.map((group) => {
+            const groupOpen = isOpen(group.id);
+            const groupActive = group.items.some((it) => isActive(it.href, pathname));
+            const GroupIcon = group.icon;
             return (
-              <Link
-                key={href}
-                href={href}
-                onClick={onClose}
-                className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                  active
-                    ? "bg-primary-soft text-primary"
-                    : "text-muted hover:text-foreground hover:bg-surface-2",
+              <div key={group.id} className="pt-1">
+                <button
+                  onClick={() => toggle(group.id)}
+                  className={cn(
+                    "w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold transition-colors cursor-pointer",
+                    groupActive
+                      ? "text-foreground"
+                      : "text-muted hover:text-foreground hover:bg-surface-2",
+                  )}
+                >
+                  <GroupIcon size={18} className="shrink-0" />
+                  <span className="flex-1 text-left">{group.label}</span>
+                  <ChevronDown
+                    size={16}
+                    className={cn(
+                      "shrink-0 text-muted transition-transform",
+                      groupOpen ? "rotate-0" : "-rotate-90",
+                    )}
+                  />
+                </button>
+
+                {groupOpen && (
+                  <div className="mt-1 ml-3 pl-3 border-l border-border space-y-1">
+                    {group.items.map((item) => (
+                      <NavLink
+                        key={item.href}
+                        item={item}
+                        active={isActive(item.href, pathname)}
+                        onClose={onClose}
+                      />
+                    ))}
+                  </div>
                 )}
-              >
-                <Icon size={18} className="shrink-0" />
-                {label}
-              </Link>
+              </div>
             );
           })}
         </nav>
@@ -130,5 +237,32 @@ export function Sidebar({
         </div>
       </aside>
     </>
+  );
+}
+
+function NavLink({
+  item,
+  active,
+  onClose,
+}: {
+  item: NavItem;
+  active: boolean;
+  onClose: () => void;
+}) {
+  const Icon = item.icon;
+  return (
+    <Link
+      href={item.href}
+      onClick={onClose}
+      className={cn(
+        "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+        active
+          ? "bg-primary-soft text-primary"
+          : "text-muted hover:text-foreground hover:bg-surface-2",
+      )}
+    >
+      <Icon size={18} className="shrink-0" />
+      {item.label}
+    </Link>
   );
 }

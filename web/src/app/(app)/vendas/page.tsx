@@ -31,7 +31,7 @@ export default function VendasPage() {
   if (loading)
     return (
       <>
-        <PageHeader title="Vendas" />
+        <PageHeader title="Performance Comercial" />
         <Skeleton className="h-16 mb-5" />
         <KpiSkeletonRow count={3} />
         <Skeleton className="h-80" />
@@ -40,7 +40,7 @@ export default function VendasPage() {
 
   return (
     <>
-      <PageHeader title="Vendas" subtitle="Desempenho comercial por dimensão" />
+      <PageHeader title="Performance Comercial" subtitle="Indicadores de desempenho comercial por dimensão" />
       <FilterBar />
 
       <div className="stagger grid gap-3 mb-5 grid-cols-2 lg:grid-cols-3">
