@@ -9,13 +9,33 @@ import { DOT, NOME_PIPELINE_OPERACIONAL } from "@/lib/quadros";
 import { sum } from "@/lib/analytics";
 import { formatCurrency, formatNumber, todayISO, cn } from "@/lib/utils";
 import type { QuadroFase, QuadroCard } from "@/lib/types";
-import { Layers, Wrench, AlertTriangle, CheckCheck, DollarSign, Clock } from "lucide-react";
+import { Layers, Wrench, AlertTriangle, CheckCheck, DollarSign, Clock, RotateCcw, Receipt } from "lucide-react";
+
+/** SLA sugerido para liberação de faturamento (dias úteis). */
+const SLA_FATURAMENTO_DIAS = 2;
 
 function diasDesde(iso?: string | null): number {
   if (!iso) return 0;
   const d = new Date(iso);
   if (isNaN(d.getTime())) return 0;
   return Math.max(0, Math.floor((Date.now() - d.getTime()) / 86400000));
+}
+
+/** Dias úteis (seg–sex) decorridos desde uma data ISO. */
+function diasUteisDesde(iso?: string | null): number {
+  if (!iso) return 0;
+  const start = new Date(iso);
+  if (isNaN(start.getTime())) return 0;
+  let count = 0;
+  const cur = new Date(start);
+  const agora = Date.now();
+  // Limite de segurança para evitar laços longos com datas muito antigas.
+  for (let i = 0; i < 400 && cur.getTime() < agora; i++) {
+    cur.setDate(cur.getDate() + 1);
+    const dia = cur.getDay();
+    if (dia !== 0 && dia !== 6) count++;
+  }
+  return count;
 }
 
 /**
@@ -60,7 +80,13 @@ export function OperacaoPipelineKpis() {
     const tempoMedio = abertos.length
       ? abertos.reduce((acc, c) => acc + diasDesde(c.fase_desde ?? c.created_at), 0) / abertos.length
       : 0;
-    return { abertos: abertos.length, emExecucao: emExecucao.length, atrasados: atrasados.length, concluidos: concluidos.length, pipelineValor, tempoMedio };
+    // Retrabalho: cards gerados pelo botão "Marcar Retrabalho" (origem vinculo no próprio board).
+    const retrabalho = cards.filter((c) => c.origem === "vinculo").length;
+    // SLA de faturamento: cards parados na fase de faturamento além do prazo (dias úteis).
+    const slaFaturamento = abertos.filter(
+      (c) => /faturamento/i.test(c.fase) && diasUteisDesde(c.fase_desde ?? c.created_at) >= SLA_FATURAMENTO_DIAS,
+    ).length;
+    return { abertos: abertos.length, emExecucao: emExecucao.length, atrasados: atrasados.length, concluidos: concluidos.length, pipelineValor, tempoMedio, retrabalho, slaFaturamento };
   }, [cards, fases]);
 
   const funil = React.useMemo(() => {
@@ -90,13 +116,15 @@ export function OperacaoPipelineKpis() {
     <div className="mb-6">
       <h2 className="text-sm font-semibold text-muted mb-2">Operação (Pipeline)</h2>
 
-      <div className="stagger grid gap-3 mb-4 grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+      <div className="stagger grid gap-3 mb-4 grid-cols-2 lg:grid-cols-4">
         <KpiCard label="Abertas" value={kpis.abertos} format={(n) => formatNumber(n)} tone="teal" icon={Layers} />
         <KpiCard label="Em Execução" value={kpis.emExecucao} format={(n) => formatNumber(n)} tone={kpis.emExecucao > 0 ? "orange" : "default"} icon={Wrench} />
         <KpiCard label="Atrasadas" value={kpis.atrasados} format={(n) => formatNumber(n)} tone={kpis.atrasados > 0 ? "red" : "default"} icon={AlertTriangle} />
         <KpiCard label="Concluídas" value={kpis.concluidos} format={(n) => formatNumber(n)} tone="green" icon={CheckCheck} />
         <KpiCard label="Pipeline (valor)" value={kpis.pipelineValor} format={(n) => formatCurrency(n)} tone="green" icon={DollarSign} />
         <KpiCard label="Tempo médio aberto" value={kpis.tempoMedio} format={(n) => n.toFixed(1) + "d"} icon={Clock} />
+        <KpiCard label="Retrabalho" value={kpis.retrabalho} format={(n) => formatNumber(n)} tone={kpis.retrabalho > 0 ? "orange" : "default"} icon={RotateCcw} />
+        <KpiCard label="Faturam. atrasado (SLA)" value={kpis.slaFaturamento} format={(n) => formatNumber(n)} tone={kpis.slaFaturamento > 0 ? "red" : "default"} icon={Receipt} />
       </div>
 
       <Card>
