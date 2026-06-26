@@ -169,7 +169,7 @@ export function ChamadoModal({
             </div>
             <div>
               <Label>Fase *</Label>
-              <Select name="fase" required defaultValue={chamado?.fase ?? faseInicial ?? "Triagem"}>
+              <Select name="fase" required defaultValue={chamado?.fase ?? faseInicial ?? "Oportunidade / Demanda"}>
                 {chamadoFases.map((f) => <option key={f.id} value={f.nome}>{f.nome}</option>)}
               </Select>
             </div>

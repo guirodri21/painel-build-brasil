@@ -131,7 +131,7 @@ export function ChamadosImport({ open, onClose }: { open: boolean; onClose: () =
           if (tempoCols[i] && raw) tempos[tempoCols[i] as string] = raw;
         });
         if (Object.keys(tempos).length) r.tempos_fase = tempos;
-        if (!r.fase) r.fase = "Triagem";
+        if (!r.fase) r.fase = "Oportunidade / Demanda";
         // Sem coluna de ID no Goalfy → usa o Ticket Trílogo como chave anti-duplicação
         if (!r.goalfy_card_id && r.ticket_ref) r.goalfy_card_id = "tkt:" + String(r.ticket_ref);
         return r;
