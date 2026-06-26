@@ -155,6 +155,40 @@ export async function runAutomacoes(
 }
 
 /**
+ * Avalia se o novo valor de um campo satisfaz a condição de um gatilho
+ * "campo_alterado". `cond` é `config.valor`:
+ *   • vazio/ausente → dispara quando o campo fica preenchido (não vazio/false);
+ *   • "true"/"false" → compara checkbox Sim/Não;
+ *   • outro texto → igualdade exata (string).
+ */
+function condicaoCampoOk(cond: string | undefined, novo: unknown): boolean {
+  if (cond === undefined || cond === "") return novo != null && novo !== "" && novo !== false;
+  if (cond === "true") return novo === true;
+  if (cond === "false") return novo === false;
+  return String(novo) === cond;
+}
+
+/**
+ * Dispara as automações de checklist (gatilho "campo_alterado") cujos campos
+ * observados mudaram e cujas condições foram satisfeitas. Usado ao salvar o card.
+ */
+export async function runCamposAlterados(
+  quadroId: string,
+  quadroNome: string,
+  automacoes: QuadroAutomacao[],
+  card: QuadroCard,
+  chavesAlteradas: string[],
+): Promise<string[]> {
+  const aplicaveis = automacoes.filter((a) => {
+    if (!a.ativo || a.gatilho !== "campo_alterado") return false;
+    const campo = a.config.campo;
+    if (!campo || !chavesAlteradas.includes(campo)) return false;
+    return condicaoCampoOk(a.config.valor, card.valores?.[campo]);
+  });
+  return aplicarAutomacoes(quadroId, quadroNome, aplicaveis, card);
+}
+
+/**
  * Executa um único botão de ação (automação com gatilho "botao") sobre um card.
  * Usado pelos botões "Solicitar Compra/Pagamento/Faturamento", "Retrabalho" etc.
  */

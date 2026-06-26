@@ -384,7 +384,7 @@ export interface QuadroCard {
   updated_at?: string | null;
 }
 
-export type AutomacaoGatilho = "card_criado" | "card_movido" | "prazo_vencido" | "botao";
+export type AutomacaoGatilho = "card_criado" | "card_movido" | "prazo_vencido" | "botao" | "campo_alterado";
 export type AcaoTipo = "notificar" | "mover_fase" | "definir_campo" | "webhook" | "criar_card";
 
 export interface AutomacaoAcao {
@@ -411,6 +411,14 @@ export interface AutomacaoConfig {
   label?: string;
   /** para gatilho botao: cor do botão (chave do mapa DOT) */
   cor?: string;
+  /** para gatilho campo_alterado: chave do campo observado */
+  campo?: string;
+  /**
+   * para gatilho campo_alterado: condição sobre o novo valor.
+   * "" / ausente = dispara quando o campo fica preenchido (não vazio);
+   * "true"/"false" = compara checkbox Sim/Não; outro texto = igualdade exata.
+   */
+  valor?: string;
   acoes: AutomacaoAcao[];
 }
 
@@ -453,6 +461,7 @@ export const GATILHO_LABELS: Record<AutomacaoGatilho, string> = {
   card_movido: "Quando um card move para uma fase",
   prazo_vencido: "Quando o prazo vence",
   botao: "Botão no card (manual)",
+  campo_alterado: "Quando um campo muda (checklist)",
 };
 
 export const ACAO_LABELS: Record<AcaoTipo, string> = {

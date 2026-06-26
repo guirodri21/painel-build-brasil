@@ -8,7 +8,7 @@ import { ConfirmDialog } from "@/components/ui/confirm";
 import { Modal, ModalBody, ModalFooter } from "@/components/ui/modal";
 import { Input, Select, Textarea, Label } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
-import { runAutomacoes, runBotao, botoesDeAcao, validarObrigatorios } from "@/lib/quadros";
+import { runAutomacoes, runBotao, runCamposAlterados, botoesDeAcao, validarObrigatorios } from "@/lib/quadros";
 import { cn } from "@/lib/utils";
 import { Trash2, Zap } from "lucide-react";
 import type { Quadro, QuadroFase, QuadroCampo, QuadroCard, QuadroAutomacao } from "@/lib/types";
@@ -108,6 +108,16 @@ export function QuadroCardModal({
     const feitos = savedCard && gatilho
       ? await runAutomacoes(quadro.id, quadro.nome, automacoes, savedCard, gatilho)
       : [];
+
+    // Gatilho de checklist: campos personalizados que mudaram de valor.
+    const valoresAntigos = card?.valores ?? {};
+    const chavesAlteradas = campos
+      .map((c) => c.chave)
+      .filter((k) => JSON.stringify(valoresAntigos[k] ?? null) !== JSON.stringify(valores[k] ?? null));
+    if (savedCard && chavesAlteradas.length) {
+      const fc = await runCamposAlterados(quadro.id, quadro.nome, automacoes, savedCard, chavesAlteradas);
+      feitos.push(...fc);
+    }
     setSaving(false);
     await onSaved();
     toast(feitos.length ? `Salvo. Automações: ${feitos.join(", ")}` : editando ? "Card atualizado." : "Card criado.");

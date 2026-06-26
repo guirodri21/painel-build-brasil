@@ -94,5 +94,24 @@ BEGIN
          jsonb_build_object('tipo','notificar','mensagem','Retrabalho gerado a partir de execucao')
        )));
 
+  -- Checklist (gatilho campo_alterado): atualiza a Situacao automaticamente.
+  INSERT INTO quadro_automacoes (quadro_id, nome, gatilho, ordem, config) VALUES
+    (v_op,'Impedimento detectado','campo_alterado',10, jsonb_build_object(
+       'campo','impedimento','valor','',
+       'acoes', jsonb_build_array(
+         jsonb_build_object('tipo','definir_campo','campo','situacao','valor','Com Impedimento'),
+         jsonb_build_object('tipo','notificar','mensagem','Impedimento registrado na operacao')
+       ))),
+    (v_op,'Material pendente','campo_alterado',11, jsonb_build_object(
+       'campo','material_disponivel','valor','false',
+       'acoes', jsonb_build_array(
+         jsonb_build_object('tipo','definir_campo','campo','situacao','valor','Aguardando Material')
+       ))),
+    (v_op,'Material disponivel','campo_alterado',12, jsonb_build_object(
+       'campo','material_disponivel','valor','true',
+       'acoes', jsonb_build_array(
+         jsonb_build_object('tipo','definir_campo','campo','situacao','valor','Material OK')
+       )));
+
   RAISE NOTICE 'Seed Pipeline Operacional aplicado.';
 END $$;

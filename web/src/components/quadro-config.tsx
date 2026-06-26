@@ -235,6 +235,8 @@ function AutomacaoEditor({ quadroId, fases, campos, quadros, automacao, onClose,
   const [fase, setFase] = React.useState(automacao?.config.fase ?? fases[0]?.nome ?? "");
   const [label, setLabel] = React.useState(automacao?.config.label ?? "");
   const [cor, setCor] = React.useState(automacao?.config.cor ?? "blue");
+  const [campoObs, setCampoObs] = React.useState(automacao?.config.campo ?? campos[0]?.chave ?? "");
+  const [valorCond, setValorCond] = React.useState(automacao?.config.valor ?? "");
   const [acoes, setAcoes] = React.useState<AutomacaoAcao[]>(automacao?.config.acoes ?? [{ tipo: "notificar", mensagem: "" }]);
   const [saving, setSaving] = React.useState(false);
 
@@ -246,9 +248,11 @@ function AutomacaoEditor({ quadroId, fases, campos, quadros, automacao, onClose,
     if (!nome.trim()) return toast("Dê um nome à automação.", "error");
     if (gatilho === "botao" && !label.trim()) return toast("Defina o rótulo do botão.", "error");
     setSaving(true);
+    if (gatilho === "campo_alterado" && !campoObs) return toast("Escolha o campo observado.", "error");
     const config = {
       ...(gatilho === "card_movido" ? { fase } : {}),
       ...(gatilho === "botao" ? { label: label.trim(), cor } : {}),
+      ...(gatilho === "campo_alterado" ? { campo: campoObs, valor: valorCond } : {}),
       acoes,
     };
     const rec = { quadro_id: quadroId, nome: nome.trim(), gatilho, config };
@@ -292,6 +296,22 @@ function AutomacaoEditor({ quadroId, fases, campos, quadros, automacao, onClose,
             <Select value={cor} onChange={(e) => setCor(e.target.value)}>
               {CORES.map((c) => <option key={c} value={c}>{c}</option>)}
             </Select>
+          </div>
+        </div>
+      )}
+
+      {gatilho === "campo_alterado" && (
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <Label>Campo observado</Label>
+            <Select value={campoObs} onChange={(e) => setCampoObs(e.target.value)}>
+              <option value="">Escolha o campo</option>
+              {campos.map((c) => <option key={c.id} value={c.chave}>{c.label}</option>)}
+            </Select>
+          </div>
+          <div>
+            <Label>Quando o valor for</Label>
+            <Input value={valorCond} onChange={(e) => setValorCond(e.target.value)} placeholder="vazio = preenchido · true/false = Sim/Não" />
           </div>
         </div>
       )}
