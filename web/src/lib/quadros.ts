@@ -36,6 +36,15 @@ export function formatCampoValor(tipo: CampoTipo, valor: unknown): string {
   }
 }
 
+/**
+ * Código de exibição de um card (ex.: "OP-000456"). Usa o prefixo do quadro e
+ * o número sequencial do card; devolve null se ainda não houver número.
+ */
+export function codigoCard(prefixo: string | null | undefined, numero: number | null | undefined): string | null {
+  if (numero == null) return null;
+  return `${(prefixo || "CARD").toUpperCase()}-${String(numero).padStart(6, "0")}`;
+}
+
 /** Gera uma chave estável a partir de um label (slug snake_case). */
 export function chaveDeLabel(label: string): string {
   return label
@@ -110,7 +119,7 @@ async function aplicarAutomacoes(
               responsavel: card.responsavel,
               prioridade: card.prioridade,
               prazo: card.prazo,
-              origem: "vinculo",
+              origem: acao.origem ?? "vinculo",
               filial: card.filial ?? "Matriz",
               valores: {
                 card_origem: `${quadroNome} · ${card.titulo ?? card.id.slice(0, 8)}`,
@@ -216,12 +225,27 @@ export function botoesDeAcao(automacoes: QuadroAutomacao[]): QuadroAutomacao[] {
   return automacoes.filter((a) => a.ativo && a.gatilho === "botao");
 }
 
+/** Compara dois números por um operador textual (guardas condicionais de gate). */
+function compararNum(op: string, a: number, b: number): boolean {
+  switch (op) {
+    case ">": return a > b;
+    case ">=": return a >= b;
+    case "<": return a < b;
+    case "<=": return a <= b;
+    case "==": return a === b;
+    default: return false;
+  }
+}
+
 /** Avalia se um valor atual satisfaz a condição exigida por um gate de fase. */
 function condicaoSatisfeita(exigido: string, atual: unknown): boolean {
   if (exigido === "true") return atual === true;
   if (exigido === "false") return atual === false || atual == null || atual === "";
   if (exigido === "vazio") return atual == null || atual === "" || atual === false;
   if (exigido === "preenchido") return atual != null && atual !== "" && atual !== false;
+  // Comparação numérica: exigido no formato ">=500", "<100", etc.
+  const m = exigido.match(/^(>=|<=|>|<|==)\s*(-?\d+(?:\.\d+)?)$/);
+  if (m) return compararNum(m[1], Number(atual) || 0, Number(m[2]));
   return String(atual ?? "") === exigido;
 }
 
@@ -229,18 +253,28 @@ function condicaoSatisfeita(exigido: string, atual: unknown): boolean {
  * Bloqueio de avanço de fase: verifica os gates (gatilho "bloqueio_fase") que
  * protegem a fase de destino. Devolve a mensagem de bloqueio se alguma condição
  * não for satisfeita, ou null se o avanço é permitido.
+ *
+ * `valorCard` é o R$ do card, acessível nas condições pelo campo especial "valor"
+ * (usado por guardas de alçada). Condições com `quando` só são exigidas quando a
+ * guarda numérica é satisfeita.
  */
 export function validarBloqueio(
   automacoes: QuadroAutomacao[],
   faseDestino: string,
   valores: Record<string, unknown> | null | undefined,
+  valorCard?: number,
 ): string | null {
+  const resolver = (campo: string): unknown => (campo === "valor" ? valorCard ?? 0 : valores?.[campo]);
   const gates = automacoes.filter(
     (a) => a.ativo && a.gatilho === "bloqueio_fase" && a.config.fase === faseDestino,
   );
   for (const g of gates) {
     for (const cond of g.config.condicoes ?? []) {
-      if (!condicaoSatisfeita(cond.valor, valores?.[cond.campo])) {
+      // Guarda condicional: pula a condição quando a comparação não se aplica.
+      if (cond.quando && !compararNum(cond.quando.op, Number(resolver(cond.quando.campo)) || 0, cond.quando.valor)) {
+        continue;
+      }
+      if (!condicaoSatisfeita(cond.valor, resolver(cond.campo))) {
         return g.config.mensagem || `Não é possível avançar para "${faseDestino}": condição não atendida.`;
       }
     }

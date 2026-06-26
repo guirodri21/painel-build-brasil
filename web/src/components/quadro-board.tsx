@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input, Select } from "@/components/ui/field";
 import { QuadroCardModal } from "@/components/quadro-card-modal";
 import { QuadroConfig } from "@/components/quadro-config";
-import { DOT, runAutomacoes, validarBloqueio, formatCampoValor } from "@/lib/quadros";
+import { DOT, runAutomacoes, validarBloqueio, formatCampoValor, codigoCard } from "@/lib/quadros";
 import { sum } from "@/lib/analytics";
 import { formatCurrency, formatNumber, todayISO, cn } from "@/lib/utils";
 import type { Quadro, QuadroFase, QuadroCampo, QuadroCard, QuadroAutomacao, QuadroFormulario } from "@/lib/types";
@@ -155,7 +155,7 @@ export function QuadroBoard({
     const atual = cards.find((c) => c.id === id);
     if (!atual || atual.fase === fase) return;
     // Gate de fase: bloqueia o avanço se as condições não forem atendidas.
-    const bloqueio = validarBloqueio(automacoes, fase, atual.valores);
+    const bloqueio = validarBloqueio(automacoes, fase, atual.valores, atual.valor);
     if (bloqueio) { toast(bloqueio, "error"); return; }
     const { error } = await createClient().from("quadro_cards").update({ fase }).eq("id", id);
     if (error) { toast("Erro ao mover: " + error.message, "error"); return; }
@@ -261,6 +261,16 @@ export function QuadroBoard({
                               <span className="text-sm font-medium truncate">{c.titulo || "Card"}</span>
                               {c.prioridade && <Badge tone={prioTone(c.prioridade)}>{c.prioridade}</Badge>}
                             </div>
+                            {(() => {
+                              const cod = codigoCard(quadro?.prefixo, c.numero);
+                              const com = c.valores?.origem_com;
+                              if (!cod && !com) return null;
+                              return (
+                                <p className="text-[10px] text-muted font-mono mb-0.5">
+                                  {cod}{com ? <span className="text-muted/70"> · ← {String(com)}</span> : null}
+                                </p>
+                              );
+                            })()}
                             {c.responsavel && <p className="text-[11px] text-muted">{c.responsavel}</p>}
                             {camposCard.map((campo) => {
                               const v = c.valores?.[campo.chave];

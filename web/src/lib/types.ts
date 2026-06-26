@@ -124,6 +124,8 @@ export interface ChamadoFase {
 
 export interface Chamado {
   id: string;
+  /** Número sequencial → compõe o ID automático VEN-000001. */
+  numero?: number | null;
   filial: string | null;
   goalfy_card_id: string | null;
   titulo: string | null;
@@ -142,6 +144,8 @@ export interface Chamado {
   margem?: number | null;
   prazo?: string | null;
   centro_custo?: string | null;
+  origem_oportunidade?: string | null;
+  faixa_potencial?: string | null;
   status_faturamento?: string | null;
   nota_fiscal?: string | null;
   motivo_perda?: string | null;
@@ -153,6 +157,29 @@ export interface Chamado {
   created_by: string | null;
   created_at: string;
   updated_at?: string | null;
+}
+
+/** Prioridades da oportunidade comercial (doc v2.0). */
+export const PRIORIDADES_OPORTUNIDADE = ["Crítica", "Alta", "Média", "Baixa"] as const;
+
+/** Origens da oportunidade comercial (doc v2.0). */
+export const ORIGENS_OPORTUNIDADE = [
+  "Cliente", "Preventiva", "Corretiva", "Comercial Ativo", "Indicação", "Contrato", "Expansão", "Outro",
+] as const;
+
+/** Faixas de potencial (valor) — rótulo exibido e tier armazenado (doc v2.0). */
+export const FAIXAS_POTENCIAL: { tier: string; label: string }[] = [
+  { tier: "Baixo", label: "Baixo (até R$ 500)" },
+  { tier: "Médio", label: "Médio (R$ 501–3.000)" },
+  { tier: "Alto", label: "Alto (R$ 3.001–10.000)" },
+  { tier: "Muito Alto", label: "Muito Alto (R$ 10.001–30.000)" },
+  { tier: "Estratégico", label: "Estratégico (R$ 30.001–100.000)" },
+  { tier: "Premium", label: "Premium (acima de R$ 100.000)" },
+];
+
+/** ID automático de um chamado/oportunidade (ex.: "VEN-000001"). */
+export function codigoChamado(numero: number | null | undefined): string | null {
+  return numero == null ? null : `VEN-${String(numero).padStart(6, "0")}`;
 }
 
 export interface Notificacao {
@@ -338,6 +365,8 @@ export interface Quadro {
   cor: string | null;
   ordem: number;
   ativo: boolean;
+  /** Prefixo do código dos cards (ex.: "OP", "COM", "SUP"). */
+  prefixo: string | null;
   filial: string | null;
   created_by: string | null;
   created_at: string;
@@ -368,6 +397,8 @@ export interface QuadroCampo {
 export interface QuadroCard {
   id: string;
   quadro_id: string;
+  /** Número sequencial por quadro (compõe o código OP-000456). */
+  numero: number | null;
   titulo: string | null;
   fase: string;
   valores: Record<string, unknown>;
@@ -386,11 +417,20 @@ export interface QuadroCard {
 
 export type AutomacaoGatilho = "card_criado" | "card_movido" | "prazo_vencido" | "botao" | "campo_alterado" | "bloqueio_fase";
 
+/** Operadores numéricos para guardas condicionais de gate. */
+export type GuardaOp = ">" | ">=" | "<" | "<=" | "==";
+
 /** Condição de um gate de fase: o campo deve satisfazer o valor exigido. */
 export interface CondicaoCampo {
+  /** Chave do campo, ou o token especial "valor" para o R$ do card. */
   campo: string;
-  /** "true"/"false" = checkbox; "vazio"/"preenchido"; outro = igualdade exata. */
+  /** "true"/"false" = checkbox; "vazio"/"preenchido"; ">=500" etc. = numérico; outro = igualdade exata. */
   valor: string;
+  /**
+   * Guarda opcional: a condição só é exigida quando esta comparação numérica
+   * é satisfeita. Ex.: exigir aprovação da diretoria apenas quando valor > 500.
+   */
+  quando?: { campo: string; op: GuardaOp; valor: number };
 }
 export type AcaoTipo = "notificar" | "mover_fase" | "definir_campo" | "webhook" | "criar_card";
 
@@ -409,6 +449,8 @@ export interface AutomacaoAcao {
   fase_destino?: string;
   /** criar_card: copia o valor (R$) do card de origem para o novo card */
   copiar_valor?: boolean;
+  /** criar_card: origem gravada no novo card (default "vinculo"; ex.: "retrabalho") */
+  origem?: string;
 }
 
 export interface AutomacaoConfig {

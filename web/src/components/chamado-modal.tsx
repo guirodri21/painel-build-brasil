@@ -12,6 +12,9 @@ import { ChamadoAtividade } from "@/components/chamado-atividade";
 import { alertarChamadoCritico, fireEvent } from "@/lib/integrations";
 import { garantirOperacaoDeChamado, FASES_COMERCIAL_APROVADO } from "@/lib/quadros";
 import { Receipt, Wrench } from "lucide-react";
+import {
+  PRIORIDADES_OPORTUNIDADE, ORIGENS_OPORTUNIDADE, FAIXAS_POTENCIAL, codigoChamado,
+} from "@/lib/types";
 import type { Chamado } from "@/lib/types";
 
 export function ChamadoModal({
@@ -70,6 +73,9 @@ export function ChamadoModal({
       regiao: (fd.get("regiao") as string)?.trim() || null,
       descricao: (fd.get("descricao") as string)?.trim() || null,
       prioridade: (fd.get("prioridade") as string) || null,
+      centro_custo: (fd.get("centro_custo") as string)?.trim() || null,
+      origem_oportunidade: (fd.get("origem_oportunidade") as string) || null,
+      faixa_potencial: (fd.get("faixa_potencial") as string) || null,
       ticket_ref: (fd.get("ticket_ref") as string)?.trim() || null,
       fase: fd.get("fase") as string,
       valor: parseFloat(fd.get("valor") as string) || 0,
@@ -112,30 +118,53 @@ export function ChamadoModal({
   }
 
   return (
-    <Modal open={open} onClose={onClose} title={editando ? "Editar Chamado" : "Novo Chamado"} className="max-w-xl">
+    <Modal open={open} onClose={onClose} title={editando ? (codigoChamado(chamado?.numero) ?? "Editar Chamado") : "Nova Oportunidade / Demanda"} className="max-w-xl">
       <form onSubmit={handleSubmit}>
         <ModalBody>
+          {editando && codigoChamado(chamado?.numero) && (
+            <p className="text-[11px] text-muted font-mono mb-1">ID {codigoChamado(chamado?.numero)}</p>
+          )}
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
               <Label>Título / demanda</Label>
               <Input name="titulo" defaultValue={chamado?.titulo ?? ""} placeholder="Ex.: Chamado" />
             </div>
             <div>
-              <Label>Cliente / solicitante</Label>
-              <Input name="cliente" list="cha-clientes" defaultValue={chamado?.cliente ?? ""} />
+              <Label>Cliente *</Label>
+              <Input name="cliente" list="cha-clientes" required defaultValue={chamado?.cliente ?? ""} />
               <datalist id="cha-clientes">{clientes.map((c) => <option key={c} value={c} />)}</datalist>
             </div>
             <div>
-              <Label>Região</Label>
-              <Input name="regiao" defaultValue={chamado?.regiao ?? ""} />
+              <Label>Região *</Label>
+              <Input name="regiao" required defaultValue={chamado?.regiao ?? ""} />
+            </div>
+            <div>
+              <Label>Centro de custo *</Label>
+              <Input name="centro_custo" required defaultValue={chamado?.centro_custo ?? ""} />
+            </div>
+            <div>
+              <Label>Responsável pela oportunidade *</Label>
+              <Input name="responsavel" required defaultValue={chamado?.responsavel ?? ""} />
             </div>
             <div>
               <Label>Prioridade</Label>
               <Select name="prioridade" defaultValue={chamado?.prioridade ?? ""}>
                 <option value="">—</option>
-                <option value="Alta">Alta</option>
-                <option value="Média">Média</option>
-                <option value="Baixa">Baixa</option>
+                {PRIORIDADES_OPORTUNIDADE.map((p) => <option key={p} value={p}>{p}</option>)}
+              </Select>
+            </div>
+            <div>
+              <Label>Origem da oportunidade</Label>
+              <Select name="origem_oportunidade" defaultValue={chamado?.origem_oportunidade ?? ""}>
+                <option value="">—</option>
+                {ORIGENS_OPORTUNIDADE.map((o) => <option key={o} value={o}>{o}</option>)}
+              </Select>
+            </div>
+            <div className="col-span-2">
+              <Label>Faixa de potencial *</Label>
+              <Select name="faixa_potencial" required defaultValue={chamado?.faixa_potencial ?? ""}>
+                <option value="">—</option>
+                {FAIXAS_POTENCIAL.map((f) => <option key={f.tier} value={f.tier}>{f.label}</option>)}
               </Select>
             </div>
             <div>
@@ -159,10 +188,6 @@ export function ChamadoModal({
             <div>
               <Label>Equipe</Label>
               <Input name="equipe" defaultValue={chamado?.equipe ?? ""} />
-            </div>
-            <div>
-              <Label>Responsável</Label>
-              <Input name="responsavel" defaultValue={chamado?.responsavel ?? ""} />
             </div>
             <div>
               <Label>Prazo / vencimento</Label>

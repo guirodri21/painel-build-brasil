@@ -8,7 +8,7 @@ import { ConfirmDialog } from "@/components/ui/confirm";
 import { Modal, ModalBody, ModalFooter } from "@/components/ui/modal";
 import { Input, Select, Textarea, Label } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
-import { runAutomacoes, runBotao, runCamposAlterados, validarBloqueio, botoesDeAcao, validarObrigatorios } from "@/lib/quadros";
+import { runAutomacoes, runBotao, runCamposAlterados, validarBloqueio, botoesDeAcao, validarObrigatorios, codigoCard } from "@/lib/quadros";
 import { cn } from "@/lib/utils";
 import { Trash2, Zap } from "lucide-react";
 import type { Quadro, QuadroFase, QuadroCampo, QuadroCard, QuadroAutomacao } from "@/lib/types";
@@ -79,7 +79,7 @@ export function QuadroCardModal({
     if (erro) { toast(erro, "error"); return; }
     // Gate de fase: ao mudar para uma fase protegida, valida as condições.
     if (fase !== card?.fase) {
-      const bloqueio = validarBloqueio(automacoes, fase, valores);
+      const bloqueio = validarBloqueio(automacoes, fase, valores, parseFloat(valor) || 0);
       if (bloqueio) { toast(bloqueio, "error"); return; }
     }
     setSaving(true);
@@ -153,7 +153,7 @@ export function QuadroCardModal({
 
   return (
     <>
-    <Modal open={open} onClose={onClose} title={editando ? "Editar card" : "Novo card"} className="max-w-xl">
+    <Modal open={open} onClose={onClose} title={editando ? (codigoCard(quadro.prefixo, card?.numero ?? null) ?? "Editar card") : "Novo card"} className="max-w-xl">
       <form onSubmit={salvar}>
         <ModalBody>
           <div>

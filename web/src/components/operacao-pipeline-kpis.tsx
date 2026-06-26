@@ -9,7 +9,7 @@ import { DOT, NOME_PIPELINE_OPERACIONAL } from "@/lib/quadros";
 import { sum } from "@/lib/analytics";
 import { formatCurrency, formatNumber, todayISO, cn } from "@/lib/utils";
 import type { QuadroFase, QuadroCard } from "@/lib/types";
-import { Layers, Wrench, AlertTriangle, CheckCheck, DollarSign, Clock, RotateCcw, Receipt } from "lucide-react";
+import { Layers, Wrench, AlertTriangle, CheckCheck, DollarSign, Clock, RotateCcw, Receipt, Ban, Flame, FileClock } from "lucide-react";
 
 /** SLA sugerido para liberação de faturamento (dias úteis). */
 const SLA_FATURAMENTO_DIAS = 2;
@@ -80,13 +80,20 @@ export function OperacaoPipelineKpis() {
     const tempoMedio = abertos.length
       ? abertos.reduce((acc, c) => acc + diasDesde(c.fase_desde ?? c.created_at), 0) / abertos.length
       : 0;
-    // Retrabalho: cards gerados pelo botão "Marcar Retrabalho" (origem vinculo no próprio board).
-    const retrabalho = cards.filter((c) => c.origem === "vinculo").length;
+    // Retrabalho: cards gerados pelo botão "Marcar Retrabalho" (origem vinculo/retrabalho no próprio board).
+    const retrabalho = cards.filter((c) => c.origem === "vinculo" || c.origem === "retrabalho").length;
     // SLA de faturamento: cards parados na fase de faturamento além do prazo (dias úteis).
     const slaFaturamento = abertos.filter(
       (c) => /faturamento/i.test(c.fase) && diasUteisDesde(c.fase_desde ?? c.created_at) >= SLA_FATURAMENTO_DIAS,
     ).length;
-    return { abertos: abertos.length, emExecucao: emExecucao.length, atrasados: atrasados.length, concluidos: concluidos.length, pipelineValor, tempoMedio, retrabalho, slaFaturamento };
+    // Improdutivas: situação registrada como "Improdutivo" no checklist de execução.
+    const situacaoDe = (c: QuadroCard) => String(c.valores?.situacao ?? "");
+    const improdutivas = cards.filter((c) => /improdutiv/i.test(situacaoDe(c))).length;
+    // Críticas: prioridade alta E em atraso (foco de atenção imediata).
+    const criticas = abertos.filter((c) => /alta|cr[ií]tic/i.test(c.prioridade ?? "") && c.prazo && c.prazo < hoje).length;
+    // Pendentes de faturamento: cards na fase de Solicitação de Faturamento (ainda não final).
+    const pendentesFaturamento = abertos.filter((c) => /faturamento/i.test(c.fase)).length;
+    return { abertos: abertos.length, emExecucao: emExecucao.length, atrasados: atrasados.length, concluidos: concluidos.length, pipelineValor, tempoMedio, retrabalho, slaFaturamento, improdutivas, criticas, pendentesFaturamento };
   }, [cards, fases]);
 
   const funil = React.useMemo(() => {
@@ -125,6 +132,9 @@ export function OperacaoPipelineKpis() {
         <KpiCard label="Tempo médio aberto" value={kpis.tempoMedio} format={(n) => n.toFixed(1) + "d"} icon={Clock} />
         <KpiCard label="Retrabalho" value={kpis.retrabalho} format={(n) => formatNumber(n)} tone={kpis.retrabalho > 0 ? "orange" : "default"} icon={RotateCcw} />
         <KpiCard label="Faturam. atrasado (SLA)" value={kpis.slaFaturamento} format={(n) => formatNumber(n)} tone={kpis.slaFaturamento > 0 ? "red" : "default"} icon={Receipt} />
+        <KpiCard label="Improdutivas" value={kpis.improdutivas} format={(n) => formatNumber(n)} tone={kpis.improdutivas > 0 ? "orange" : "default"} icon={Ban} />
+        <KpiCard label="Críticas" value={kpis.criticas} format={(n) => formatNumber(n)} tone={kpis.criticas > 0 ? "red" : "default"} icon={Flame} />
+        <KpiCard label="Pendentes de faturamento" value={kpis.pendentesFaturamento} format={(n) => formatNumber(n)} tone={kpis.pendentesFaturamento > 0 ? "teal" : "default"} icon={FileClock} />
       </div>
 
       <Card>

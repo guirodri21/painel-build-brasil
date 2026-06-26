@@ -26,6 +26,9 @@ import {
   GaugeCircle,
   Briefcase,
   HardHat,
+  Truck,
+  CalendarCheck,
+  Hammer,
   Settings,
   ChevronDown,
   X,
@@ -69,6 +72,8 @@ const GROUPS: NavGroup[] = [
       { href: "/operacoes", label: "Indicadores Operação", icon: GaugeCircle },
       { href: "/operacoes/pipeline", label: "Pipeline Operacional", icon: Wrench },
       { href: "/agenda", label: "Agenda", icon: CalendarDays },
+      { href: "/operacoes/preventivas", label: "Preventivas", icon: CalendarCheck },
+      { href: "/operacoes/frota", label: "Frota e Logística", icon: Truck },
     ],
   },
   {
@@ -86,7 +91,10 @@ const GROUPS: NavGroup[] = [
     id: "estoque",
     label: "Estoque",
     icon: Package,
-    items: [{ href: "/estoque", label: "Estoque", icon: Package }],
+    items: [
+      { href: "/estoque", label: "Estoque (consumo)", icon: Package },
+      { href: "/operacoes/patrimonio", label: "Patrimônio (equip./ferr.)", icon: Hammer },
+    ],
   },
   {
     id: "admin",
