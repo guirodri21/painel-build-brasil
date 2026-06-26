@@ -159,6 +159,9 @@ export interface Chamado {
   updated_at?: string | null;
 }
 
+/** As 5 macrorregiões do Brasil (predefinidas no campo Região). */
+export const REGIOES_BRASIL = ["Norte", "Nordeste", "Centro-Oeste", "Sudeste", "Sul"] as const;
+
 /** Prioridades da oportunidade comercial (doc v2.0). */
 export const PRIORIDADES_OPORTUNIDADE = ["Crítica", "Alta", "Média", "Baixa"] as const;
 

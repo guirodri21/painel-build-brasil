@@ -13,7 +13,7 @@ import { alertarChamadoCritico, fireEvent } from "@/lib/integrations";
 import { garantirOperacaoDeChamado, FASES_COMERCIAL_APROVADO } from "@/lib/quadros";
 import { Receipt, Wrench } from "lucide-react";
 import {
-  PRIORIDADES_OPORTUNIDADE, ORIGENS_OPORTUNIDADE, FAIXAS_POTENCIAL, codigoChamado,
+  PRIORIDADES_OPORTUNIDADE, ORIGENS_OPORTUNIDADE, FAIXAS_POTENCIAL, REGIOES_BRASIL, codigoChamado,
 } from "@/lib/types";
 import type { Chamado } from "@/lib/types";
 
@@ -136,7 +136,8 @@ export function ChamadoModal({
             </div>
             <div>
               <Label>Região *</Label>
-              <Input name="regiao" required defaultValue={chamado?.regiao ?? ""} />
+              <Input name="regiao" required list="cha-regioes" defaultValue={chamado?.regiao ?? ""} />
+              <datalist id="cha-regioes">{REGIOES_BRASIL.map((r) => <option key={r} value={r} />)}</datalist>
             </div>
             <div>
               <Label>Centro de custo *</Label>
