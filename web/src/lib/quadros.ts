@@ -13,7 +13,7 @@ export const FASE_ENTRADA_OPERACAO = "Entrada da Operacao";
  * Fases do Pipeline Comercial (Chamados) que indicam demanda aprovada/validada:
  * ao entrar numa delas, deve existir um card no Pipeline Operacional.
  */
-export const FASES_COMERCIAL_APROVADO = ["Planejamento", "Em Execução"];
+export const FASES_COMERCIAL_APROVADO = ["Em Andamento"];
 
 /** Cores disponíveis para fases/quadros (chaves do mapa DOT no front). */
 export const CORES = ["blue", "teal", "green", "yellow", "orange", "red", "gray"] as const;
