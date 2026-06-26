@@ -113,5 +113,17 @@ BEGIN
          jsonb_build_object('tipo','definir_campo','campo','situacao','valor','Material OK')
        )));
 
+  -- Gate (gatilho bloqueio_fase): so avanca para Agendamento com material e sem impedimento.
+  INSERT INTO quadro_automacoes (quadro_id, nome, gatilho, ordem, config) VALUES
+    (v_op,'Gate: Agendamento','bloqueio_fase',20, jsonb_build_object(
+       'fase','Agendamento',
+       'mensagem','Para agendar: marque Material disponivel = Sim e resolva o Impedimento.',
+       'condicoes', jsonb_build_array(
+         jsonb_build_object('campo','material_disponivel','valor','true'),
+         jsonb_build_object('campo','impedimento','valor','vazio')
+       ),
+       'acoes', jsonb_build_array()
+    ));
+
   RAISE NOTICE 'Seed Pipeline Operacional aplicado.';
 END $$;

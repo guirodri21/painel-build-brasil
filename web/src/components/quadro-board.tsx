@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input, Select } from "@/components/ui/field";
 import { QuadroCardModal } from "@/components/quadro-card-modal";
 import { QuadroConfig } from "@/components/quadro-config";
-import { DOT, runAutomacoes, formatCampoValor } from "@/lib/quadros";
+import { DOT, runAutomacoes, validarBloqueio, formatCampoValor } from "@/lib/quadros";
 import { sum } from "@/lib/analytics";
 import { formatCurrency, formatNumber, todayISO, cn } from "@/lib/utils";
 import type { Quadro, QuadroFase, QuadroCampo, QuadroCard, QuadroAutomacao, QuadroFormulario } from "@/lib/types";
@@ -154,6 +154,9 @@ export function QuadroBoard({
     if (!id || !quadro) return;
     const atual = cards.find((c) => c.id === id);
     if (!atual || atual.fase === fase) return;
+    // Gate de fase: bloqueia o avanço se as condições não forem atendidas.
+    const bloqueio = validarBloqueio(automacoes, fase, atual.valores);
+    if (bloqueio) { toast(bloqueio, "error"); return; }
     const { error } = await createClient().from("quadro_cards").update({ fase }).eq("id", id);
     if (error) { toast("Erro ao mover: " + error.message, "error"); return; }
     const feitos = await runAutomacoes(quadro.id, quadro.nome, automacoes, { ...atual, fase }, "card_movido");

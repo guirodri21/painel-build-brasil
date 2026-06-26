@@ -384,7 +384,14 @@ export interface QuadroCard {
   updated_at?: string | null;
 }
 
-export type AutomacaoGatilho = "card_criado" | "card_movido" | "prazo_vencido" | "botao" | "campo_alterado";
+export type AutomacaoGatilho = "card_criado" | "card_movido" | "prazo_vencido" | "botao" | "campo_alterado" | "bloqueio_fase";
+
+/** Condição de um gate de fase: o campo deve satisfazer o valor exigido. */
+export interface CondicaoCampo {
+  campo: string;
+  /** "true"/"false" = checkbox; "vazio"/"preenchido"; outro = igualdade exata. */
+  valor: string;
+}
 export type AcaoTipo = "notificar" | "mover_fase" | "definir_campo" | "webhook" | "criar_card";
 
 export interface AutomacaoAcao {
@@ -419,6 +426,10 @@ export interface AutomacaoConfig {
    * "true"/"false" = compara checkbox Sim/Não; outro texto = igualdade exata.
    */
   valor?: string;
+  /** para gatilho bloqueio_fase: condições que precisam ser satisfeitas p/ avançar */
+  condicoes?: CondicaoCampo[];
+  /** para gatilho bloqueio_fase: mensagem exibida quando o avanço é bloqueado */
+  mensagem?: string;
   acoes: AutomacaoAcao[];
 }
 
@@ -462,6 +473,7 @@ export const GATILHO_LABELS: Record<AutomacaoGatilho, string> = {
   prazo_vencido: "Quando o prazo vence",
   botao: "Botão no card (manual)",
   campo_alterado: "Quando um campo muda (checklist)",
+  bloqueio_fase: "Bloquear avanço para uma fase",
 };
 
 export const ACAO_LABELS: Record<AcaoTipo, string> = {

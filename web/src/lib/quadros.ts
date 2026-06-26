@@ -216,6 +216,38 @@ export function botoesDeAcao(automacoes: QuadroAutomacao[]): QuadroAutomacao[] {
   return automacoes.filter((a) => a.ativo && a.gatilho === "botao");
 }
 
+/** Avalia se um valor atual satisfaz a condição exigida por um gate de fase. */
+function condicaoSatisfeita(exigido: string, atual: unknown): boolean {
+  if (exigido === "true") return atual === true;
+  if (exigido === "false") return atual === false || atual == null || atual === "";
+  if (exigido === "vazio") return atual == null || atual === "" || atual === false;
+  if (exigido === "preenchido") return atual != null && atual !== "" && atual !== false;
+  return String(atual ?? "") === exigido;
+}
+
+/**
+ * Bloqueio de avanço de fase: verifica os gates (gatilho "bloqueio_fase") que
+ * protegem a fase de destino. Devolve a mensagem de bloqueio se alguma condição
+ * não for satisfeita, ou null se o avanço é permitido.
+ */
+export function validarBloqueio(
+  automacoes: QuadroAutomacao[],
+  faseDestino: string,
+  valores: Record<string, unknown> | null | undefined,
+): string | null {
+  const gates = automacoes.filter(
+    (a) => a.ativo && a.gatilho === "bloqueio_fase" && a.config.fase === faseDestino,
+  );
+  for (const g of gates) {
+    for (const cond of g.config.condicoes ?? []) {
+      if (!condicaoSatisfeita(cond.valor, valores?.[cond.campo])) {
+        return g.config.mensagem || `Não é possível avançar para "${faseDestino}": condição não atendida.`;
+      }
+    }
+  }
+  return null;
+}
+
 /**
  * Vínculo COM→OP: garante (idempotente) que exista um card no Pipeline
  * Operacional vinculado a um chamado comercial aprovado. Não duplica — se já

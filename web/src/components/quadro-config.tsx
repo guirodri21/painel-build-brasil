@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 import {
   CAMPO_TIPO_LABELS, GATILHO_LABELS, ACAO_LABELS,
   type Quadro, type QuadroFase, type QuadroCampo, type QuadroAutomacao, type QuadroFormulario,
-  type CampoTipo, type AutomacaoGatilho, type AutomacaoAcao, type AcaoTipo,
+  type CampoTipo, type AutomacaoGatilho, type AutomacaoAcao, type AcaoTipo, type CondicaoCampo,
 } from "@/lib/types";
 import { Plus, Trash2, ChevronUp, ChevronDown, Copy, ExternalLink, Save } from "lucide-react";
 
@@ -237,6 +237,8 @@ function AutomacaoEditor({ quadroId, fases, campos, quadros, automacao, onClose,
   const [cor, setCor] = React.useState(automacao?.config.cor ?? "blue");
   const [campoObs, setCampoObs] = React.useState(automacao?.config.campo ?? campos[0]?.chave ?? "");
   const [valorCond, setValorCond] = React.useState(automacao?.config.valor ?? "");
+  const [condicoes, setCondicoes] = React.useState<CondicaoCampo[]>(automacao?.config.condicoes ?? []);
+  const [mensagemBloq, setMensagemBloq] = React.useState(automacao?.config.mensagem ?? "");
   const [acoes, setAcoes] = React.useState<AutomacaoAcao[]>(automacao?.config.acoes ?? [{ tipo: "notificar", mensagem: "" }]);
   const [saving, setSaving] = React.useState(false);
 
@@ -250,9 +252,10 @@ function AutomacaoEditor({ quadroId, fases, campos, quadros, automacao, onClose,
     setSaving(true);
     if (gatilho === "campo_alterado" && !campoObs) return toast("Escolha o campo observado.", "error");
     const config = {
-      ...(gatilho === "card_movido" ? { fase } : {}),
+      ...(gatilho === "card_movido" || gatilho === "bloqueio_fase" ? { fase } : {}),
       ...(gatilho === "botao" ? { label: label.trim(), cor } : {}),
       ...(gatilho === "campo_alterado" ? { campo: campoObs, valor: valorCond } : {}),
+      ...(gatilho === "bloqueio_fase" ? { condicoes: condicoes.filter((c) => c.campo), mensagem: mensagemBloq.trim() } : {}),
       acoes,
     };
     const rec = { quadro_id: quadroId, nome: nome.trim(), gatilho, config };
@@ -275,9 +278,9 @@ function AutomacaoEditor({ quadroId, fases, campos, quadros, automacao, onClose,
             {GATILHOS.map((g) => <option key={g} value={g}>{GATILHO_LABELS[g]}</option>)}
           </Select>
         </div>
-        {gatilho === "card_movido" && (
+        {(gatilho === "card_movido" || gatilho === "bloqueio_fase") && (
           <div>
-            <Label>Fase</Label>
+            <Label>{gatilho === "bloqueio_fase" ? "Fase protegida" : "Fase"}</Label>
             <Select value={fase} onChange={(e) => setFase(e.target.value)}>
               {fases.map((f) => <option key={f.id} value={f.nome}>{f.nome}</option>)}
             </Select>
@@ -316,6 +319,25 @@ function AutomacaoEditor({ quadroId, fases, campos, quadros, automacao, onClose,
         </div>
       )}
 
+      {gatilho === "bloqueio_fase" && (
+        <div className="space-y-2">
+          <Label>Condições para liberar o avanço</Label>
+          {condicoes.map((c, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <Select value={c.campo} onChange={(e) => setCondicoes((prev) => prev.map((x, idx) => idx === i ? { ...x, campo: e.target.value } : x))} className="flex-1">
+                <option value="">Campo</option>
+                {campos.map((cp) => <option key={cp.id} value={cp.chave}>{cp.label}</option>)}
+              </Select>
+              <Input value={c.valor} onChange={(e) => setCondicoes((prev) => prev.map((x, idx) => idx === i ? { ...x, valor: e.target.value } : x))} placeholder="true / false / vazio / preenchido" className="flex-1" />
+              <button type="button" onClick={() => setCondicoes((prev) => prev.filter((_, idx) => idx !== i))} className="text-muted hover:text-red"><Trash2 size={14} /></button>
+            </div>
+          ))}
+          <Button size="sm" variant="ghost" onClick={() => setCondicoes((prev) => [...prev, { campo: "", valor: "true" }])}><Plus size={13} /> Adicionar condição</Button>
+          <Input value={mensagemBloq} onChange={(e) => setMensagemBloq(e.target.value)} placeholder="Mensagem de bloqueio (opcional)" />
+        </div>
+      )}
+
+      {gatilho !== "bloqueio_fase" && (
       <div className="space-y-2">
         <Label>Faz</Label>
         {acoes.map((a, i) => (
@@ -364,6 +386,7 @@ function AutomacaoEditor({ quadroId, fases, campos, quadros, automacao, onClose,
         ))}
         <Button size="sm" variant="ghost" onClick={() => setAcoes((prev) => [...prev, { tipo: "notificar", mensagem: "" }])}><Plus size={13} /> Adicionar ação</Button>
       </div>
+      )}
 
       <div className="flex justify-end gap-2">
         <Button size="sm" variant="secondary" onClick={onClose}>Cancelar</Button>
