@@ -70,7 +70,7 @@ export function ModalFooter({
   return (
     <div
       className={cn(
-        "flex justify-end gap-2 px-5 py-4 border-t border-border",
+        "flex flex-wrap justify-end gap-2 px-5 py-4 border-t border-border sticky bottom-0 bg-surface",
         className,
       )}
       {...props}

@@ -124,7 +124,7 @@ export function ChamadoModal({
           {editando && codigoChamado(chamado?.numero) && (
             <p className="text-[11px] text-muted font-mono mb-1">ID {codigoChamado(chamado?.numero)}</p>
           )}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="col-span-2">
               <Label>Título / demanda</Label>
               <Input name="titulo" defaultValue={chamado?.titulo ?? ""} placeholder="Ex.: Chamado" />

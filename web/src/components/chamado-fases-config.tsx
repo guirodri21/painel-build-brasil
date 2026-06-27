@@ -122,23 +122,23 @@ export function ChamadoFasesConfig({ open, onClose }: { open: boolean; onClose: 
           {linhas.map((l, i) => {
             const n = l.orig ? contagem.get(l.orig) ?? 0 : 0;
             return (
-              <div key={l.id ?? `novo-${i}`} className="flex items-center gap-2 rounded-lg border border-border bg-surface-2/40 p-2">
-                <GripVertical size={14} className="text-muted shrink-0" />
+              <div key={l.id ?? `novo-${i}`} className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-surface-2/40 p-2">
+                <GripVertical size={14} className="hidden sm:block text-muted shrink-0" />
                 <div className="flex flex-col gap-0.5 shrink-0">
                   <button type="button" onClick={() => mover(i, -1)} disabled={i === 0} className="text-muted hover:text-foreground disabled:opacity-30 cursor-pointer"><ChevronUp size={14} /></button>
                   <button type="button" onClick={() => mover(i, 1)} disabled={i === linhas.length - 1} className="text-muted hover:text-foreground disabled:opacity-30 cursor-pointer"><ChevronDown size={14} /></button>
                 </div>
-                <Select value={l.cor} onChange={(e) => set(i, { cor: e.target.value })} className="w-28 shrink-0">
+                <span className={cn("h-3 w-3 rounded-full shrink-0", DOT[l.cor] ?? "bg-muted")} />
+                <Input value={l.nome} onChange={(e) => set(i, { nome: e.target.value })} placeholder="Nome da fase" className="flex-1 basis-full sm:basis-0 min-w-0" />
+                <Select value={l.cor} onChange={(e) => set(i, { cor: e.target.value })} className="w-24 shrink-0">
                   {CORES.map((c) => <option key={c} value={c}>{c}</option>)}
                 </Select>
-                <span className={cn("h-3 w-3 rounded-full shrink-0", DOT[l.cor] ?? "bg-muted")} />
-                <Input value={l.nome} onChange={(e) => set(i, { nome: e.target.value })} placeholder="Nome da fase" className="flex-1" />
-                <span className="text-[11px] text-muted tabular-nums w-14 text-right shrink-0">{n > 0 ? `${n} card` : ""}</span>
                 <label className="inline-flex items-center gap-1 text-[11px] text-muted cursor-pointer shrink-0">
                   <input type="checkbox" checked={l.final} onChange={(e) => set(i, { final: e.target.checked })} className="h-3.5 w-3.5 rounded border-border" />
                   final
                 </label>
-                <button type="button" onClick={() => remover(i)} className="text-muted hover:text-red cursor-pointer shrink-0"><Trash2 size={14} /></button>
+                <span className="text-[11px] text-muted tabular-nums shrink-0">{n > 0 ? `${n} card` : ""}</span>
+                <button type="button" onClick={() => remover(i)} className="text-muted hover:text-red cursor-pointer shrink-0 ml-auto sm:ml-0"><Trash2 size={14} /></button>
               </div>
             );
           })}
