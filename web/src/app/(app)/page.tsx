@@ -1,15 +1,14 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import { useData } from "@/components/data-provider";
 import { useFiltros } from "@/components/filters-provider";
 import { FilterBar } from "@/components/filter-bar";
+import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
 import { KpiSkeletonRow, Skeleton } from "@/components/ui/skeleton";
 import { Card, CardHeader, CardTitle, CardBody } from "@/components/ui/card";
 import { QualityBar } from "@/components/quality-bar";
-import { BrandMark } from "@/components/brand";
 import {
   applyFiltros,
   calcVendas,
@@ -20,55 +19,12 @@ import {
   sum,
 } from "@/lib/analytics";
 import { formatCurrency } from "@/lib/utils";
-import {
-  DollarSign,
-  Wallet,
-  ClipboardList,
-  Star,
-  Clock,
-  ArrowRight,
-  KanbanSquare,
-  Wrench,
-  Contact,
-  CalendarDays,
-  TrendingUp,
-  LayoutGrid,
-  Package,
-  type LucideIcon,
-} from "lucide-react";
+import { DollarSign, Wallet, ClipboardList, Star, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-type Atalho = {
-  href: string;
-  label: string;
-  desc: string;
-  icon: LucideIcon;
-  gate?: "financeiro" | "admin";
-};
-
-const ATALHOS: Atalho[] = [
-  { href: "/chamados", label: "Pipeline Comercial", desc: "Funil de vendas e chamados", icon: KanbanSquare },
-  { href: "/operacoes/pipeline", label: "Pipeline Operacional", desc: "Ordens em execução", icon: Wrench },
-  { href: "/clientes", label: "Clientes", desc: "Carteira e cadastro", icon: Contact },
-  { href: "/agenda", label: "Agenda", desc: "Compromissos e visitas", icon: CalendarDays },
-  { href: "/financeiro", label: "Financeiro", desc: "Receitas e despesas", icon: TrendingUp, gate: "financeiro" },
-  { href: "/estoque", label: "Estoque", desc: "Consumo de materiais", icon: Package },
-  { href: "/quadros", label: "Quadros", desc: "Boards e automações", icon: LayoutGrid, gate: "admin" },
-];
-
-export default function HomePage() {
-  const { ordens, despesas, equipes, loading, isAdmin, podeFinanceiro } = useData();
+export default function VisaoGeralPage() {
+  const { ordens, despesas, equipes, loading } = useData();
   const { filtros } = useFiltros();
-
-  const atalhos = React.useMemo(
-    () =>
-      ATALHOS.filter((a) => {
-        if (a.gate === "financeiro") return podeFinanceiro;
-        if (a.gate === "admin") return isAdmin;
-        return true;
-      }),
-    [isAdmin, podeFinanceiro],
-  );
 
   const d = React.useMemo(() => applyFiltros(ordens, filtros), [ordens, filtros]);
   const v = calcVendas(d);
@@ -109,39 +65,11 @@ export default function HomePage() {
     return out;
   }, [res, op]);
 
+  if (loading) return <LoadingState />;
+
   return (
     <>
-      <Hero />
-
-      <div className="stagger grid gap-3 mb-6 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
-        {atalhos.map((a) => {
-          const Icon = a.icon;
-          return (
-            <Link
-              key={a.href}
-              href={a.href}
-              className="group rounded-xl border border-border bg-surface p-4 shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5 hover:border-primary/40"
-            >
-              <div className="flex items-center justify-between mb-3">
-                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary-soft text-primary">
-                  <Icon size={18} />
-                </span>
-                <ArrowRight
-                  size={15}
-                  className="text-muted opacity-0 -translate-x-1 transition-all group-hover:opacity-100 group-hover:translate-x-0"
-                />
-              </div>
-              <p className="text-sm font-semibold leading-tight">{a.label}</p>
-              <p className="text-[11px] text-muted mt-0.5 leading-snug">{a.desc}</p>
-            </Link>
-          );
-        })}
-      </div>
-
-      {loading ? (
-        <DashboardSkeleton />
-      ) : (
-        <>
+      <PageHeader title="Visão Geral" subtitle="Resumo consolidado dos resultados" />
       <FilterBar />
 
       {ordens.length === 0 && (
@@ -239,8 +167,6 @@ export default function HomePage() {
           </div>
         </CardBody>
       </Card>
-        </>
-      )}
     </>
   );
 }
@@ -252,50 +178,10 @@ function Td({ children, className }: { children: React.ReactNode; className?: st
   return <td className={cn("px-4 py-3", className)}>{children}</td>;
 }
 
-function Hero() {
-  const hora = new Date().getHours();
-  const saudacao = hora < 12 ? "Bom dia" : hora < 18 ? "Boa tarde" : "Boa noite";
-  return (
-    <div
-      className="animate-pop relative mb-6 overflow-hidden rounded-2xl px-6 py-7 sm:px-8 sm:py-8 text-white shadow-lg"
-      style={{
-        background:
-          "linear-gradient(135deg, #16317a 0%, #234fa8 45%, #1f7a3d 120%)",
-      }}
-    >
-      {/* Globo decorativo ao fundo */}
-      <BrandMark
-        size={240}
-        className="pointer-events-none absolute -right-10 -top-12 rounded-none opacity-15 blur-[1px] sm:opacity-20"
-      />
-      <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-4">
-          <BrandMark
-            size={64}
-            className="rounded-2xl bg-white/10 p-1.5 ring-1 ring-white/20 backdrop-blur-sm"
-          />
-          <div>
-            <p className="text-xs font-medium uppercase tracking-widest text-white/70">
-              {saudacao} · Painel de Gestão
-            </p>
-            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
-              Build Brasil
-            </h1>
-            <p className="text-sm text-white/80">Engenharia e Serviços</p>
-          </div>
-        </div>
-        <p className="max-w-xs text-sm leading-relaxed text-white/85">
-          Acompanhe vendas, operações, finanças e estoque em um só lugar.
-          Escolha um atalho abaixo ou veja o resumo consolidado.
-        </p>
-      </div>
-    </div>
-  );
-}
-
-function DashboardSkeleton() {
+function LoadingState() {
   return (
     <>
+      <PageHeader title="Visão Geral" subtitle="Resumo consolidado dos resultados" />
       <Skeleton className="h-16 mb-5" />
       <KpiSkeletonRow count={5} />
       <Skeleton className="h-32 mb-5" />
