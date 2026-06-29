@@ -1,0 +1,30 @@
+<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Build Brasil">
+  <defs>
+    <linearGradient id="bb-globe" x1="14" y1="14" x2="114" y2="114" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#2f6fd6"/>
+      <stop offset="1" stop-color="#16317a"/>
+    </linearGradient>
+    <linearGradient id="bb-brasil" x1="40" y1="28" x2="92" y2="100" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#34c759"/>
+      <stop offset="1" stop-color="#1f9e45"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Globo -->
+  <circle cx="64" cy="64" r="60" fill="#ffffff"/>
+  <circle cx="64" cy="64" r="57" fill="url(#bb-globe)"/>
+
+  <!-- Meridianos e paralelos (mundo) -->
+  <g stroke="#ffffff" stroke-opacity="0.28" stroke-width="1.6" fill="none">
+    <ellipse cx="64" cy="64" rx="57" ry="24"/>
+    <ellipse cx="64" cy="64" rx="57" ry="44"/>
+    <ellipse cx="64" cy="64" rx="24" ry="57"/>
+    <ellipse cx="64" cy="64" rx="44" ry="57"/>
+    <line x1="7" y1="64" x2="121" y2="64"/>
+  </g>
+
+  <!-- Brasil (estilizado) -->
+  <path
+    d="M52 30 C58 27 64 29 66 35 C74 33 82 40 86 48 C92 54 93 61 90 65 C88 71 82 72 80 79 C78 87 72 95 66 99 C60 101 56 96 54 90 C50 84 46 82 44 76 C40 72 36 69 37 61 C38 55 44 56 46 51 C48 45 46 39 49 35 C50 32 51 31 52 30 Z"
+    fill="url(#bb-brasil)" stroke="#ffffff" stroke-width="2.5" stroke-linejoin="round"/>
+</svg>

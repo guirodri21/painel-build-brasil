@@ -1,24 +1,21 @@
 import { cn } from "@/lib/utils";
 
-/** Marca Build Brasil — skyline/barras (engenharia + resultados). */
+/**
+ * Marca Build Brasil — emblema (globo + Brasil).
+ * Renderiza /logo.svg. Para usar a logo real, salve o arquivo em
+ * web/public/logo.png e troque o `src` abaixo para "/logo.png".
+ */
 export function BrandMark({ size = 40, className }: { size?: number; className?: string }) {
   return (
-    <div
-      className={cn("rounded-xl bg-primary flex items-center justify-center shrink-0", className)}
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src="/logo.svg"
+      alt="Build Brasil"
+      width={size}
+      height={size}
+      className={cn("shrink-0 rounded-xl object-contain", className)}
       style={{ width: size, height: size }}
-    >
-      <svg
-        width={size * 0.6}
-        height={size * 0.6}
-        viewBox="0 0 24 24"
-        fill="none"
-        aria-hidden="true"
-      >
-        <rect x="3" y="11" width="4" height="10" rx="1" fill="#fff" />
-        <rect x="10" y="6" width="4" height="15" rx="1" fill="#fff" />
-        <rect x="17" y="3" width="4" height="18" rx="1" fill="#fff" opacity="0.85" />
-      </svg>
-    </div>
+    />
   );
 }
 
