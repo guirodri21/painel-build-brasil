@@ -7,7 +7,7 @@ import { useToast } from "@/components/ui/toast";
 import { Modal, ModalBody, ModalFooter } from "@/components/ui/modal";
 import { Input, Select, Textarea, Label } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
-import { todayISO } from "@/lib/utils";
+import { todayISO, formatDate } from "@/lib/utils";
 import { ChamadoAtividade } from "@/components/chamado-atividade";
 import { alertarChamadoCritico, fireEvent } from "@/lib/integrations";
 import { garantirOperacaoDeChamado, FASES_COMERCIAL_APROVADO } from "@/lib/quadros";
@@ -46,6 +46,13 @@ export function ChamadoModal({
 
   // Anexo da proposta (fase Proposta Enviada). Persistido direto no card pelo uploader.
   const [propostaAnexo, setPropostaAnexo] = React.useState<string | null>(chamado?.proposta_anexo ?? null);
+
+  // Datas automáticas da fase Proposta Enviada: data de envio = data da movimentação
+  // (hoje), follow-up = +3 dias. Pré-preenchidas para o fluxo de mover pelo modal.
+  const hojeISO = todayISO();
+  const followUpISO = React.useMemo(() => {
+    const d = new Date(); d.setDate(d.getDate() + 3); return d.toISOString().slice(0, 10);
+  }, []);
 
   // Popup "Enviar para operação" (fase Em Andamento): escolhe o tipo de demanda.
   const [popOp, setPopOp] = React.useState(false);
@@ -258,6 +265,11 @@ export function ChamadoModal({
             {emProposta && (
               <div className="col-span-2 rounded-lg border border-border bg-surface-2/40 p-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="sm:col-span-2 text-xs font-semibold text-muted">Proposta Enviada</div>
+                {editando && chamado?.fase_desde && (
+                  <p className="sm:col-span-2 text-[11px] text-muted">
+                    Movido para esta fase em <strong>{formatDate(chamado.fase_desde)}</strong> (registrado automaticamente).
+                  </p>
+                )}
                 {editando ? (
                   <div className="sm:col-span-2">
                     <Label>Anexo da proposta *</Label>
@@ -268,11 +280,11 @@ export function ChamadoModal({
                 )}
                 <div>
                   <Label>Data de envio *</Label>
-                  <Input type="date" name="data_envio_proposta" defaultValue={chamado?.data_envio_proposta ?? ""} />
+                  <Input type="date" name="data_envio_proposta" defaultValue={chamado?.data_envio_proposta ?? hojeISO} />
                 </div>
                 <div>
                   <Label>Data de follow-up</Label>
-                  <Input type="date" name="follow_up_em" defaultValue={chamado?.follow_up_em ?? ""} />
+                  <Input type="date" name="follow_up_em" defaultValue={chamado?.follow_up_em ?? followUpISO} />
                 </div>
                 <div>
                   <Label>Responsável pela negociação</Label>
