@@ -1,0 +1,52 @@
+name: Deploy Supabase
+
+# Aplica migrações novas e faz deploy das edge functions a cada push no main
+# que altere algo dentro de supabase/.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/**'
+  workflow_dispatch: {} # permite rodar manualmente pela aba Actions do GitHub
+
+concurrency:
+  group: supabase-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      PROJECT_REF: acezmxkbqzdwwdsoaqnu
+    steps:
+      - uses: actions/checkout@v4
+
+      # Detecta o que mudou para não fazer deploy de função quando só migração mudou
+      # (e vice-versa).
+      - uses: dorny/paths-filter@v3
+        id: changes
+        with:
+          filters: |
+            migrations:
+              - 'supabase/migrations/**'
+              - 'supabase/config.toml'
+            functions:
+              - 'supabase/functions/**'
+              - 'supabase/config.toml'
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Link do projeto
+        run: supabase link --project-ref "$PROJECT_REF"
+
+      - name: Aplicar migrações novas (db push)
+        if: steps.changes.outputs.migrations == 'true'
+        run: supabase db push
+
+      - name: Deploy das edge functions
+        if: steps.changes.outputs.functions == 'true'
+        run: supabase functions deploy

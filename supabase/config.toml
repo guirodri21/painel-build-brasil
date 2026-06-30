@@ -1,0 +1,23 @@
+# Configuração do Supabase CLI para este projeto.
+# Usado pelo GitHub Action (.github/workflows/supabase.yml) para aplicar
+# migrações e fazer deploy das edge functions automaticamente.
+project_id = "acezmxkbqzdwwdsoaqnu"
+
+# As functions abaixo são webhooks públicos (recebem chamadas de fora sem login),
+# por isso precisam de verify_jwt = false. Sem isso, o deploy automático reativaria
+# a verificação de JWT e quebraria as integrações.
+[functions.ingest]
+verify_jwt = false
+
+[functions.chamados-ingest]
+verify_jwt = false
+
+[functions.formulario-submit]
+verify_jwt = false
+
+[functions.whatsapp-inbound]
+verify_jwt = false
+
+# integracoes exige login (verify_jwt = true, que já é o padrão).
+[functions.integracoes]
+verify_jwt = true

@@ -59,33 +59,71 @@ python -m http.server 8000
 Abra o navegador, faça login com o usuário criado no passo 4.
 O painel deve aparecer com os dados de exemplo (10 ordens + 6 despesas).
 
-### 6. [VOCÊ FAZ] Publicar de graça
+### 6. Deploy automático (CI/CD)
 
-#### Opção A — Cloudflare Pages
+Este repositório está configurado para publicar **sozinho** a cada `git push` no branch
+`main`:
 
-1. Suba o projeto para um repositório no GitHub.
-2. Em [dash.cloudflare.com](https://dash.cloudflare.com), vá em **Workers & Pages → Create → Pages**.
-3. Conecte o repositório. Framework preset: **None**. Build command: deixe vazio. Output directory: `/`.
-4. Deploy. O site estará em `https://seu-projeto.pages.dev`.
+- **Site (frontend) → Vercel:** todo push republica o site automaticamente.
+- **Banco + edge functions → Supabase:** um GitHub Action aplica migrações novas e faz
+  deploy das functions automaticamente.
 
-#### Opção B — Vercel
+#### 6.1. [VOCÊ FAZ — uma vez] Conectar o Vercel
 
-1. Suba o projeto para um repositório no GitHub.
-2. Em [vercel.com](https://vercel.com), importe o repositório.
-3. Framework: **Other**. Sem build command. Output directory: `/`.
-4. Deploy. O site estará em `https://seu-projeto.vercel.app`.
+1. Em [vercel.com](https://vercel.com) → **Add New → Project** e importe o repositório
+   `guirodri21/painel-build-brasil`.
+2. **Framework Preset: Other**. Build command: vazio. Output directory: vazio (raiz).
+3. **Deploy**. Pronto: a partir daí, todo push no `main` republica em produção
+   (`https://seu-projeto.vercel.app`); pushes em outros branches/PRs geram previews.
+
+O arquivo [`vercel.json`](vercel.json) já traz a configuração do site estático.
+
+#### 6.2. [VOCÊ FAZ — uma vez] Cadastrar os secrets do Supabase no GitHub
+
+O Action precisa de duas credenciais. No GitHub: **repo → Settings → Secrets and
+variables → Actions → New repository secret**, crie:
+
+| Secret | Onde pegar |
+|--------|-----------|
+| `SUPABASE_ACCESS_TOKEN` | supabase.com → ícone da conta → **Account → Access Tokens** → Generate |
+| `SUPABASE_DB_PASSWORD`  | Painel do projeto → **Settings → Database** (senha do banco) |
+
+Pronto. O workflow [`.github/workflows/supabase.yml`](.github/workflows/supabase.yml) cuida
+do resto.
+
+#### 6.3. Como funciona no dia a dia
+
+- **Mudar o site:** edite `index.html` / `app.js` / `styles.css`, faça commit e push.
+  O Vercel republica em segundos.
+- **Mudar o banco:** crie um arquivo em `supabase/migrations/` (veja
+  [supabase/migrations/README.md](supabase/migrations/README.md)) e faça push. O Action
+  roda `supabase db push` e aplica a migração.
+- **Mudar uma edge function:** edite o código em `supabase/functions/<nome>/` e faça push.
+  O Action roda `supabase functions deploy`.
+
+> **Importante:** com o deploy automático ligado, o **repositório é a fonte da verdade**
+> das edge functions. Edite o código das functions **aqui no repo**, não pelo painel do
+> Supabase — senão o próximo deploy sobrescreve a edição feita no painel.
+
+> Hospedagem alternativa (sem auto-deploy): também dá para usar o **Cloudflare Pages**
+> (Workers & Pages → Create → Pages → conectar o repo, framework **None**, output `/`).
 
 ---
 
 ## Estrutura de arquivos
 
 ```
-index.html          Tela de login + app (página única)
-app.js              Supabase client, auth, CRUD, filtros, cálculos, render
-styles.css          Identidade visual (prancha de engenharia)
-config.js           URL e anon key do Supabase
-supabase/schema.sql Tabelas, RLS, dados de exemplo
-README.md           Este arquivo
+index.html                       Tela de login + app (página única)
+app.js                           Supabase client, auth, CRUD, filtros, cálculos, render
+styles.css                       Identidade visual (prancha de engenharia)
+config.js                        URL e anon key do Supabase
+vercel.json                      Config do deploy estático no Vercel
+supabase/config.toml             Config do Supabase CLI (project_id, verify_jwt)
+supabase/schema.sql              Tabelas, RLS, dados de exemplo
+supabase/migrations/             Migrações novas (auto-aplicadas no push)
+supabase/functions/              Edge functions (auto-deployadas no push)
+.github/workflows/supabase.yml   Deploy automático de migrações + functions
+README.md                        Este arquivo
 ```
 
 ## Políticas RLS aplicadas
