@@ -17,6 +17,7 @@ import { ChamadoFasesConfig } from "@/components/chamado-fases-config";
 import { sum } from "@/lib/analytics";
 import { garantirOperacaoDeChamado, FASES_COMERCIAL_APROVADO } from "@/lib/quadros";
 import { formatCurrency, formatNumber, todayISO, cn } from "@/lib/utils";
+import { bloqueioMovimentoChamado } from "@/lib/types";
 import type { Chamado } from "@/lib/types";
 import { Plus, Search, Ticket, AlertTriangle, DollarSign, Layers, Upload, Clock, SlidersHorizontal } from "lucide-react";
 
@@ -63,6 +64,9 @@ export default function ChamadosPage() {
     if (!id) return;
     const atual = chamados.find((c) => c.id === id);
     if (!atual || atual.fase === fase) return;
+    // Gate: campos obrigatórios bloqueiam a movimentação quando não preenchidos.
+    const bloqueio = bloqueioMovimentoChamado(atual, fase);
+    if (bloqueio) { toast(bloqueio, "error"); return; }
     const { error } = await createClient().from("chamados").update({ fase }).eq("id", id);
     if (error) { toast("Erro ao mover: " + error.message, "error"); return; }
     // Vínculo COM→OP: ao aprovar, garante card no Pipeline Operacional.

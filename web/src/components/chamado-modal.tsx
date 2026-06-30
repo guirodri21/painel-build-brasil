@@ -15,7 +15,8 @@ import { Receipt, Wrench, Send, Upload, FileText, Trash2 } from "lucide-react";
 import {
   PRIORIDADES_OPORTUNIDADE, ORIGENS_OPORTUNIDADE, FAIXAS_POTENCIAL,
   REGIOES_PIPELINE, EQUIPES_PIPELINE, STATUS_ANDAMENTO, TIPOS_DEMANDA, STATUS_PROPOSTA, MOTIVOS_RECUSA,
-  FASE_OPORTUNIDADE, FASE_ORCAMENTO, FASE_PROPOSTA, FASE_APROVADA, FASE_RECUSADA, FASE_CONCLUIDO, codigoChamado,
+  FASE_OPORTUNIDADE, FASE_ORCAMENTO, FASE_PROPOSTA, FASE_APROVADA, FASE_RECUSADA, FASE_CONCLUIDO,
+  bloqueioMovimentoChamado, codigoChamado,
 } from "@/lib/types";
 import type { Chamado } from "@/lib/types";
 
@@ -126,6 +127,11 @@ export function ChamadoModal({
     // Fase "Proposta Recusada": motivo da recusa é obrigatório.
     if (emRecusada && !((fd.get("motivo_perda") as string)?.trim())) {
       toast("Informe o Motivo da recusa.", "error"); return;
+    }
+    // Gate de movimentação: obrigatórios bloqueiam a mudança de fase pelo modal.
+    if (editando && chamado && chamado.fase !== fase) {
+      const blk = bloqueioMovimentoChamado(chamado, fase);
+      if (blk) { toast(blk, "error"); return; }
     }
     setSaving(true);
     const rec = {

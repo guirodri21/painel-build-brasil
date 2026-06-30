@@ -236,6 +236,24 @@ export function codigoChamado(numero: number | null | undefined): string | null 
   return numero == null ? null : `VEN-${String(numero).padStart(6, "0")}`;
 }
 
+/**
+ * Gate de movimentação do board comercial: campos obrigatórios bloqueiam o avanço.
+ * Sair de "Proposta Enviada" para uma fase de decisão/conclusão exige os
+ * obrigatórios da proposta (valor e anexo). Devolve a mensagem de bloqueio, ou
+ * null quando a movimentação é permitida.
+ */
+export function bloqueioMovimentoChamado(
+  card: Pick<Chamado, "fase" | "valor" | "proposta_anexo">,
+  destino: string,
+): string | null {
+  const decisaoOuConclusao = destino === FASE_APROVADA || destino === FASE_RECUSADA || destino === FASE_CONCLUIDO;
+  if (card.fase === FASE_PROPOSTA && decisaoOuConclusao) {
+    if (!(card.valor > 0)) return "Informe o Valor da proposta antes de avançar para esta fase.";
+    if (!card.proposta_anexo) return "Anexe a proposta (na fase Proposta Enviada) antes de avançar.";
+  }
+  return null;
+}
+
 export interface Notificacao {
   id: string;
   user_id: string;
