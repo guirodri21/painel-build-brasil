@@ -180,12 +180,10 @@ export const ORIGENS_OPORTUNIDADE = [
 
 /** Faixas de potencial (valor) — rótulo exibido e tier armazenado (doc v2.0). */
 export const FAIXAS_POTENCIAL: { tier: string; label: string }[] = [
-  { tier: "Baixo", label: "Baixo (até R$ 500)" },
-  { tier: "Médio", label: "Médio (R$ 501–3.000)" },
-  { tier: "Alto", label: "Alto (R$ 3.001–10.000)" },
-  { tier: "Muito Alto", label: "Muito Alto (R$ 10.001–30.000)" },
-  { tier: "Estratégico", label: "Estratégico (R$ 30.001–100.000)" },
-  { tier: "Premium", label: "Premium (acima de R$ 100.000)" },
+  { tier: "Baixo", label: "Baixo (até R$ 1.000)" },
+  { tier: "Médio", label: "Médio (R$ 1.001 a R$ 5.000)" },
+  { tier: "Alto Impacto", label: "Alto Impacto (R$ 5.001 a R$ 30.000)" },
+  { tier: "Estratégico", label: "Estratégico (acima de R$ 30.000)" },
 ];
 
 /** ID automático de um chamado/oportunidade (ex.: "VEN-000001"). */
