@@ -11,11 +11,11 @@ import { todayISO } from "@/lib/utils";
 import { ChamadoAtividade } from "@/components/chamado-atividade";
 import { alertarChamadoCritico, fireEvent } from "@/lib/integrations";
 import { garantirOperacaoDeChamado, FASES_COMERCIAL_APROVADO } from "@/lib/quadros";
-import { Receipt, Wrench, Send } from "lucide-react";
+import { Receipt, Wrench, Send, Upload, FileText, Trash2 } from "lucide-react";
 import {
   PRIORIDADES_OPORTUNIDADE, ORIGENS_OPORTUNIDADE, FAIXAS_POTENCIAL,
-  REGIOES_PIPELINE, EQUIPES_PIPELINE, STATUS_ANDAMENTO, TIPOS_DEMANDA,
-  FASE_OPORTUNIDADE, FASE_ORCAMENTO, codigoChamado,
+  REGIOES_PIPELINE, EQUIPES_PIPELINE, STATUS_ANDAMENTO, TIPOS_DEMANDA, STATUS_PROPOSTA,
+  FASE_OPORTUNIDADE, FASE_ORCAMENTO, FASE_PROPOSTA, codigoChamado,
 } from "@/lib/types";
 import type { Chamado } from "@/lib/types";
 
@@ -42,6 +42,10 @@ export function ChamadoModal({
   const [fase, setFase] = React.useState(chamado?.fase ?? FASE_OPORTUNIDADE);
   const avancado = fase !== FASE_OPORTUNIDADE;
   const emAndamento = fase === FASE_ORCAMENTO;
+  const emProposta = fase === FASE_PROPOSTA;
+
+  // Anexo da proposta (fase Proposta Enviada). Persistido direto no card pelo uploader.
+  const [propostaAnexo, setPropostaAnexo] = React.useState<string | null>(chamado?.proposta_anexo ?? null);
 
   // Popup "Enviar para operação" (fase Em Andamento): escolhe o tipo de demanda.
   const [popOp, setPopOp] = React.useState(false);
@@ -95,8 +99,14 @@ export function ChamadoModal({
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setSaving(true);
     const fd = new FormData(e.currentTarget);
+    // Obrigatórios da fase "Proposta Enviada": valor, anexo e data de envio.
+    if (emProposta) {
+      if ((parseFloat(fd.get("valor") as string) || 0) <= 0) { toast("Informe o Valor da proposta.", "error"); return; }
+      if (!fd.get("data_envio_proposta")) { toast("Informe a Data de envio da proposta.", "error"); return; }
+      if (!propostaAnexo) { toast("Anexe a proposta antes de salvar.", "error"); return; }
+    }
+    setSaving(true);
     const rec = {
       titulo: (fd.get("titulo") as string)?.trim() || null,
       cliente: (fd.get("cliente") as string)?.trim() || null,
@@ -115,6 +125,13 @@ export function ChamadoModal({
       custo_real: fd.get("custo_real") ? parseFloat(fd.get("custo_real") as string) : null,
       // Status só é editável (e salvo) na fase Em Andamento; fora dela, preserva o valor atual.
       status_andamento: emAndamento ? ((fd.get("status_andamento") as string)?.trim() || null) : (chamado?.status_andamento ?? null),
+      // Campos da fase Proposta Enviada — só editáveis nela; fora dela, preserva o atual.
+      data_envio_proposta: emProposta ? ((fd.get("data_envio_proposta") as string) || null) : (chamado?.data_envio_proposta ?? null),
+      responsavel_negociacao: emProposta ? ((fd.get("responsavel_negociacao") as string)?.trim() || null) : (chamado?.responsavel_negociacao ?? null),
+      contato_cliente: emProposta ? ((fd.get("contato_cliente") as string)?.trim() || null) : (chamado?.contato_cliente ?? null),
+      follow_up_em: emProposta ? ((fd.get("follow_up_em") as string) || null) : (chamado?.follow_up_em ?? null),
+      previsao_decisao: emProposta ? ((fd.get("previsao_decisao") as string) || null) : (chamado?.previsao_decisao ?? null),
+      status_proposta: emProposta ? ((fd.get("status_proposta") as string)?.trim() || null) : (chamado?.status_proposta ?? null),
       status_faturamento: (fd.get("status_faturamento") as string)?.trim() || null,
       motivo_perda: (fd.get("motivo_perda") as string)?.trim() || null,
     };
@@ -236,6 +253,51 @@ export function ChamadoModal({
               </div>
             )}
 
+            {/* Fase "Proposta Enviada": dados da negociação. Valor (campo abaixo),
+                anexo e data de envio são obrigatórios; follow-up (+3 dias) automático. */}
+            {emProposta && (
+              <div className="col-span-2 rounded-lg border border-border bg-surface-2/40 p-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="sm:col-span-2 text-xs font-semibold text-muted">Proposta Enviada</div>
+                {editando ? (
+                  <div className="sm:col-span-2">
+                    <Label>Anexo da proposta *</Label>
+                    <PropostaAnexo chamadoId={chamado!.id} value={propostaAnexo} onChange={setPropostaAnexo} />
+                  </div>
+                ) : (
+                  <p className="sm:col-span-2 text-[11px] text-muted">Salve o card para anexar a proposta.</p>
+                )}
+                <div>
+                  <Label>Data de envio *</Label>
+                  <Input type="date" name="data_envio_proposta" defaultValue={chamado?.data_envio_proposta ?? ""} />
+                </div>
+                <div>
+                  <Label>Data de follow-up</Label>
+                  <Input type="date" name="follow_up_em" defaultValue={chamado?.follow_up_em ?? ""} />
+                </div>
+                <div>
+                  <Label>Responsável pela negociação</Label>
+                  <Input name="responsavel_negociacao" list="cha-clientes" defaultValue={chamado?.responsavel_negociacao ?? ""} />
+                </div>
+                <div>
+                  <Label>Contato do cliente</Label>
+                  <Input name="contato_cliente" placeholder="Telefone / e-mail (opcional)" defaultValue={chamado?.contato_cliente ?? ""} />
+                </div>
+                <div>
+                  <Label>Previsão de decisão do cliente</Label>
+                  <Input type="date" name="previsao_decisao" defaultValue={chamado?.previsao_decisao ?? ""} />
+                </div>
+                <div>
+                  <Label>Status da proposta</Label>
+                  <Select name="status_proposta" defaultValue={chamado?.status_proposta ?? STATUS_PROPOSTA[0]}>
+                    {STATUS_PROPOSTA.map((s) => <option key={s} value={s}>{s}</option>)}
+                  </Select>
+                </div>
+                <p className="sm:col-span-2 text-[11px] text-muted">
+                  O <strong>Valor da proposta</strong> (campo abaixo) é obrigatório nesta fase. Data de envio e follow-up são preenchidos automaticamente ao entrar na fase.
+                </p>
+              </div>
+            )}
+
             {/* Campos avançados: só liberam a partir do orçamento. Ficam montados
                 (display:none) enquanto bloqueados para não perder valores ao salvar. */}
             {!avancado && (
@@ -318,5 +380,62 @@ export function ChamadoModal({
       </ModalFooter>
     </Modal>
     </>
+  );
+}
+
+/** Upload/visualização do anexo obrigatório da proposta (bucket ordens-anexos). */
+const BUCKET_ANEXOS = "ordens-anexos";
+function PropostaAnexo({ chamadoId, value, onChange }: { chamadoId: string; value: string | null; onChange: (p: string | null) => void }) {
+  const toast = useToast();
+  const supabase = React.useMemo(() => createClient(), []);
+  const [busy, setBusy] = React.useState(false);
+  const [url, setUrl] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    let active = true;
+    if (!value) { setUrl(null); return; }
+    supabase.storage.from(BUCKET_ANEXOS).createSignedUrl(value, 3600).then(({ data }) => { if (active) setUrl(data?.signedUrl ?? null); });
+    return () => { active = false; };
+  }, [value, supabase]);
+
+  async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setBusy(true);
+    const ext = file.name.split(".").pop() || "bin";
+    const path = `chamados/${chamadoId}/proposta-${crypto.randomUUID()}.${ext}`;
+    const up = await supabase.storage.from(BUCKET_ANEXOS).upload(path, file, { upsert: false });
+    if (up.error) { setBusy(false); toast("Erro no upload: " + up.error.message, "error"); return; }
+    const { error } = await supabase.from("chamados").update({ proposta_anexo: path }).eq("id", chamadoId);
+    setBusy(false);
+    if (error) { toast("Erro: " + error.message, "error"); return; }
+    onChange(path);
+    toast("Proposta anexada.");
+  }
+
+  async function remover() {
+    if (!value) return;
+    await supabase.storage.from(BUCKET_ANEXOS).remove([value]);
+    await supabase.from("chamados").update({ proposta_anexo: null }).eq("id", chamadoId);
+    onChange(null);
+    toast("Anexo removido.");
+  }
+
+  if (value) {
+    return (
+      <div className="flex items-center gap-2">
+        <a href={url ?? "#"} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-sm text-primary font-medium">
+          <FileText size={15} /> Ver proposta anexada
+        </a>
+        <button type="button" onClick={remover} className="text-muted hover:text-red cursor-pointer" title="Remover"><Trash2 size={14} /></button>
+      </div>
+    );
+  }
+  return (
+    <label className="inline-flex items-center gap-2 h-9 px-3 rounded-lg border border-border text-sm cursor-pointer hover:bg-surface-2 transition-colors">
+      <Upload size={15} /> {busy ? "Enviando..." : "Anexar proposta"}
+      <input type="file" accept="image/*,application/pdf" className="hidden" onChange={onPick} disabled={busy} />
+    </label>
   );
 }

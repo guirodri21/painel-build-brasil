@@ -142,6 +142,14 @@ export interface Chamado {
   tipo_demanda?: string | null;
   /** Sub-status quando o card está na fase "Em Orçamento/Em Andamento". */
   status_andamento?: string | null;
+  /** Campos da fase "Proposta Enviada". */
+  proposta_anexo?: string | null;
+  data_envio_proposta?: string | null;
+  responsavel_negociacao?: string | null;
+  contato_cliente?: string | null;
+  follow_up_em?: string | null;
+  previsao_decisao?: string | null;
+  status_proposta?: string | null;
   custo_real?: number | null;
   margem?: number | null;
   prazo?: string | null;
@@ -171,6 +179,8 @@ export const EQUIPES_PIPELINE = ["Comercial", "Operacional", "Financeiro", "Esto
 export const FASE_OPORTUNIDADE = "Oportunidade / Demanda";
 /** Fase de orçamento — libera os campos avançados do card e estende o prazo (+3 dias). */
 export const FASE_ORCAMENTO = "Em Orçamento/Em Andamento";
+/** Fase de proposta enviada — exige valor, anexo e data de envio; gera follow-up automático. */
+export const FASE_PROPOSTA = "Proposta Enviada";
 
 /** Sub-status do card na fase "Em Orçamento/Em Andamento" (1º é o padrão). */
 export const STATUS_ANDAMENTO = [
@@ -180,6 +190,14 @@ export const STATUS_ANDAMENTO = [
 /** Tipos de demanda enviados à operação (popup "Enviar para operação"). */
 export const TIPOS_DEMANDA = [
   "Chamados sem venda", "Visita técnica", "Atendimento emergencial",
+] as const;
+
+/** Status da proposta na fase "Proposta Enviada" (1º é o padrão). */
+export const STATUS_PROPOSTA = [
+  "Proposta enviada", "Aguardando retorno", "Em negociação", "Cliente solicitou desconto",
+  "Cliente solicitou revisão técnica", "Cliente solicitou revisão comercial",
+  "Aguardando documentação", "Aguardando aprovação interna", "Aguardando contrato/PO",
+  "Aguardando aprovação financeira", "Negociação pausada",
 ] as const;
 
 /** Prioridades da oportunidade comercial (doc v2.0). */
