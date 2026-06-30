@@ -13,7 +13,8 @@ import { alertarChamadoCritico, fireEvent } from "@/lib/integrations";
 import { garantirOperacaoDeChamado, FASES_COMERCIAL_APROVADO } from "@/lib/quadros";
 import { Receipt, Wrench } from "lucide-react";
 import {
-  PRIORIDADES_OPORTUNIDADE, ORIGENS_OPORTUNIDADE, FAIXAS_POTENCIAL, REGIOES_BRASIL, codigoChamado,
+  PRIORIDADES_OPORTUNIDADE, ORIGENS_OPORTUNIDADE, FAIXAS_POTENCIAL,
+  REGIOES_PIPELINE, EQUIPES_PIPELINE, FASE_OPORTUNIDADE, codigoChamado,
 } from "@/lib/types";
 import type { Chamado } from "@/lib/types";
 
@@ -21,11 +22,11 @@ export function ChamadoModal({
   open,
   onClose,
   chamado,
-  faseInicial,
 }: {
   open: boolean;
   onClose: () => void;
   chamado?: Chamado | null;
+  /** Mantido por compatibilidade; cards novos sempre nascem em "Oportunidade / Demanda". */
   faseInicial?: string;
 }) {
   const { userId, filial, chamadoFases, clientes, refresh } = useData();
@@ -34,6 +35,11 @@ export function ChamadoModal({
   const [gerando, setGerando] = React.useState(false);
   const [gerandoOp, setGerandoOp] = React.useState(false);
   const editando = !!chamado;
+
+  // Todo card novo nasce como Oportunidade / Demanda. A fase é controlada para
+  // liberar progressivamente os campos avançados (só a partir do orçamento).
+  const [fase, setFase] = React.useState(chamado?.fase ?? FASE_OPORTUNIDADE);
+  const avancado = fase !== FASE_OPORTUNIDADE;
 
   async function gerarOperacao() {
     if (!chamado) return;
@@ -136,8 +142,12 @@ export function ChamadoModal({
             </div>
             <div>
               <Label>Região *</Label>
-              <Input name="regiao" required list="cha-regioes" defaultValue={chamado?.regiao ?? ""} />
-              <datalist id="cha-regioes">{REGIOES_BRASIL.map((r) => <option key={r} value={r} />)}</datalist>
+              <Select name="regiao" required defaultValue={chamado?.regiao ?? REGIOES_PIPELINE[0]}>
+                {chamado?.regiao && !REGIOES_PIPELINE.includes(chamado.regiao as (typeof REGIOES_PIPELINE)[number]) && (
+                  <option value={chamado.regiao}>{chamado.regiao}</option>
+                )}
+                {REGIOES_PIPELINE.map((r) => <option key={r} value={r}>{r}</option>)}
+              </Select>
             </div>
             <div>
               <Label>Centro de custo *</Label>
@@ -170,7 +180,7 @@ export function ChamadoModal({
             </div>
             <div>
               <Label>Fase *</Label>
-              <Select name="fase" required defaultValue={chamado?.fase ?? faseInicial ?? "Oportunidade / Demanda"}>
+              <Select name="fase" required value={fase} onChange={(e) => setFase(e.target.value)}>
                 {chamadoFases.map((f) => <option key={f.id} value={f.nome}>{f.nome}</option>)}
               </Select>
             </div>
@@ -178,33 +188,48 @@ export function ChamadoModal({
               <Label>Ticket (ref.)</Label>
               <Input name="ticket_ref" defaultValue={chamado?.ticket_ref ?? ""} />
             </div>
-            <div>
-              <Label>Valor proposta (R$)</Label>
-              <Input type="number" name="valor" step="0.01" min="0" defaultValue={chamado?.valor || ""} />
-            </div>
-            <div>
-              <Label>Custo real (R$)</Label>
-              <Input type="number" name="custo_real" step="0.01" min="0" defaultValue={chamado?.custo_real ?? ""} />
-            </div>
-            <div>
-              <Label>Equipe</Label>
-              <Input name="equipe" defaultValue={chamado?.equipe ?? ""} />
-            </div>
-            <div>
-              <Label>Prazo / vencimento</Label>
-              <Input type="date" name="prazo" defaultValue={chamado?.prazo ?? ""} />
-            </div>
-            <div>
-              <Label>Status faturamento</Label>
-              <Input name="status_faturamento" defaultValue={chamado?.status_faturamento ?? ""} />
-            </div>
-            <div className="col-span-2">
-              <Label>Motivo da perda (se recusado)</Label>
-              <Input name="motivo_perda" defaultValue={chamado?.motivo_perda ?? ""} />
-            </div>
-            <div className="col-span-2">
-              <Label>Descrição</Label>
-              <Textarea name="descricao" defaultValue={chamado?.descricao ?? ""} />
+
+            {/* Campos avançados: só liberam a partir do orçamento. Ficam montados
+                (display:none) enquanto bloqueados para não perder valores ao salvar. */}
+            {!avancado && (
+              <p className="col-span-2 text-[11px] text-muted rounded-lg border border-dashed border-border bg-surface-2/40 p-2.5">
+                Os campos de orçamento (valor, custo, equipe, prazo, faturamento…) são liberados ao mover o card para <strong>“Em Orçamento/Em Andamento”</strong>.
+              </p>
+            )}
+            <div className={avancado ? "contents" : "hidden"}>
+              <div>
+                <Label>Valor proposta (R$)</Label>
+                <Input type="number" name="valor" step="0.01" min="0" defaultValue={chamado?.valor || ""} />
+              </div>
+              <div>
+                <Label>Custo real (R$)</Label>
+                <Input type="number" name="custo_real" step="0.01" min="0" defaultValue={chamado?.custo_real ?? ""} />
+              </div>
+              <div>
+                <Label>Equipe</Label>
+                <Select name="equipe" defaultValue={chamado?.equipe ?? EQUIPES_PIPELINE[0]}>
+                  {chamado?.equipe && !EQUIPES_PIPELINE.includes(chamado.equipe as (typeof EQUIPES_PIPELINE)[number]) && (
+                    <option value={chamado.equipe}>{chamado.equipe}</option>
+                  )}
+                  {EQUIPES_PIPELINE.map((eq) => <option key={eq} value={eq}>{eq}</option>)}
+                </Select>
+              </div>
+              <div>
+                <Label>Prazo / vencimento</Label>
+                <Input type="date" name="prazo" defaultValue={chamado?.prazo ?? ""} />
+              </div>
+              <div>
+                <Label>Status faturamento</Label>
+                <Input name="status_faturamento" defaultValue={chamado?.status_faturamento ?? ""} />
+              </div>
+              <div className="col-span-2">
+                <Label>Motivo da perda (se recusado)</Label>
+                <Input name="motivo_perda" defaultValue={chamado?.motivo_perda ?? ""} />
+              </div>
+              <div className="col-span-2">
+                <Label>Descrição</Label>
+                <Textarea name="descricao" defaultValue={chamado?.descricao ?? ""} />
+              </div>
             </div>
           </div>
           {chamado?.goalfy_card_id && (

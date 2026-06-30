@@ -159,15 +159,23 @@ export interface Chamado {
   updated_at?: string | null;
 }
 
-/** As 5 macrorregiões do Brasil (predefinidas no campo Região). */
-export const REGIOES_BRASIL = ["Norte", "Nordeste", "Centro-Oeste", "Sudeste", "Sul"] as const;
+/** Regiões operacionais do Pipeline Comercial (predefinidas no seletor; 1ª é o padrão). */
+export const REGIOES_PIPELINE = ["Centro Oeste", "Nordeste", "Norte", "Sudeste/SP", "Sul PR+SC"] as const;
+
+/** Equipes do Pipeline Comercial (predefinidas no seletor; 1ª é o padrão). */
+export const EQUIPES_PIPELINE = ["Comercial", "Operacional", "Financeiro", "Estoque"] as const;
+
+/** Fase inicial de todo card novo do Pipeline Comercial. */
+export const FASE_OPORTUNIDADE = "Oportunidade / Demanda";
+/** Fase de orçamento — libera os campos avançados do card e estende o prazo (+3 dias). */
+export const FASE_ORCAMENTO = "Em Orçamento/Em Andamento";
 
 /** Prioridades da oportunidade comercial (doc v2.0). */
 export const PRIORIDADES_OPORTUNIDADE = ["Crítica", "Alta", "Média", "Baixa"] as const;
 
-/** Origens da oportunidade comercial (doc v2.0). */
+/** Origens da oportunidade comercial. */
 export const ORIGENS_OPORTUNIDADE = [
-  "Cliente", "Preventiva", "Corretiva", "Comercial Ativo", "Indicação", "Contrato", "Expansão", "Outro",
+  "Marketing", "Indicação", "Comercial Ativo", "Demanda de Contrato",
 ] as const;
 
 /** Faixas de potencial (valor) — rótulo exibido e tier armazenado (doc v2.0). */
