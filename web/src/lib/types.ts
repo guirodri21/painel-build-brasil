@@ -150,6 +150,9 @@ export interface Chamado {
   follow_up_em?: string | null;
   previsao_decisao?: string | null;
   status_proposta?: string | null;
+  /** Campos da fase "Proposta Aprovada". */
+  valor_desconto?: number | null;
+  motivo_desconto?: string | null;
   custo_real?: number | null;
   margem?: number | null;
   prazo?: string | null;
@@ -181,6 +184,10 @@ export const FASE_OPORTUNIDADE = "Oportunidade / Demanda";
 export const FASE_ORCAMENTO = "Em Orçamento/Em Andamento";
 /** Fase de proposta enviada — exige valor, anexo e data de envio; gera follow-up automático. */
 export const FASE_PROPOSTA = "Proposta Enviada";
+/** Fase de proposta aprovada — registra desconto/motivo e conclui ao salvar. */
+export const FASE_APROVADA = "Proposta Aprovada";
+/** Fase final (conclusão do card). */
+export const FASE_CONCLUIDO = "Concluido";
 
 /** Sub-status do card na fase "Em Orçamento/Em Andamento" (1º é o padrão). */
 export const STATUS_ANDAMENTO = [

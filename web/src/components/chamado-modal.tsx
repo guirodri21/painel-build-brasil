@@ -7,7 +7,7 @@ import { useToast } from "@/components/ui/toast";
 import { Modal, ModalBody, ModalFooter } from "@/components/ui/modal";
 import { Input, Select, Textarea, Label } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
-import { todayISO, formatDate } from "@/lib/utils";
+import { todayISO, formatDate, formatCurrency } from "@/lib/utils";
 import { ChamadoAtividade } from "@/components/chamado-atividade";
 import { alertarChamadoCritico, fireEvent } from "@/lib/integrations";
 import { garantirOperacaoDeChamado, FASES_COMERCIAL_APROVADO } from "@/lib/quadros";
@@ -15,7 +15,7 @@ import { Receipt, Wrench, Send, Upload, FileText, Trash2 } from "lucide-react";
 import {
   PRIORIDADES_OPORTUNIDADE, ORIGENS_OPORTUNIDADE, FAIXAS_POTENCIAL,
   REGIOES_PIPELINE, EQUIPES_PIPELINE, STATUS_ANDAMENTO, TIPOS_DEMANDA, STATUS_PROPOSTA,
-  FASE_OPORTUNIDADE, FASE_ORCAMENTO, FASE_PROPOSTA, codigoChamado,
+  FASE_OPORTUNIDADE, FASE_ORCAMENTO, FASE_PROPOSTA, FASE_APROVADA, FASE_CONCLUIDO, codigoChamado,
 } from "@/lib/types";
 import type { Chamado } from "@/lib/types";
 
@@ -43,6 +43,11 @@ export function ChamadoModal({
   const avancado = fase !== FASE_OPORTUNIDADE;
   const emAndamento = fase === FASE_ORCAMENTO;
   const emProposta = fase === FASE_PROPOSTA;
+  const emAprovada = fase === FASE_APROVADA;
+
+  // Desconto (fase Proposta Aprovada): se houver desconto, o motivo é obrigatório.
+  const [valorDesconto, setValorDesconto] = React.useState<string>(chamado?.valor_desconto != null ? String(chamado.valor_desconto) : "");
+  const temDesconto = (parseFloat(valorDesconto) || 0) > 0;
 
   // Anexo da proposta (fase Proposta Enviada). Persistido direto no card pelo uploader.
   const [propostaAnexo, setPropostaAnexo] = React.useState<string | null>(chamado?.proposta_anexo ?? null);
@@ -113,6 +118,10 @@ export function ChamadoModal({
       if (!fd.get("data_envio_proposta")) { toast("Informe a Data de envio da proposta.", "error"); return; }
       if (!propostaAnexo) { toast("Anexe a proposta antes de salvar.", "error"); return; }
     }
+    // Fase "Proposta Aprovada": motivo do desconto é obrigatório quando há desconto.
+    if (emAprovada && temDesconto && !((fd.get("motivo_desconto") as string)?.trim())) {
+      toast("Informe o Motivo do desconto.", "error"); return;
+    }
     setSaving(true);
     const rec = {
       titulo: (fd.get("titulo") as string)?.trim() || null,
@@ -124,7 +133,8 @@ export function ChamadoModal({
       origem_oportunidade: (fd.get("origem_oportunidade") as string) || null,
       faixa_potencial: (fd.get("faixa_potencial") as string) || null,
       ticket_ref: (fd.get("ticket_ref") as string)?.trim() || null,
-      fase: fd.get("fase") as string,
+      // Em "Proposta Aprovada" o card é concluído ao salvar os campos.
+      fase: emAprovada ? FASE_CONCLUIDO : (fd.get("fase") as string),
       valor: parseFloat(fd.get("valor") as string) || 0,
       responsavel: (fd.get("responsavel") as string)?.trim() || null,
       equipe: (fd.get("equipe") as string)?.trim() || null,
@@ -139,6 +149,9 @@ export function ChamadoModal({
       follow_up_em: emProposta ? ((fd.get("follow_up_em") as string) || null) : (chamado?.follow_up_em ?? null),
       previsao_decisao: emProposta ? ((fd.get("previsao_decisao") as string) || null) : (chamado?.previsao_decisao ?? null),
       status_proposta: emProposta ? ((fd.get("status_proposta") as string)?.trim() || null) : (chamado?.status_proposta ?? null),
+      // Campos da fase Proposta Aprovada — só editáveis nela; fora dela, preserva o atual.
+      valor_desconto: emAprovada ? (temDesconto ? (parseFloat(valorDesconto) || 0) : null) : (chamado?.valor_desconto ?? null),
+      motivo_desconto: emAprovada ? (temDesconto ? ((fd.get("motivo_desconto") as string)?.trim() || null) : null) : (chamado?.motivo_desconto ?? null),
       status_faturamento: (fd.get("status_faturamento") as string)?.trim() || null,
       motivo_perda: (fd.get("motivo_perda") as string)?.trim() || null,
     };
@@ -169,7 +182,7 @@ export function ChamadoModal({
       if (r === "criado") opMsg = " Operação gerada.";
     }
     await refresh();
-    toast((editando ? "Chamado atualizado." : "Chamado criado.") + opMsg);
+    toast(emAprovada ? "Proposta aprovada. Card concluído." : ((editando ? "Chamado atualizado." : "Chamado criado.") + opMsg));
     onClose();
   }
 
@@ -306,6 +319,31 @@ export function ChamadoModal({
                 </div>
                 <p className="sm:col-span-2 text-[11px] text-muted">
                   O <strong>Valor da proposta</strong> (campo abaixo) é obrigatório nesta fase. Data de envio e follow-up são preenchidos automaticamente ao entrar na fase.
+                </p>
+              </div>
+            )}
+
+            {/* Fase "Proposta Aprovada": valor automático + desconto opcional.
+                Ao salvar, o card é concluído. */}
+            {emAprovada && (
+              <div className="col-span-2 rounded-lg border border-border bg-surface-2/40 p-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="sm:col-span-2 text-xs font-semibold text-muted">Proposta Aprovada</div>
+                <div className="sm:col-span-2 flex items-center justify-between rounded-lg border border-border bg-surface px-3 py-2">
+                  <span className="text-sm text-muted">Valor da proposta (automático)</span>
+                  <span className="text-sm font-semibold tabular-nums">{formatCurrency(chamado?.valor ?? 0)}</span>
+                </div>
+                <div>
+                  <Label>Valor do desconto (R$)</Label>
+                  <Input type="number" step="0.01" min="0" value={valorDesconto} onChange={(e) => setValorDesconto(e.target.value)} placeholder="0,00 (se houver)" />
+                </div>
+                {temDesconto && (
+                  <div>
+                    <Label>Motivo do desconto *</Label>
+                    <Input name="motivo_desconto" defaultValue={chamado?.motivo_desconto ?? ""} placeholder="Obrigatório quando há desconto" />
+                  </div>
+                )}
+                <p className="sm:col-span-2 text-[11px] text-muted">
+                  Ao <strong>Salvar</strong>, o card é concluído automaticamente (vai para “Concluido”).
                 </p>
               </div>
             )}
