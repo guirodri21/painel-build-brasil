@@ -140,6 +140,8 @@ export interface Chamado {
   aberto_em: string | null;
   equipe?: string | null;
   tipo_demanda?: string | null;
+  /** Sub-status quando o card está na fase "Em Orçamento/Em Andamento". */
+  status_andamento?: string | null;
   custo_real?: number | null;
   margem?: number | null;
   prazo?: string | null;
@@ -169,6 +171,16 @@ export const EQUIPES_PIPELINE = ["Comercial", "Operacional", "Financeiro", "Esto
 export const FASE_OPORTUNIDADE = "Oportunidade / Demanda";
 /** Fase de orçamento — libera os campos avançados do card e estende o prazo (+3 dias). */
 export const FASE_ORCAMENTO = "Em Orçamento/Em Andamento";
+
+/** Sub-status do card na fase "Em Orçamento/Em Andamento" (1º é o padrão). */
+export const STATUS_ANDAMENTO = [
+  "Em análise", "Em cotação", "Análise técnica", "Enviada para operação",
+] as const;
+
+/** Tipos de demanda enviados à operação (popup "Enviar para operação"). */
+export const TIPOS_DEMANDA = [
+  "Chamados sem venda", "Visita técnica", "Atendimento emergencial",
+] as const;
 
 /** Prioridades da oportunidade comercial (doc v2.0). */
 export const PRIORIDADES_OPORTUNIDADE = ["Crítica", "Alta", "Média", "Baixa"] as const;

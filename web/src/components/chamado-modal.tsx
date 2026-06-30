@@ -11,10 +11,11 @@ import { todayISO } from "@/lib/utils";
 import { ChamadoAtividade } from "@/components/chamado-atividade";
 import { alertarChamadoCritico, fireEvent } from "@/lib/integrations";
 import { garantirOperacaoDeChamado, FASES_COMERCIAL_APROVADO } from "@/lib/quadros";
-import { Receipt, Wrench } from "lucide-react";
+import { Receipt, Wrench, Send } from "lucide-react";
 import {
   PRIORIDADES_OPORTUNIDADE, ORIGENS_OPORTUNIDADE, FAIXAS_POTENCIAL,
-  REGIOES_PIPELINE, EQUIPES_PIPELINE, FASE_OPORTUNIDADE, codigoChamado,
+  REGIOES_PIPELINE, EQUIPES_PIPELINE, STATUS_ANDAMENTO, TIPOS_DEMANDA,
+  FASE_OPORTUNIDADE, FASE_ORCAMENTO, codigoChamado,
 } from "@/lib/types";
 import type { Chamado } from "@/lib/types";
 
@@ -40,6 +41,29 @@ export function ChamadoModal({
   // liberar progressivamente os campos avançados (só a partir do orçamento).
   const [fase, setFase] = React.useState(chamado?.fase ?? FASE_OPORTUNIDADE);
   const avancado = fase !== FASE_OPORTUNIDADE;
+  const emAndamento = fase === FASE_ORCAMENTO;
+
+  // Popup "Enviar para operação" (fase Em Andamento): escolhe o tipo de demanda.
+  const [popOp, setPopOp] = React.useState(false);
+  const [tipoDemanda, setTipoDemanda] = React.useState(chamado?.tipo_demanda ?? TIPOS_DEMANDA[0]);
+  const [enviando, setEnviando] = React.useState(false);
+
+  async function enviarParaOperacao() {
+    if (!chamado) return;
+    setEnviando(true);
+    const supabase = createClient();
+    const { error } = await supabase.from("chamados")
+      .update({ tipo_demanda: tipoDemanda, status_andamento: "Enviada para operação" })
+      .eq("id", chamado.id);
+    if (error) { setEnviando(false); toast("Erro: " + error.message, "error"); return; }
+    const r = await garantirOperacaoDeChamado({ ...chamado, tipo_demanda: tipoDemanda });
+    setEnviando(false);
+    setPopOp(false);
+    await refresh();
+    if (r === "sem-pipeline") { toast("Status salvo, mas o quadro 'Pipeline Operacional' não foi encontrado.", "error"); return; }
+    toast(r === "criado" ? "Enviado para operação. Card criado no Pipeline Operacional." : "Enviado. Operação já existente.");
+    onClose();
+  }
 
   async function gerarOperacao() {
     if (!chamado) return;
@@ -89,6 +113,8 @@ export function ChamadoModal({
       equipe: (fd.get("equipe") as string)?.trim() || null,
       prazo: (fd.get("prazo") as string) || null,
       custo_real: fd.get("custo_real") ? parseFloat(fd.get("custo_real") as string) : null,
+      // Status só é editável (e salvo) na fase Em Andamento; fora dela, preserva o valor atual.
+      status_andamento: emAndamento ? ((fd.get("status_andamento") as string)?.trim() || null) : (chamado?.status_andamento ?? null),
       status_faturamento: (fd.get("status_faturamento") as string)?.trim() || null,
       motivo_perda: (fd.get("motivo_perda") as string)?.trim() || null,
     };
@@ -124,6 +150,7 @@ export function ChamadoModal({
   }
 
   return (
+    <>
     <Modal open={open} onClose={onClose} title={editando ? (codigoChamado(chamado?.numero) ?? "Editar Chamado") : "Nova Oportunidade / Demanda"} className="max-w-xl">
       <form onSubmit={handleSubmit}>
         <ModalBody>
@@ -189,6 +216,26 @@ export function ChamadoModal({
               <Input name="ticket_ref" defaultValue={chamado?.ticket_ref ?? ""} />
             </div>
 
+            {/* Fase "Em Andamento": sub-status do trabalho + envio à operação.
+                O prazo de entrega (+3 dias) é definido automaticamente ao entrar nesta fase. */}
+            {emAndamento && (
+              <div className="col-span-2 rounded-lg border border-border bg-surface-2/40 p-3 space-y-3">
+                <div>
+                  <Label>Status (Em Andamento)</Label>
+                  <Select name="status_andamento" defaultValue={chamado?.status_andamento ?? STATUS_ANDAMENTO[0]}>
+                    {STATUS_ANDAMENTO.map((s) => <option key={s} value={s}>{s}</option>)}
+                  </Select>
+                </div>
+                {editando ? (
+                  <Button type="button" variant="outline" onClick={() => setPopOp(true)} className="w-full sm:w-auto">
+                    <Send size={15} /> Enviar para operação
+                  </Button>
+                ) : (
+                  <p className="text-[11px] text-muted">Salve o card para habilitar o envio à operação.</p>
+                )}
+              </div>
+            )}
+
             {/* Campos avançados: só liberam a partir do orçamento. Ficam montados
                 (display:none) enquanto bloqueados para não perder valores ao salvar. */}
             {!avancado && (
@@ -253,5 +300,23 @@ export function ChamadoModal({
         </ModalFooter>
       </form>
     </Modal>
+
+    {/* Popup "Enviar para operação": escolhe o Tipo de demanda e dispara o envio. */}
+    <Modal open={popOp} onClose={() => setPopOp(false)} title="Enviar para operação" className="max-w-sm">
+      <ModalBody>
+        <Label>Tipo de demanda</Label>
+        <Select value={tipoDemanda} onChange={(e) => setTipoDemanda(e.target.value)}>
+          {TIPOS_DEMANDA.map((t) => <option key={t} value={t}>{t}</option>)}
+        </Select>
+        <p className="text-[11px] text-muted mt-2">
+          Cria/garante o card no <strong>Pipeline Operacional</strong> e marca o status como “Enviada para operação”.
+        </p>
+      </ModalBody>
+      <ModalFooter>
+        <Button type="button" variant="secondary" onClick={() => setPopOp(false)}>Cancelar</Button>
+        <Button type="button" onClick={enviarParaOperacao} disabled={enviando}>{enviando ? "Enviando..." : "ENVIAR"}</Button>
+      </ModalFooter>
+    </Modal>
+    </>
   );
 }
