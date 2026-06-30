@@ -14,8 +14,8 @@ import { garantirOperacaoDeChamado, FASES_COMERCIAL_APROVADO } from "@/lib/quadr
 import { Receipt, Wrench, Send, Upload, FileText, Trash2 } from "lucide-react";
 import {
   PRIORIDADES_OPORTUNIDADE, ORIGENS_OPORTUNIDADE, FAIXAS_POTENCIAL,
-  REGIOES_PIPELINE, EQUIPES_PIPELINE, STATUS_ANDAMENTO, TIPOS_DEMANDA, STATUS_PROPOSTA,
-  FASE_OPORTUNIDADE, FASE_ORCAMENTO, FASE_PROPOSTA, FASE_APROVADA, FASE_CONCLUIDO, codigoChamado,
+  REGIOES_PIPELINE, EQUIPES_PIPELINE, STATUS_ANDAMENTO, TIPOS_DEMANDA, STATUS_PROPOSTA, MOTIVOS_RECUSA,
+  FASE_OPORTUNIDADE, FASE_ORCAMENTO, FASE_PROPOSTA, FASE_APROVADA, FASE_RECUSADA, FASE_CONCLUIDO, codigoChamado,
 } from "@/lib/types";
 import type { Chamado } from "@/lib/types";
 
@@ -44,6 +44,7 @@ export function ChamadoModal({
   const emAndamento = fase === FASE_ORCAMENTO;
   const emProposta = fase === FASE_PROPOSTA;
   const emAprovada = fase === FASE_APROVADA;
+  const emRecusada = fase === FASE_RECUSADA;
 
   // Desconto (fase Proposta Aprovada): se houver desconto, o motivo é obrigatório.
   const [valorDesconto, setValorDesconto] = React.useState<string>(chamado?.valor_desconto != null ? String(chamado.valor_desconto) : "");
@@ -122,6 +123,10 @@ export function ChamadoModal({
     if (emAprovada && temDesconto && !((fd.get("motivo_desconto") as string)?.trim())) {
       toast("Informe o Motivo do desconto.", "error"); return;
     }
+    // Fase "Proposta Recusada": motivo da recusa é obrigatório.
+    if (emRecusada && !((fd.get("motivo_perda") as string)?.trim())) {
+      toast("Informe o Motivo da recusa.", "error"); return;
+    }
     setSaving(true);
     const rec = {
       titulo: (fd.get("titulo") as string)?.trim() || null,
@@ -133,8 +138,8 @@ export function ChamadoModal({
       origem_oportunidade: (fd.get("origem_oportunidade") as string) || null,
       faixa_potencial: (fd.get("faixa_potencial") as string) || null,
       ticket_ref: (fd.get("ticket_ref") as string)?.trim() || null,
-      // Em "Proposta Aprovada" o card é concluído ao salvar os campos.
-      fase: emAprovada ? FASE_CONCLUIDO : (fd.get("fase") as string),
+      // Em "Proposta Aprovada"/"Proposta Recusada" o card é concluído ao salvar os campos.
+      fase: (emAprovada || emRecusada) ? FASE_CONCLUIDO : (fd.get("fase") as string),
       valor: parseFloat(fd.get("valor") as string) || 0,
       responsavel: (fd.get("responsavel") as string)?.trim() || null,
       equipe: (fd.get("equipe") as string)?.trim() || null,
@@ -182,7 +187,9 @@ export function ChamadoModal({
       if (r === "criado") opMsg = " Operação gerada.";
     }
     await refresh();
-    toast(emAprovada ? "Proposta aprovada. Card concluído." : ((editando ? "Chamado atualizado." : "Chamado criado.") + opMsg));
+    toast(emAprovada ? "Proposta aprovada. Card concluído."
+      : emRecusada ? "Proposta recusada. Card concluído."
+      : ((editando ? "Chamado atualizado." : "Chamado criado.") + opMsg));
     onClose();
   }
 
@@ -348,6 +355,28 @@ export function ChamadoModal({
               </div>
             )}
 
+            {/* Fase "Proposta Recusada": valor replicado + motivo da recusa obrigatório.
+                Ao salvar, o card é concluído. */}
+            {emRecusada && (
+              <div className="col-span-2 rounded-lg border border-border bg-surface-2/40 p-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="sm:col-span-2 text-xs font-semibold text-muted">Proposta Recusada</div>
+                <div className="sm:col-span-2 flex items-center justify-between rounded-lg border border-border bg-surface px-3 py-2">
+                  <span className="text-sm text-muted">Valor da proposta (automático)</span>
+                  <span className="text-sm font-semibold tabular-nums">{formatCurrency(chamado?.valor ?? 0)}</span>
+                </div>
+                <div className="sm:col-span-2">
+                  <Label>Motivo da recusa *</Label>
+                  <Select name="motivo_perda" defaultValue={chamado?.motivo_perda ?? ""}>
+                    <option value="">—</option>
+                    {MOTIVOS_RECUSA.map((m) => <option key={m} value={m}>{m}</option>)}
+                  </Select>
+                </div>
+                <p className="sm:col-span-2 text-[11px] text-muted">
+                  Ao <strong>Salvar</strong>, o card é concluído automaticamente (vai para “Concluido”).
+                </p>
+              </div>
+            )}
+
             {/* Campos avançados: só liberam a partir do orçamento. Ficam montados
                 (display:none) enquanto bloqueados para não perder valores ao salvar. */}
             {!avancado && (
@@ -381,10 +410,12 @@ export function ChamadoModal({
                 <Label>Status faturamento</Label>
                 <Input name="status_faturamento" defaultValue={chamado?.status_faturamento ?? ""} />
               </div>
-              <div className="col-span-2">
-                <Label>Motivo da perda (se recusado)</Label>
-                <Input name="motivo_perda" defaultValue={chamado?.motivo_perda ?? ""} />
-              </div>
+              {!emRecusada && (
+                <div className="col-span-2">
+                  <Label>Motivo da perda (se recusado)</Label>
+                  <Input name="motivo_perda" defaultValue={chamado?.motivo_perda ?? ""} />
+                </div>
+              )}
               <div className="col-span-2">
                 <Label>Descrição</Label>
                 <Textarea name="descricao" defaultValue={chamado?.descricao ?? ""} />

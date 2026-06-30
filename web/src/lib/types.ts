@@ -186,8 +186,16 @@ export const FASE_ORCAMENTO = "Em Orçamento/Em Andamento";
 export const FASE_PROPOSTA = "Proposta Enviada";
 /** Fase de proposta aprovada — registra desconto/motivo e conclui ao salvar. */
 export const FASE_APROVADA = "Proposta Aprovada";
+/** Fase de proposta recusada — exige motivo da recusa e conclui ao salvar. */
+export const FASE_RECUSADA = "Proposta Recusada";
 /** Fase final (conclusão do card). */
 export const FASE_CONCLUIDO = "Concluido";
+
+/** Motivos sugeridos para a recusa da proposta (fase "Proposta Recusada"). */
+export const MOTIVOS_RECUSA = [
+  "Preço alto", "Concorrente", "Cliente desistiu", "Demanda cancelada", "Prazo", "Escopo",
+  "Falta de verba", "Sem retorno", "Execução interna", "Condição de pagamento", "Outro",
+] as const;
 
 /** Sub-status do card na fase "Em Orçamento/Em Andamento" (1º é o padrão). */
 export const STATUS_ANDAMENTO = [
