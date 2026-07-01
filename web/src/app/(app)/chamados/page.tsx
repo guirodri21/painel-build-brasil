@@ -186,7 +186,6 @@ export default function ChamadosPage() {
                         <span className="text-sm font-semibold truncate">{col.nome}</span>
                         <span className="text-xs text-muted tabular-nums">{items.length}</span>
                       </div>
-                      <button onClick={() => abrir(null, col.nome)} className="text-muted hover:text-primary cursor-pointer" title="Novo card aqui"><Plus size={14} /></button>
                     </div>
                     <div className="p-2 space-y-2 flex-1 max-h-[64vh] overflow-y-auto">
                       {items.map((c) => (

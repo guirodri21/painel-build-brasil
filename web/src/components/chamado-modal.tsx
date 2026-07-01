@@ -257,9 +257,15 @@ export function ChamadoModal({
             </div>
             <div>
               <Label>Fase *</Label>
-              <Select name="fase" required value={fase} onChange={(e) => setFase(e.target.value)}>
-                {chamadoFases.map((f) => <option key={f.id} value={f.nome}>{f.nome}</option>)}
-              </Select>
+              {editando ? (
+                <Select name="fase" required value={fase} onChange={(e) => setFase(e.target.value)}>
+                  {chamadoFases.map((f) => <option key={f.id} value={f.nome}>{f.nome}</option>)}
+                </Select>
+              ) : (
+                // Todo card novo nasce fixo em "Oportunidade / Demanda"; sem outras opções.
+                // readOnly (não disabled) para que o valor continue sendo enviado no submit.
+                <Input name="fase" value={FASE_OPORTUNIDADE} readOnly className="opacity-70 cursor-not-allowed" />
+              )}
             </div>
             <div>
               <Label>Ticket (ref.)</Label>
