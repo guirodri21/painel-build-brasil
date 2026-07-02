@@ -8,6 +8,7 @@ import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
 import { KpiSkeletonRow, Skeleton } from "@/components/ui/skeleton";
 import { Card, CardHeader, CardTitle, CardBody } from "@/components/ui/card";
+import { VendasPropostasKpis } from "@/components/vendas-propostas-kpis";
 import { HBarChart, DonutChart, CHART_COLORS } from "@/components/charts";
 import { applyFiltros, calcVendas, groupBy, sum } from "@/lib/analytics";
 import { formatCurrency } from "@/lib/utils";
@@ -48,6 +49,8 @@ export default function VendasPage() {
         <KpiCard label="Ticket Médio" value={v.ticket} format={(n) => formatCurrency(n)} tone="teal" icon={Receipt} />
         <KpiCard label="Nº de Ordens" value={v.n} format={(n) => Math.round(n).toString()} icon={ClipboardList} />
       </div>
+
+      <VendasPropostasKpis />
 
       <div className="grid gap-5 lg:grid-cols-2">
         <Card>
