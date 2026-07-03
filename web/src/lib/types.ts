@@ -173,7 +173,7 @@ export interface Chamado {
 }
 
 /** Regiões operacionais do Pipeline Comercial (predefinidas no seletor; 1ª é o padrão). */
-export const REGIOES_PIPELINE = ["Centro Oeste", "Nordeste", "Norte", "Sudeste/SP", "Sul PR+SC"] as const;
+export const REGIOES_PIPELINE = ["Norte", "Nordeste", "Centro-Oeste", "Sudeste", "Sul"] as const;
 
 /** Equipes do Pipeline Comercial (predefinidas no seletor; 1ª é o padrão). */
 export const EQUIPES_PIPELINE = ["Comercial", "Operacional", "Financeiro", "Estoque"] as const;
