@@ -391,6 +391,52 @@ export interface Funcionario {
   created_at: string;
 }
 
+/** Status possíveis de um veículo no Inventário de Frota. */
+export const FROTA_STATUS = ["Disponível", "Em uso", "Parado", "Manutenção"] as const;
+export type FrotaStatus = (typeof FROTA_STATUS)[number];
+
+/** Inventário de Frota (Módulo Operação, Seção 5) — cadastro de veículos. */
+export interface FrotaVeiculo {
+  id: string;
+  placa: string;
+  modelo: string | null;
+  ano: number | null;
+  responsavel: string | null;
+  status: string;
+  km_atual: number;
+  venc_documento: string | null;
+  venc_seguro: string | null;
+  venc_ipva: string | null;
+  proxima_manutencao: string | null;
+  custo_mensal: number;
+  ativo: boolean;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string | null;
+}
+
+/** Vínculo e disponibilidade de um técnico (Módulo Operação, Seção 6). */
+export const TECNICO_TIPO = ["Interno", "Terceiro"] as const;
+export const TECNICO_DISPONIBILIDADE = ["Disponível", "Ocupado", "Em viagem", "Folga", "Indisponível"] as const;
+
+/** Banco de Dados de Técnicos (Módulo Operação, Seção 6). */
+export interface Tecnico {
+  id: string;
+  nome: string;
+  tipo: string;
+  regiao: string | null;
+  especialidades: string | null;
+  disponibilidade: string;
+  contato: string | null;
+  custo_hora: number;
+  custo_diaria: number;
+  documentos: string | null;
+  ativo: boolean;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string | null;
+}
+
 export interface Integracao {
   id: string;
   tipo: IntegracaoTipo;

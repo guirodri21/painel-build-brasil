@@ -11,6 +11,7 @@ import { KpiSkeletonRow, Skeleton } from "@/components/ui/skeleton";
 import { Card, CardHeader, CardTitle, CardBody } from "@/components/ui/card";
 import { ValueBarChart, DonutChart, CHART_COLORS } from "@/components/charts";
 import { OperacaoPipelineKpis } from "@/components/operacao-pipeline-kpis";
+import { IndicadoresOperacionais } from "@/components/indicadores-operacionais";
 import { OrdemModal } from "@/components/ordem-modal";
 import { Button } from "@/components/ui/button";
 import { exportOrdensCSV } from "@/lib/export";
@@ -82,8 +83,11 @@ export default function OperacoesPage() {
         </Button>
       </PageHeader>
 
-      {/* Indicadores Operacionais — lidos do Pipeline Operacional */}
+      {/* Seção 1 — Indicadores Operacionais (6 blocos, leitura automática das fontes) */}
+      {/* Bloco 1 — Operação Geral (Pipeline Operacional) + funil por fase */}
       <OperacaoPipelineKpis />
+      {/* Blocos 2 a 6 — Agenda/Execução, Preventivas, Suprimentos, Frota, Equipe */}
+      <IndicadoresOperacionais />
 
       <h2 className="text-sm font-semibold text-muted mb-2">Execução técnica (registro de ordens)</h2>
       <FilterBar />

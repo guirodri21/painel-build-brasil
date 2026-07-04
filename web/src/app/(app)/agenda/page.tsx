@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardBody } from "@/components/ui/card";
 import { OrdemModal } from "@/components/ordem-modal";
+import { AgendaOperacional } from "@/components/agenda-operacional";
 import { cn } from "@/lib/utils";
 import type { Ordem } from "@/lib/types";
 import { ChevronLeft, ChevronRight, Plus, Clock, MapPin, Users } from "lucide-react";
@@ -180,6 +181,11 @@ export default function AgendaPage() {
           </CardBody>
         </Card>
       </div>
+
+      <h2 className="text-sm font-semibold text-muted mt-8 mb-3">
+        Programação Operacional <span className="font-normal">— integrada ao Pipeline</span>
+      </h2>
+      <AgendaOperacional />
 
       {sel && <OrdemModal open={!!sel} ordem={sel} onClose={() => setSel(null)} />}
       {novo && <OrdemModal open={novo} onClose={() => setNovo(false)} />}

@@ -111,7 +111,7 @@ export function OperacaoPipelineKpis() {
   if (loading)
     return (
       <div className="mb-6">
-        <h2 className="text-sm font-semibold text-muted mb-2">Operação (Pipeline)</h2>
+        <h2 className="text-sm font-semibold text-muted mb-2"><span className="font-normal">1 ·</span> Operação Geral <span className="text-[11px] font-normal">— Pipeline Operacional</span></h2>
         <Skeleton className="h-24 mb-3" />
         <Skeleton className="h-40" />
       </div>
@@ -121,7 +121,7 @@ export function OperacaoPipelineKpis() {
 
   return (
     <div className="mb-6">
-      <h2 className="text-sm font-semibold text-muted mb-2">Operação (Pipeline)</h2>
+      <h2 className="text-sm font-semibold text-muted mb-2"><span className="font-normal">1 ·</span> Operação Geral <span className="text-[11px] font-normal">— Pipeline Operacional</span></h2>
 
       <div className="stagger grid gap-3 mb-4 grid-cols-2 lg:grid-cols-4">
         <KpiCard label="Abertas" value={kpis.abertos} format={(n) => formatNumber(n)} tone="teal" icon={Layers} />

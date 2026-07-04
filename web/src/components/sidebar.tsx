@@ -27,6 +27,8 @@ import {
   Briefcase,
   HardHat,
   Truck,
+  Car,
+  ShoppingCart,
   CalendarCheck,
   Hammer,
   Settings,
@@ -74,6 +76,8 @@ const GROUPS: NavGroup[] = [
       { href: "/agenda", label: "Agenda", icon: CalendarDays },
       { href: "/operacoes/preventivas", label: "Preventivas", icon: CalendarCheck },
       { href: "/operacoes/frota", label: "Frota e Logística", icon: Truck },
+      { href: "/operacoes/frota/inventario", label: "Inventário de Frota", icon: Car },
+      { href: "/operacoes/equipe", label: "Equipe Técnica", icon: HardHat },
     ],
   },
   {
@@ -89,9 +93,10 @@ const GROUPS: NavGroup[] = [
   },
   {
     id: "estoque",
-    label: "Estoque",
+    label: "Suprimentos / Estoque",
     icon: Package,
     items: [
+      { href: "/operacoes/suprimentos", label: "Suprimentos (compras)", icon: ShoppingCart },
       { href: "/estoque", label: "Estoque (consumo)", icon: Package },
       { href: "/operacoes/patrimonio", label: "Patrimônio (equip./ferr.)", icon: Hammer },
     ],
