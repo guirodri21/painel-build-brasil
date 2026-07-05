@@ -19,13 +19,13 @@ import {
   tempoMedioPorEquipe,
 } from "@/lib/analytics";
 import { formatCurrency, monthLabel, cn } from "@/lib/utils";
-import type { Meta, Ordem, Chamado, ChamadoFase } from "@/lib/types";
+import type { Ordem, Chamado, ChamadoFase } from "@/lib/types";
 import {
   Maximize, Minimize, X, Settings, ChevronLeft, ChevronRight,
   Pause, Play, Sun, Moon,
 } from "lucide-react";
 
-const SCENES = ["Visão Geral", "Vendas", "Operações", "Financeiro", "Metas", "Ranking", "Chamados"];
+const SCENES = ["Visão Geral", "Vendas", "Operações", "Financeiro", "Ranking", "Chamados"];
 const N_SCENES = SCENES.length;
 
 type Layout = "rotacao" | "grade";
@@ -42,7 +42,7 @@ interface TvConfig {
   animMs: number; // ritmo do count-up (ms)
 }
 const DEFAULT_CONFIG: TvConfig = {
-  enabled: [true, true, true, true, true, true, true],
+  enabled: [true, true, true, true, true, true],
   intervalSec: 15,
   theme: "dark",
   fontScale: 1,
@@ -82,7 +82,7 @@ function loadConfig(): TvConfig {
 
 export default function TvPage() {
   const router = useRouter();
-  const { ordens, despesas, metas, equipes, chamados, chamadoFases, loading } = useData();
+  const { ordens, despesas, equipes, chamados, chamadoFases, loading } = useData();
   const [config, setConfig] = React.useState<TvConfig>(DEFAULT_CONFIG);
   const [pointer, setPointer] = React.useState(0);
   const [paused, setPaused] = React.useState(false);
@@ -153,14 +153,6 @@ export default function TvPage() {
   const saldo = recTotal - ddTotal - despTotal;
   const margem = recTotal > 0 ? (saldo / recTotal) * 100 : 0;
 
-  // Realizado (receita) por equipe+mês — para a cena de metas
-  const realizado = React.useMemo(() => {
-    const map: Record<string, number> = {};
-    const byKey = groupBy(ordens, (o) => `${o.equipe}|${o.data.substring(0, 7)}`);
-    for (const [key, items] of Object.entries(byKey)) map[key] = sum(items, (o) => o.valor_venda);
-    return map;
-  }, [ordens]);
-
   // Destaques do letreiro (ticker)
   const tickerItems = React.useMemo(() => {
     const items: string[] = [];
@@ -196,8 +188,7 @@ export default function TvPage() {
       case 1: return <SceneVendas ordens={ordens} total={v.total} ticket={v.ticket} />;
       case 2: return <SceneOps ordens={ordens} op={op} />;
       case 3: return <SceneFin ordens={ordens} despesas={despesas} recTotal={recTotal} despTotal={despTotal + ddTotal} saldo={saldo} margem={margem} />;
-      case 4: return <SceneMetas metas={metas} realizado={realizado} />;
-      case 5: return <SceneRanking res={res} />;
+      case 4: return <SceneRanking res={res} />;
       default: return <SceneChamados chamados={chamados} fases={chamadoFases} />;
     }
   }
@@ -553,47 +544,6 @@ function SceneFin({ ordens, despesas, recTotal, despTotal, saldo, margem }: {
       <div className="col-span-2">
         <Panel title="Balanço Mensal"><BalancoChart data={balanco} height={440} /></Panel>
       </div>
-    </div>
-  );
-}
-
-/* ===== Cena: Metas ===== */
-function SceneMetas({ metas, realizado }: { metas: Meta[]; realizado: Record<string, number> }) {
-  const linhas = [...metas]
-    .sort((a, b) => b.mes.localeCompare(a.mes))
-    .slice(0, 6)
-    .map((m) => {
-      const real = realizado[`${m.equipe}|${m.mes.substring(0, 7)}`] ?? 0;
-      const pct = m.meta_receita > 0 ? (real / m.meta_receita) * 100 : 0;
-      return { m, real, pct };
-    });
-
-  if (!linhas.length)
-    return <div className="h-full flex items-center justify-center text-muted text-lg">Nenhuma meta definida.</div>;
-
-  return (
-    <div className="stagger h-full flex flex-col gap-4 justify-center">
-      {linhas.map(({ m, real, pct }) => (
-        <div key={m.id} className="rounded-2xl border border-border bg-surface px-5 py-4">
-          <div className="flex items-center justify-between mb-2">
-            <div className="text-lg font-semibold">{m.equipe} <span className="text-muted text-sm font-normal">· {monthLabel(m.mes.substring(0, 7))}</span></div>
-            <div className="text-base tabular-nums">
-              {formatCurrency(real)} <span className="text-muted">/ {formatCurrency(m.meta_receita)}</span>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="h-3 flex-1 rounded-full bg-surface-2 overflow-hidden">
-              <span
-                className={cn("animate-bar block h-full rounded-full transition-all duration-700", pct >= 100 ? "bg-green" : pct >= 70 ? "bg-yellow" : "bg-red")}
-                style={{ width: `${Math.min(pct, 100)}%` }}
-              />
-            </span>
-            <span className={cn("text-xl font-bold tabular-nums w-20 text-right", pct >= 100 ? "text-green" : pct >= 70 ? "text-yellow" : "text-red")}>
-              <AnimatedNumber value={pct} format={(n) => n.toFixed(0) + "%"} />
-            </span>
-          </div>
-        </div>
-      ))}
     </div>
   );
 }
