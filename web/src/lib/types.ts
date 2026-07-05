@@ -454,7 +454,8 @@ export interface Assinatura {
   status: string; // aguardando_pagamento | ativa | cancelada
   simulado: boolean;
   email_confirmacao: string | null; // enviado | simulado | erro
-  asaas_id: string | null;
+  gateway: string | null; // mercadopago | simulado
+  gateway_id: string | null;
   checkout_url: string | null;
   created_at: string;
   updated_at: string | null;

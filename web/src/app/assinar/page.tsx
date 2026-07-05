@@ -39,6 +39,8 @@ export default function AssinarPage() {
       });
       const data = await r.json();
       if (!r.ok) { setErro(data.error ?? "Não foi possível concluir. Tente novamente."); setEnviando(false); return; }
+      // Mercado Pago: redireciona pro checkout para autorizar a cobrança recorrente.
+      if (data.checkout_url) { window.location.href = data.checkout_url; return; }
       setEnviado(true);
     } catch {
       setErro("Erro de conexão. Tente novamente.");
