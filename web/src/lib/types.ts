@@ -440,6 +440,26 @@ export interface Tecnico {
   updated_at: string | null;
 }
 
+/** Assinatura mensal de cliente (plano fixo US$ 150), cobrada via Asaas. */
+export interface Assinatura {
+  id: string;
+  empresa: string;
+  cnpj: string | null;
+  responsavel: string | null;
+  email: string;
+  telefone: string | null;
+  plano: string;
+  valor_usd: number;
+  ciclo: string;
+  status: string; // aguardando_pagamento | ativa | cancelada
+  simulado: boolean;
+  email_confirmacao: string | null; // enviado | simulado | erro
+  asaas_id: string | null;
+  checkout_url: string | null;
+  created_at: string;
+  updated_at: string | null;
+}
+
 export interface Integracao {
   id: string;
   tipo: IntegracaoTipo;

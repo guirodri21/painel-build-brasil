@@ -14,6 +14,7 @@ import {
   LayoutGrid,
   CalendarDays,
   Receipt,
+  CreditCard,
   FileSignature,
   Database,
   FileText,
@@ -85,6 +86,7 @@ const GROUPS: NavGroup[] = [
     items: [
       { href: "/financeiro", label: "Financeiro", icon: TrendingUp },
       { href: "/contas", label: "Contas", icon: Receipt },
+      { href: "/assinaturas", label: "Assinaturas", icon: CreditCard },
     ],
   },
   {
