@@ -16,9 +16,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen">
       <CommandPalette />
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      <div className="lg:pl-60">
+      <div className="lg:pl-60 min-w-0">
         <Topbar onMenu={() => setSidebarOpen(true)} />
-        <main className="p-4 lg:p-6 max-w-[1400px] mx-auto">
+        <main className="p-4 lg:p-6 max-w-[1400px] mx-auto min-w-0 overflow-x-clip">
           {error ? (
             <div className="flex items-center justify-between gap-4 rounded-xl border border-red bg-red-soft px-5 py-4 mb-6">
               <div className="flex items-center gap-3">

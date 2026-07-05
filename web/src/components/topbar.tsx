@@ -36,10 +36,10 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
   }
 
   return (
-    <header className="sticky top-0 z-20 flex items-center gap-3 h-16 px-4 lg:px-6 border-b border-border bg-surface/80 backdrop-blur">
+    <header className="sticky top-0 z-20 flex items-center gap-2 sm:gap-3 h-16 px-3 sm:px-4 lg:px-6 border-b border-border bg-surface/80 backdrop-blur">
       <button
         onClick={onMenu}
-        className="lg:hidden text-muted hover:text-foreground"
+        className="lg:hidden text-muted hover:text-foreground shrink-0"
         aria-label="Menu"
       >
         <Menu size={20} />
@@ -50,7 +50,7 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
           value={filial}
           onChange={(e) => setFilial(e.target.value)}
           title="Filial"
-          className="h-9 rounded-lg border border-border bg-surface px-2.5 text-sm text-foreground cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+          className="h-9 max-w-[8.5rem] sm:max-w-none shrink rounded-lg border border-border bg-surface px-2.5 text-sm text-foreground cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
         >
           <option value="">Todas as filiais</option>
           {filiais.map((f) => (

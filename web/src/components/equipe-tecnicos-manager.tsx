@@ -119,6 +119,17 @@ export function EquipeTecnicosManager() {
 
   const set = (patch: Partial<typeof FORM_VAZIO>) => setForm((s) => ({ ...s, ...patch }));
 
+  const acoes = (t: Tecnico) => (
+    <>
+      <button onClick={() => toggleAtivo(t)} title={t.ativo ? "Desativar" : "Ativar"}
+        className={cn("p-2 rounded-md hover:bg-surface-2 cursor-pointer", t.ativo ? "text-green" : "text-muted")}><Power size={15} /></button>
+      <button onClick={() => startEdit(t)} title="Editar"
+        className="p-2 rounded-md text-muted hover:text-primary hover:bg-primary-soft cursor-pointer"><Pencil size={15} /></button>
+      <button onClick={() => setDelItem(t)} title="Excluir"
+        className="p-2 rounded-md text-muted hover:text-red hover:bg-red-soft cursor-pointer"><Trash2 size={15} /></button>
+    </>
+  );
+
   return (
     <Card>
       <CardHeader>
@@ -180,7 +191,8 @@ export function EquipeTecnicosManager() {
           </div>
         </form>
 
-        <div className="overflow-x-auto">
+        {/* Desktop: tabela completa */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border text-left">
@@ -202,22 +214,39 @@ export function EquipeTecnicosManager() {
                   <Td className="text-right tabular-nums">{t.custo_hora ? formatCurrency(t.custo_hora) : "—"}</Td>
                   <Td className="text-right tabular-nums">{t.custo_diaria ? formatCurrency(t.custo_diaria) : "—"}</Td>
                   <Td><Badge tone={t.ativo ? "green" : "gray"}>{t.ativo ? "Ativo" : "Inativo"}</Badge></Td>
-                  <Td className="text-right">
-                    <div className="flex justify-end gap-1">
-                      <button onClick={() => toggleAtivo(t)} title={t.ativo ? "Desativar" : "Ativar"}
-                        className={cn("p-1.5 rounded-md hover:bg-surface-2 cursor-pointer", t.ativo ? "text-green" : "text-muted")}><Power size={14} /></button>
-                      <button onClick={() => startEdit(t)} title="Editar"
-                        className="p-1.5 rounded-md text-muted hover:text-primary hover:bg-primary-soft cursor-pointer"><Pencil size={14} /></button>
-                      <button onClick={() => setDelItem(t)} title="Excluir"
-                        className="p-1.5 rounded-md text-muted hover:text-red hover:bg-red-soft cursor-pointer"><Trash2 size={14} /></button>
-                    </div>
-                  </Td>
+                  <Td className="text-right"><div className="flex justify-end gap-1">{acoes(t)}</div></Td>
                 </tr>
               )) : (
                 <tr><td colSpan={9} className="text-center py-10 text-muted text-sm">Nenhum técnico cadastrado.</td></tr>
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile: cards empilhados */}
+        <div className="md:hidden space-y-2">
+          {lista === null ? (
+            <p className="text-center py-8 text-muted text-sm">Carregando...</p>
+          ) : lista.length ? lista.map((t) => (
+            <div key={t.id} className={cn("rounded-lg border border-border bg-surface-2 p-3", !t.ativo && "opacity-60")}>
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-medium truncate">{t.nome}</span>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <Badge tone={t.tipo === "Terceiro" ? "orange" : "blue"}>{t.tipo}</Badge>
+                  <Badge tone={DISPO_TONE[t.disponibilidade] ?? "gray"}>{t.disponibilidade}</Badge>
+                </div>
+              </div>
+              <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+                <div><span className="text-muted">Região:</span> {t.regiao ?? "—"}</div>
+                <div className="truncate"><span className="text-muted">Espec.:</span> {t.especialidades ?? "—"}</div>
+                <div><span className="text-muted">Custo/h:</span> <span className="tabular-nums">{t.custo_hora ? formatCurrency(t.custo_hora) : "—"}</span></div>
+                <div><span className="text-muted">Diária:</span> <span className="tabular-nums">{t.custo_diaria ? formatCurrency(t.custo_diaria) : "—"}</span></div>
+              </div>
+              <div className="mt-2 flex justify-end gap-1 border-t border-border pt-2">{acoes(t)}</div>
+            </div>
+          )) : (
+            <p className="text-center py-10 text-muted text-sm">Nenhum técnico cadastrado.</p>
+          )}
         </div>
       </CardBody>
 

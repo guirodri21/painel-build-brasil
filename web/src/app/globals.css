@@ -103,6 +103,22 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+  /* Evita zoom automático de texto ao girar o aparelho no iOS. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* Rede de segurança: quebra strings longas (e-mails, códigos) em vez de
+   estourar a largura da tela no mobile. */
+h1, h2, h3, p, span, td, th, a, div {
+  overflow-wrap: break-word;
+}
+
+/* Rolagem horizontal com inércia no toque — usado pelas tabelas largas. */
+.overflow-x-auto,
+.overflow-auto {
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
 }
 
 ::selection {

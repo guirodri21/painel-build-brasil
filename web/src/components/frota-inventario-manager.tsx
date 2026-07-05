@@ -141,6 +141,17 @@ export function FrotaInventarioManager() {
 
   const set = (patch: Partial<typeof FORM_VAZIO>) => setForm((s) => ({ ...s, ...patch }));
 
+  const acoes = (v: FrotaVeiculo) => (
+    <>
+      <button onClick={() => toggleAtivo(v)} title={v.ativo ? "Desativar" : "Ativar"}
+        className={cn("p-2 rounded-md hover:bg-surface-2 cursor-pointer", v.ativo ? "text-green" : "text-muted")}><Power size={15} /></button>
+      <button onClick={() => startEdit(v)} title="Editar"
+        className="p-2 rounded-md text-muted hover:text-primary hover:bg-primary-soft cursor-pointer"><Pencil size={15} /></button>
+      <button onClick={() => setDelItem(v)} title="Excluir"
+        className="p-2 rounded-md text-muted hover:text-red hover:bg-red-soft cursor-pointer"><Trash2 size={15} /></button>
+    </>
+  );
+
   return (
     <Card>
       <CardHeader>
@@ -209,7 +220,8 @@ export function FrotaInventarioManager() {
           </div>
         </form>
 
-        <div className="overflow-x-auto">
+        {/* Desktop: tabela completa */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border text-left">
@@ -235,22 +247,42 @@ export function FrotaInventarioManager() {
                   <Td><VencCell iso={v.venc_documento} /></Td>
                   <Td><VencCell iso={v.venc_seguro} /></Td>
                   <Td><VencCell iso={v.venc_ipva} /></Td>
-                  <Td className="text-right">
-                    <div className="flex justify-end gap-1">
-                      <button onClick={() => toggleAtivo(v)} title={v.ativo ? "Desativar" : "Ativar"}
-                        className={cn("p-1.5 rounded-md hover:bg-surface-2 cursor-pointer", v.ativo ? "text-green" : "text-muted")}><Power size={14} /></button>
-                      <button onClick={() => startEdit(v)} title="Editar"
-                        className="p-1.5 rounded-md text-muted hover:text-primary hover:bg-primary-soft cursor-pointer"><Pencil size={14} /></button>
-                      <button onClick={() => setDelItem(v)} title="Excluir"
-                        className="p-1.5 rounded-md text-muted hover:text-red hover:bg-red-soft cursor-pointer"><Trash2 size={14} /></button>
-                    </div>
-                  </Td>
+                  <Td className="text-right"><div className="flex justify-end gap-1">{acoes(v)}</div></Td>
                 </tr>
               )) : (
                 <tr><td colSpan={12} className="text-center py-10 text-muted text-sm">Nenhum veículo cadastrado.</td></tr>
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile: cards empilhados */}
+        <div className="md:hidden space-y-2">
+          {lista === null ? (
+            <p className="text-center py-8 text-muted text-sm">Carregando...</p>
+          ) : lista.length ? lista.map((v) => (
+            <div key={v.id} className={cn("rounded-lg border border-border bg-surface-2 p-3", !v.ativo && "opacity-60")}>
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-mono font-semibold">{v.placa}</span>
+                <Badge tone={STATUS_TONE[v.status] ?? "gray"}>{v.status}</Badge>
+              </div>
+              <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+                <div><span className="text-muted">Modelo:</span> {v.modelo ?? "—"}{v.ano ? ` · ${v.ano}` : ""}</div>
+                <div><span className="text-muted">Resp.:</span> {v.responsavel ?? "—"}</div>
+                <div><span className="text-muted">KM:</span> <span className="tabular-nums">{v.km_atual.toLocaleString("pt-BR")}</span></div>
+                <div><span className="text-muted">Custo/mês:</span> <span className="tabular-nums">{formatCurrency(v.custo_mensal)}</span></div>
+              </div>
+              <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
+                <span className="inline-flex items-center gap-1"><span className="text-muted">Manut.</span> <VencCell iso={v.proxima_manutencao} /></span>
+                <span className="inline-flex items-center gap-1"><span className="text-muted">Doc</span> <VencCell iso={v.venc_documento} /></span>
+                <span className="inline-flex items-center gap-1"><span className="text-muted">Seg</span> <VencCell iso={v.venc_seguro} /></span>
+                <span className="inline-flex items-center gap-1"><span className="text-muted">IPVA</span> <VencCell iso={v.venc_ipva} /></span>
+              </div>
+              <div className="mt-2 flex justify-end gap-1 border-t border-border pt-2">{acoes(v)}</div>
+            </div>
+          )) : (
+            <p className="text-center py-10 text-muted text-sm">Nenhum veículo cadastrado.</p>
+          )}
         </div>
       </CardBody>
 
