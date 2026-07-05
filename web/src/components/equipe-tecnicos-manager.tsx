@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ConfirmDialog } from "@/components/ui/confirm";
 import { cn, formatCurrency } from "@/lib/utils";
-import { TECNICO_TIPO, TECNICO_DISPONIBILIDADE } from "@/lib/types";
+import { TECNICO_TIPO, TECNICO_DISPONIBILIDADE, REGIOES_BRASIL } from "@/lib/types";
 import type { Tecnico } from "@/lib/types";
 import { Plus, Pencil, Trash2, Power, X } from "lucide-react";
 
@@ -153,7 +153,10 @@ export function EquipeTecnicosManager() {
           </div>
           <div>
             <Label>Região de atuação</Label>
-            <Input value={form.regiao} onChange={(e) => set({ regiao: e.target.value })} placeholder="ex: Grande SP" />
+            <Select value={form.regiao} onChange={(e) => set({ regiao: e.target.value })}>
+              <option value="">— selecione —</option>
+              {REGIOES_BRASIL.map((r) => <option key={r} value={r}>{r}</option>)}
+            </Select>
           </div>
           <div>
             <Label>Disponibilidade</Label>

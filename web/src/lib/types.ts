@@ -172,8 +172,11 @@ export interface Chamado {
   updated_at?: string | null;
 }
 
-/** Regiões operacionais do Pipeline Comercial (predefinidas no seletor; 1ª é o padrão). */
-export const REGIOES_PIPELINE = ["Norte", "Nordeste", "Centro-Oeste", "Sudeste", "Sul"] as const;
+/** As 5 regiões oficiais do Brasil — padrão único de região em todo o sistema. */
+export const REGIOES_BRASIL = ["Norte", "Nordeste", "Centro-Oeste", "Sudeste", "Sul"] as const;
+
+/** Alias mantido para o Pipeline Comercial. @deprecated use REGIOES_BRASIL. */
+export const REGIOES_PIPELINE = REGIOES_BRASIL;
 
 /** Equipes do Pipeline Comercial (predefinidas no seletor; 1ª é o padrão). */
 export const EQUIPES_PIPELINE = ["Comercial", "Operacional", "Financeiro", "Estoque"] as const;

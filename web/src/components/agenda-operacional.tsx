@@ -102,13 +102,11 @@ export function AgendaOperacional() {
     });
   }, [agendaCards]);
 
-  // Atendimentos por região (cidade/UF) — só dos cards em programação.
+  // Atendimentos por região (5 regiões do Brasil) — só dos cards em programação.
   const porRegiao = React.useMemo(() => {
     const m = new Map<string, number>();
     for (const c of agendaCards) {
-      const cidade = val(c, "cidade");
-      const uf = val(c, "uf");
-      const chave = cidade && uf ? `${cidade}/${uf}` : cidade || uf || "— Sem local —";
+      const chave = val(c, "regiao") || "— Sem região —";
       m.set(chave, (m.get(chave) ?? 0) + 1);
     }
     return [...m.entries()].sort((a, b) => b[1] - a[1]);
@@ -199,7 +197,7 @@ export function AgendaOperacional() {
         </CardHeader>
         <CardBody>
           {porRegiao.length === 0 ? (
-            <p className="text-sm text-muted">Sem operações em programação. Preencha Cidade/UF nos cards do Pipeline.</p>
+            <p className="text-sm text-muted">Sem operações em programação. Defina a Região nos cards do Pipeline.</p>
           ) : (
             <div className="space-y-2">
               {porRegiao.map(([nome, n]) => {

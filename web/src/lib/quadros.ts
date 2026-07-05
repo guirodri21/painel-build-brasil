@@ -321,6 +321,7 @@ export async function garantirOperacaoDeChamado(
       origem_com: ref,
       card_origem: `Chamado ${ref} · ${chamado.cliente ?? chamado.titulo ?? ""}`.trim(),
       card_origem_id: chamado.id,
+      regiao: chamado.regiao ?? null,
     },
   }]);
   return error ? "existente" : "criado";
