@@ -443,6 +443,7 @@ export interface Tecnico {
 /** Assinatura mensal de cliente (plano fixo US$ 150), cobrada via Asaas. */
 export interface Assinatura {
   id: string;
+  tipo: string; // empresa | pessoa
   empresa: string;
   cnpj: string | null;
   responsavel: string | null;
