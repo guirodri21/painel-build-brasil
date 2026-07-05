@@ -8,7 +8,6 @@ import {
   TrendingUp,
   Wrench,
   Wallet,
-  Target,
   Package,
   Contact,
   KanbanSquare,
@@ -16,7 +15,6 @@ import {
   CalendarDays,
   Receipt,
   FileSignature,
-  Percent,
   Database,
   FileText,
   Users,
@@ -63,7 +61,6 @@ const GROUPS: NavGroup[] = [
       { href: "/chamados", label: "Pipeline Comercial", icon: KanbanSquare },
       { href: "/clientes", label: "Clientes", icon: Contact },
       { href: "/orcamentos", label: "Orçamentos", icon: FileSignature },
-      { href: "/metas", label: "Metas", icon: Target },
     ],
   },
   {
@@ -88,7 +85,6 @@ const GROUPS: NavGroup[] = [
     items: [
       { href: "/financeiro", label: "Financeiro", icon: TrendingUp },
       { href: "/contas", label: "Contas", icon: Receipt },
-      { href: "/comissoes", label: "Comissões", icon: Percent },
     ],
   },
   {
