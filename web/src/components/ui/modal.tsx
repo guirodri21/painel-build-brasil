@@ -29,13 +29,13 @@ export function Modal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-sm"
       onMouseDown={onClose}
     >
       <div
         className={cn(
-          "w-full max-w-lg rounded-xl border border-border bg-surface shadow-lg animate-in",
-          "max-h-[90vh] overflow-y-auto",
+          "w-full max-w-lg border border-border bg-surface shadow-lg animate-in",
+          "rounded-t-2xl sm:rounded-xl max-h-[92dvh] sm:max-h-[90vh] overflow-y-auto",
           className,
         )}
         onMouseDown={(e) => e.stopPropagation()}
@@ -70,7 +70,8 @@ export function ModalFooter({
   return (
     <div
       className={cn(
-        "flex flex-wrap justify-end gap-2 px-5 py-4 border-t border-border sticky bottom-0 bg-surface",
+        "flex flex-col gap-2 px-5 py-4 border-t border-border sticky bottom-0 bg-surface",
+        "sm:flex-row sm:flex-wrap sm:justify-end [&>button]:w-full sm:[&>button]:w-auto",
         className,
       )}
       {...props}

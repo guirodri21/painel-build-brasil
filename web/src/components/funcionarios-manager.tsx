@@ -29,7 +29,14 @@ export function FuncionariosManager() {
     setLista((data as Funcionario[]) ?? []);
   }, [supabase]);
 
-  React.useEffect(() => { load(); }, [load]);
+  React.useEffect(() => {
+    let ativo = true;
+    (async () => {
+      const { data } = await supabase.from("funcionarios").select("*").order("nome");
+      if (ativo) setLista((data as Funcionario[]) ?? []);
+    })();
+    return () => { ativo = false; };
+  }, [supabase]);
 
   function startEdit(f: Funcionario) {
     setEditing(f);
@@ -83,6 +90,17 @@ export function FuncionariosManager() {
     toast("Funcionário removido.");
   }
 
+  const acoes = (f: Funcionario) => (
+    <>
+      <button onClick={() => toggleAtivo(f)} title={f.ativo ? "Desativar" : "Ativar"}
+        className={cn("p-2 rounded-md hover:bg-surface-2 cursor-pointer", f.ativo ? "text-green" : "text-muted")}><Power size={15} /></button>
+      <button onClick={() => startEdit(f)} title="Editar"
+        className="p-2 rounded-md text-muted hover:text-primary hover:bg-primary-soft cursor-pointer"><Pencil size={15} /></button>
+      <button onClick={() => setDelItem(f)} title="Excluir"
+        className="p-2 rounded-md text-muted hover:text-red hover:bg-red-soft cursor-pointer"><Trash2 size={15} /></button>
+    </>
+  );
+
   return (
     <Card>
       <CardHeader>
@@ -124,7 +142,8 @@ export function FuncionariosManager() {
           </div>
         </form>
 
-        <div className="overflow-x-auto">
+        {/* Desktop: tabela */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border text-left">
@@ -141,22 +160,35 @@ export function FuncionariosManager() {
                   <Td>{f.equipe ?? "—"}</Td>
                   <Td>{f.cargo ?? "—"}</Td>
                   <Td><Badge tone={f.ativo ? "green" : "gray"}>{f.ativo ? "Ativo" : "Inativo"}</Badge></Td>
-                  <Td className="text-right">
-                    <div className="flex justify-end gap-1">
-                      <button onClick={() => toggleAtivo(f)} title={f.ativo ? "Desativar" : "Ativar"}
-                        className={cn("p-1.5 rounded-md hover:bg-surface-2 cursor-pointer", f.ativo ? "text-green" : "text-muted")}><Power size={14} /></button>
-                      <button onClick={() => startEdit(f)} title="Editar"
-                        className="p-1.5 rounded-md text-muted hover:text-primary hover:bg-primary-soft cursor-pointer"><Pencil size={14} /></button>
-                      <button onClick={() => setDelItem(f)} title="Excluir"
-                        className="p-1.5 rounded-md text-muted hover:text-red hover:bg-red-soft cursor-pointer"><Trash2 size={14} /></button>
-                    </div>
-                  </Td>
+                  <Td className="text-right"><div className="flex justify-end gap-1">{acoes(f)}</div></Td>
                 </tr>
               )) : (
                 <tr><td colSpan={6} className="text-center py-10 text-muted text-sm">Nenhum funcionário cadastrado.</td></tr>
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile: cards */}
+        <div className="md:hidden space-y-2">
+          {lista === null ? (
+            <p className="text-center py-8 text-muted text-sm">Carregando...</p>
+          ) : lista.length ? lista.map((f) => (
+            <div key={f.id} className="rounded-lg border border-border bg-surface-2 p-3">
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-medium truncate">{f.nome}</span>
+                <Badge tone={f.ativo ? "green" : "gray"}>{f.ativo ? "Ativo" : "Inativo"}</Badge>
+              </div>
+              <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted">
+                <span className="font-mono">{f.telefone}</span>
+                {f.equipe && <span>· {f.equipe}</span>}
+                {f.cargo && <span>· {f.cargo}</span>}
+              </div>
+              <div className="mt-2 flex justify-end gap-1 border-t border-border pt-2">{acoes(f)}</div>
+            </div>
+          )) : (
+            <p className="text-center py-10 text-muted text-sm">Nenhum funcionário cadastrado.</p>
+          )}
         </div>
       </CardBody>
 

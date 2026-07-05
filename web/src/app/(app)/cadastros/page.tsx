@@ -76,7 +76,8 @@ export default function CadastrosPage() {
           </Button>
         </CardHeader>
         <CardBody className="p-0">
-          <div className="overflow-x-auto">
+          {/* Desktop: tabela */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border text-left">
@@ -100,12 +101,12 @@ export default function CadastrosPage() {
                         {own ? (
                           <div className="flex justify-end gap-1">
                             <button onClick={() => { setEditing(dsp); setDespOpen(true); }}
-                              className="p-1.5 rounded-md text-muted hover:text-primary hover:bg-primary-soft cursor-pointer" title="Editar">
-                              <Pencil size={14} />
+                              className="p-2 rounded-md text-muted hover:text-primary hover:bg-primary-soft cursor-pointer" title="Editar">
+                              <Pencil size={15} />
                             </button>
                             <button onClick={() => setDelId(dsp.id)}
-                              className="p-1.5 rounded-md text-muted hover:text-red hover:bg-red-soft cursor-pointer" title="Excluir">
-                              <Trash2 size={14} />
+                              className="p-2 rounded-md text-muted hover:text-red hover:bg-red-soft cursor-pointer" title="Excluir">
+                              <Trash2 size={15} />
                             </button>
                           </div>
                         ) : <span className="text-muted text-xs">—</span>}
@@ -117,6 +118,41 @@ export default function CadastrosPage() {
                 )}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile: cards */}
+          <div className="md:hidden p-3 space-y-2">
+            {despesas.length ? despesas.map((dsp) => {
+              const own = userId && dsp.created_by === userId;
+              return (
+                <div key={dsp.id} className="rounded-lg border border-border bg-surface-2 p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-semibold">{formatCurrency(dsp.valor)}</span>
+                    <Badge tone="gray">{CATEGORIA_LABELS[dsp.categoria]}</Badge>
+                  </div>
+                  <div className="mt-1 flex items-end justify-between gap-2">
+                    <div className="text-xs text-muted min-w-0">
+                      <div>{formatDate(dsp.data)}</div>
+                      {dsp.descricao && <div className="truncate">{dsp.descricao}</div>}
+                    </div>
+                    {own && (
+                      <div className="flex gap-1 shrink-0">
+                        <button onClick={() => { setEditing(dsp); setDespOpen(true); }}
+                          className="p-2 rounded-md text-muted hover:text-primary hover:bg-primary-soft cursor-pointer" title="Editar">
+                          <Pencil size={15} />
+                        </button>
+                        <button onClick={() => setDelId(dsp.id)}
+                          className="p-2 rounded-md text-muted hover:text-red hover:bg-red-soft cursor-pointer" title="Excluir">
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            }) : (
+              <p className="text-center py-12 text-muted text-sm">Nenhuma despesa registrada.</p>
+            )}
           </div>
         </CardBody>
       </Card>
