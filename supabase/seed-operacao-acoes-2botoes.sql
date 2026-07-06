@@ -33,13 +33,13 @@ BEGIN
        jsonb_build_object('tipo','definir_campo','campo','situacao','valor','Solicitacao de Material')
      )));
 
-  IF v_fin IS NOT NULL THEN
-    INSERT INTO quadro_automacoes (quadro_id, nome, gatilho, ordem, config) VALUES
-    (v_op,'Solicitar Pagamento','botao',1, jsonb_build_object(
-       'label','Solicitar Pagamento','cor','green',
-       'acoes', jsonb_build_array(
-         jsonb_build_object('tipo','criar_card','quadro_destino',v_fin::text,'fase_destino','Nova Solicitacao','copiar_valor',true),
-         jsonb_build_object('tipo','definir_campo','campo','situacao','valor','Solicitacao de Pagamento')
-       )));
-  END IF;
+  -- "Solicitar Pagamento" abre o formulario publico do Goalfy (financeiro).
+  -- Mantem so a marcacao da Situacao no card OP.
+  INSERT INTO quadro_automacoes (quadro_id, nome, gatilho, ordem, config) VALUES
+  (v_op,'Solicitar Pagamento','botao',1, jsonb_build_object(
+     'label','Solicitar Pagamento','cor','green',
+     'url','https://app.goalfy.com.br/public/form/1aa65f92-3f10-40b6-aa21-65175f4992b7',
+     'acoes', jsonb_build_array(
+       jsonb_build_object('tipo','definir_campo','campo','situacao','valor','Solicitacao de Pagamento')
+     )));
 END $$;
