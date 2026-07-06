@@ -39,7 +39,8 @@ BEGIN
         '["Técnico em Deslocamento","Em Execução","Executado Total","Executado Parcial"]'::jsonb),
     ('status_avaliacao',  'Status da avaliação do serviço', 'selecao', false, false, 5,
         '["Pendente Relatório/Fotos","Aprovado para Faturamento"]'::jsonb),
-    ('avaliacao_execucao','Avaliação de execução',          'selecao', false, false, 6, '[]'::jsonb)
+    ('avaliacao_execucao','Avaliação de execução',          'selecao', false, false, 6,
+        '["Excelente","Boa","Regular","Requer Retrabalho"]'::jsonb)
   ) AS x(chave,label,tipo,obrig,card,ordem,opcoes)
   WHERE NOT EXISTS (
     SELECT 1 FROM quadro_campos qc WHERE qc.quadro_id = v_op AND qc.chave = x.chave
