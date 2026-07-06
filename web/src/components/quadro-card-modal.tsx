@@ -32,6 +32,10 @@ const SITUACOES_POR_FASE: Record<string, string[]> = {
   "Solicitacao de Faturamento": [
     "Ticket analisado", "Relatório enviado no e-mail",
   ],
+  "Resolvido / Concluido": [
+    "Concluído", "Resolvido sem Faturamento", "Resolvido com Faturamento",
+    "Cancelado", "Encerrado Administrativamente",
+  ],
 };
 /** Campos extras liberados por fase (além de origem_com/situacao/tecnico). */
 const CAMPOS_EXTRA_POR_FASE: Record<string, string[]> = {
