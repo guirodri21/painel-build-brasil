@@ -19,7 +19,7 @@ const CAMPOS_OPERACAO = ["origem_com", "situacao", "tecnico"];
 const SITUACOES_OPERACAO = ["Em Preparacao", "Analise Tecnica", "Solicitacao de Material", "Solicitacao de Pagamento"];
 
 /** Renderiza o input certo para um campo personalizado. */
-function CampoInput({ campo, value, onChange }: { campo: QuadroCampo; value: unknown; onChange: (v: unknown) => void }) {
+export function CampoInput({ campo, value, onChange }: { campo: QuadroCampo; value: unknown; onChange: (v: unknown) => void }) {
   switch (campo.tipo) {
     case "texto_longo":
       return <Textarea value={(value as string) ?? ""} onChange={(e) => onChange(e.target.value)} />;
@@ -117,6 +117,7 @@ export function QuadroCardModal({
   const toast = useToast();
   const editando = !!card;
   const [confirmDel, setConfirmDel] = React.useState(false);
+  const [acaoForm, setAcaoForm] = React.useState<QuadroAutomacao | null>(null);
 
   const [titulo, setTitulo] = React.useState(card?.titulo ?? "");
   const [fase, setFase] = React.useState(card?.fase ?? faseInicial ?? fases[0]?.nome ?? "");
@@ -201,6 +202,13 @@ export function QuadroCardModal({
 
   async function clicarBotao(a: QuadroAutomacao) {
     if (!card) return;
+    // Se a ação cria um card em OUTRO board, abre o formulário inline para a
+    // pessoa preencher os dados na hora (em vez de ir até a outra seção fazer).
+    const criaEmOutroBoard = a.config.acoes?.some(
+      (ac) => ac.tipo === "criar_card" && ac.quadro_destino && ac.quadro_destino !== quadro.id,
+    );
+    if (criaEmOutroBoard) { setAcaoForm(a); return; }
+    // Caso contrário (ex.: retrabalho no próprio board), executa direto.
     setSaving(true);
     const feitos = await runBotao(quadro.id, quadro.nome, a, card);
     setSaving(false);
@@ -324,6 +332,184 @@ export function QuadroCardModal({
       onConfirm={excluir}
       onCancel={() => setConfirmDel(false)}
     />
+    {acaoForm && card && (
+      <AcaoCriarCardModal
+        open={!!acaoForm}
+        onClose={() => setAcaoForm(null)}
+        automacao={acaoForm}
+        quadroOrigem={quadro}
+        cardOrigem={card}
+        onDone={async () => {
+          setAcaoForm(null);
+          await onSaved();
+          toast("Solicitação enviada.");
+          onClose();
+        }}
+      />
+    )}
     </>
+  );
+}
+
+/**
+ * Formulário inline para uma ação "criar_card" que aponta para OUTRO board.
+ * Em vez de criar um card vazio e mandar a pessoa até a outra seção preencher,
+ * carrega os campos do board de destino e cria o card já preenchido, na 1ª etapa.
+ * As demais ações da automação (definir_campo/mover_fase/etc.) rodam no card de origem.
+ */
+function AcaoCriarCardModal({
+  open, onClose, automacao, quadroOrigem, cardOrigem, onDone,
+}: {
+  open: boolean;
+  onClose: () => void;
+  automacao: QuadroAutomacao;
+  quadroOrigem: Quadro;
+  cardOrigem: QuadroCard;
+  onDone: () => void | Promise<void>;
+}) {
+  const { userId, filial } = useData();
+  const toast = useToast();
+
+  const acaoCriar = React.useMemo(
+    () => automacao.config.acoes.find((a) => a.tipo === "criar_card" && a.quadro_destino),
+    [automacao],
+  );
+
+  const [loading, setLoading] = React.useState(true);
+  const [destNome, setDestNome] = React.useState("");
+  const [destCampos, setDestCampos] = React.useState<QuadroCampo[]>([]);
+  const [primeiraFase, setPrimeiraFase] = React.useState("");
+
+  const [titulo, setTitulo] = React.useState(cardOrigem.titulo ?? "");
+  const [valor, setValor] = React.useState<string>(
+    acaoCriar?.copiar_valor && cardOrigem.valor ? String(cardOrigem.valor) : "",
+  );
+  const [prioridade, setPrioridade] = React.useState(cardOrigem.prioridade ?? "");
+  const [prazo, setPrazo] = React.useState(cardOrigem.prazo ?? "");
+  const [valores, setValores] = React.useState<Record<string, unknown>>({});
+  const [saving, setSaving] = React.useState(false);
+
+  React.useEffect(() => {
+    const destino = acaoCriar?.quadro_destino;
+    if (!destino) return;
+    let ativo = true;
+    (async () => {
+      const supabase = createClient();
+      const [q, c, f] = await Promise.all([
+        supabase.from("quadros").select("nome").eq("id", destino).maybeSingle(),
+        supabase.from("quadro_campos").select("*").eq("quadro_id", destino).order("ordem"),
+        supabase.from("quadro_fases").select("nome").eq("quadro_id", destino).order("ordem").limit(1).maybeSingle(),
+      ]);
+      if (!ativo) return;
+      setDestNome((q.data as { nome: string } | null)?.nome ?? "");
+      setDestCampos((c.data as QuadroCampo[]) ?? []);
+      setPrimeiraFase((f.data as { nome: string } | null)?.nome ?? "");
+      setLoading(false);
+    })();
+    return () => { ativo = false; };
+  }, [acaoCriar]);
+
+  function setCampo(chave: string, v: unknown) {
+    setValores((prev) => ({ ...prev, [chave]: v }));
+  }
+
+  async function enviar(e: React.FormEvent) {
+    e.preventDefault();
+    if (!acaoCriar?.quadro_destino) return;
+    const erro = validarObrigatorios(destCampos, valores, titulo);
+    if (erro) { toast(erro, "error"); return; }
+    if (!primeiraFase) { toast("O board de destino não tem fases configuradas.", "error"); return; }
+    setSaving(true);
+    const supabase = createClient();
+
+    // 1) cria o card já preenchido na 1ª etapa do board de destino
+    const { error } = await supabase.from("quadro_cards").insert([{
+      quadro_id: acaoCriar.quadro_destino,
+      titulo: titulo.trim() || cardOrigem.titulo || "Solicitação",
+      fase: primeiraFase,
+      valor: parseFloat(valor) || 0,
+      responsavel: cardOrigem.responsavel,
+      prioridade: prioridade || null,
+      prazo: prazo || null,
+      origem: acaoCriar.origem ?? "vinculo",
+      filial: cardOrigem.filial ?? filial ?? "Matriz",
+      valores: {
+        ...valores,
+        card_origem: `${quadroOrigem.nome} · ${cardOrigem.titulo ?? cardOrigem.id.slice(0, 8)}`,
+        card_origem_id: cardOrigem.id,
+        card_origem_quadro: quadroOrigem.id,
+      },
+      created_by: userId,
+    }]);
+    if (error) { setSaving(false); toast("Erro: " + error.message, "error"); return; }
+
+    // 2) roda as demais ações (definir_campo/mover_fase/notificar) no card de origem
+    const restante = {
+      ...automacao,
+      config: { ...automacao.config, acoes: automacao.config.acoes.filter((a) => a.tipo !== "criar_card") },
+    };
+    if (restante.config.acoes.length) {
+      await runBotao(quadroOrigem.id, quadroOrigem.nome, restante, cardOrigem);
+    }
+
+    setSaving(false);
+    await onDone();
+  }
+
+  return (
+    <Modal open={open} onClose={onClose} title={automacao.config.label ?? automacao.nome} className="max-w-xl">
+      <form onSubmit={enviar}>
+        <ModalBody>
+          {loading ? (
+            <p className="text-sm text-muted">Carregando formulário…</p>
+          ) : (
+            <>
+              <p className="text-[13px] text-muted">
+                Preencha e o card será criado direto em{" "}
+                <span className="font-medium text-foreground">{destNome || "destino"}</span>
+                {primeiraFase && <> (etapa <span className="font-medium text-foreground">{primeiraFase}</span>)</>}.
+              </p>
+              <div>
+                <Label>Título *</Label>
+                <Input value={titulo} onChange={(e) => setTitulo(e.target.value)} placeholder="Título" autoFocus />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Prioridade</Label>
+                  <Select value={prioridade} onChange={(e) => setPrioridade(e.target.value)}>
+                    <option value="">—</option>
+                    <option value="Alta">Alta</option>
+                    <option value="Média">Média</option>
+                    <option value="Baixa">Baixa</option>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Valor (R$)</Label>
+                  <Input type="number" step="0.01" min="0" value={valor} onChange={(e) => setValor(e.target.value)} />
+                </div>
+                <div>
+                  <Label>Prazo</Label>
+                  <Input type="date" value={prazo} onChange={(e) => setPrazo(e.target.value)} />
+                </div>
+              </div>
+              {destCampos.length > 0 && (
+                <div className="border-t border-border pt-4 space-y-4">
+                  {destCampos.map((campo) => (
+                    <div key={campo.id}>
+                      <Label>{campo.label}{campo.obrigatorio && " *"}</Label>
+                      <CampoInput campo={campo} value={valores[campo.chave]} onChange={(v) => setCampo(campo.chave, v)} />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </ModalBody>
+        <ModalFooter>
+          <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
+          <Button type="submit" disabled={saving || loading}>{saving ? "Enviando..." : "Criar e enviar"}</Button>
+        </ModalFooter>
+      </form>
+    </Modal>
   );
 }
