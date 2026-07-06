@@ -137,10 +137,12 @@ export function QuadroCardModal({
   const isOperacao = quadro.nome === NOME_PIPELINE_OPERACIONAL;
   const camposVisiveis = React.useMemo<QuadroCampo[]>(() => {
     if (!isOperacao) return campos;
+    // Na fase Agendamento também libera o campo do ticket (Trílogo).
+    const permitidos = fase === "Agendamento" ? [...CAMPOS_OPERACAO, "ticket_trilogo"] : CAMPOS_OPERACAO;
     return campos
-      .filter((c) => CAMPOS_OPERACAO.includes(c.chave))
+      .filter((c) => permitidos.includes(c.chave))
       .map((c) => (c.chave === "situacao" ? { ...c, tipo: "selecao", opcoes: SITUACOES_OPERACAO } : c));
-  }, [campos, isOperacao]);
+  }, [campos, isOperacao, fase]);
 
   // Snapshot congelado dos dados da venda (só leitura), gravado ao criar o card OP.
   const venda = React.useMemo(() => {
@@ -204,7 +206,11 @@ export function QuadroCardModal({
     onClose();
   }
 
-  const botoes = React.useMemo(() => botoesDeAcao(automacoes), [automacoes]);
+  // Botões de ação; se a automação tiver config.fase, só aparece nessa fase.
+  const botoes = React.useMemo(
+    () => botoesDeAcao(automacoes).filter((a) => !a.config.fase || a.config.fase === fase),
+    [automacoes, fase],
+  );
 
   async function clicarBotao(a: QuadroAutomacao) {
     if (!card) return;

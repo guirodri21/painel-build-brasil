@@ -24,10 +24,16 @@ BEGIN
     RETURN;
   END IF;
 
-  -- ---- Campos: mantem so ate "Tecnico responsavel" --------------------------
+  -- ---- Campos: mantem so ate "Tecnico responsavel" (+ ticket na Agendamento) --
   DELETE FROM quadro_campos
    WHERE quadro_id = v_op
-     AND chave NOT IN ('origem_com','situacao','tecnico');
+     AND chave NOT IN ('origem_com','situacao','tecnico','ticket_trilogo');
+
+  -- Campo para ESCREVER o ticket (Trilogo); o front so mostra na fase Agendamento.
+  IF NOT EXISTS (SELECT 1 FROM quadro_campos WHERE quadro_id = v_op AND chave = 'ticket_trilogo') THEN
+    INSERT INTO quadro_campos (quadro_id, chave, label, tipo, obrigatorio, mostrar_no_card, ordem, opcoes)
+      VALUES (v_op, 'ticket_trilogo', 'Ticket (Trilogo)', 'texto', false, true, 3, '[]'::jsonb);
+  END IF;
 
   -- ---- Situacao: reduz para as 4 opcoes do fluxo novo -----------------------
   UPDATE quadro_campos

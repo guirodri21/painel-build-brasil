@@ -43,11 +43,12 @@ BEGIN
        jsonb_build_object('tipo','definir_campo','campo','situacao','valor','Solicitacao de Pagamento')
      )));
 
-  -- "Abrir Ticket" abre o Trilogo (link externo).
+  -- "Abrir Ticket" abre o Trilogo (link externo). So aparece na fase Agendamento.
   INSERT INTO quadro_automacoes (quadro_id, nome, gatilho, ordem, config) VALUES
   (v_op,'Abrir Ticket','botao',2, jsonb_build_object(
      'label','Abrir Ticket','cor','blue',
      'url','https://buildbrasil.trilogo.app/tickets/?15=1',
+     'fase','Agendamento',
      'acoes', jsonb_build_array()
   ));
 END $$;
