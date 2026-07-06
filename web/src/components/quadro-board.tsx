@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input, Select } from "@/components/ui/field";
 import { QuadroCardModal } from "@/components/quadro-card-modal";
 import { QuadroConfig } from "@/components/quadro-config";
-import { DOT, runAutomacoes, validarBloqueio, formatCampoValor, codigoCard } from "@/lib/quadros";
+import { DOT, runAutomacoes, validarBloqueio, formatCampoValor, codigoCard, NOME_PIPELINE_OPERACIONAL } from "@/lib/quadros";
 import { sum } from "@/lib/analytics";
 import { formatCurrency, formatNumber, todayISO, cn } from "@/lib/utils";
 import type { Quadro, QuadroFase, QuadroCampo, QuadroCard, QuadroAutomacao, QuadroFormulario } from "@/lib/types";
@@ -166,6 +166,9 @@ export function QuadroBoard({
 
   function abrir(c: QuadroCard | null, fase?: string) { setEdit(c); setFaseNova(fase); setModal(true); }
 
+  // No Pipeline Operacional os cards nascem só a partir do Comercial — sem criação manual.
+  const bloqueiaCriacao = quadro?.nome === NOME_PIPELINE_OPERACIONAL;
+
   if (loading)
     return (<><PageHeader title="Quadro" /><KpiSkeletonRow count={3} /><Skeleton className="h-96" /></>);
 
@@ -181,7 +184,7 @@ export function QuadroBoard({
     <>
       <PageHeader title={quadro!.nome} subtitle={quadro!.descricao ?? subtituloFallback}>
         {backHref && <Link href={backHref}><Button variant="ghost"><ArrowLeft size={16} /> {backLabel}</Button></Link>}
-        {aba === "board" && <Button onClick={() => abrir(null)}><Plus size={16} /> Novo card</Button>}
+        {aba === "board" && !bloqueiaCriacao && <Button onClick={() => abrir(null)}><Plus size={16} /> Novo card</Button>}
       </PageHeader>
 
       <div className="flex flex-wrap items-center gap-2 mb-4">
@@ -246,7 +249,7 @@ export function QuadroBoard({
                           <span className="text-sm font-semibold truncate">{col.nome}</span>
                           <span className="text-xs text-muted tabular-nums">{items.length}</span>
                         </div>
-                        <button onClick={() => abrir(null, col.nome)} className="text-muted hover:text-primary cursor-pointer" title="Novo card aqui"><Plus size={14} /></button>
+                        {!bloqueiaCriacao && <button onClick={() => abrir(null, col.nome)} className="text-muted hover:text-primary cursor-pointer" title="Novo card aqui"><Plus size={14} /></button>}
                       </div>
                       <div className="p-2 space-y-2 flex-1 max-h-[64vh] overflow-y-auto">
                         {items.map((c) => (

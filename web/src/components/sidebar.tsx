@@ -8,6 +8,7 @@ import {
   TrendingUp,
   Wrench,
   Wallet,
+  Banknote,
   Package,
   Contact,
   KanbanSquare,
@@ -85,6 +86,7 @@ const GROUPS: NavGroup[] = [
     gate: "financeiro",
     items: [
       { href: "/financeiro", label: "Financeiro", icon: TrendingUp },
+      { href: "/financeiro/contas-a-pagar", label: "Contas a Pagar", icon: Banknote },
       { href: "/contas", label: "Contas", icon: Receipt },
       { href: "/assinaturas", label: "Assinaturas", icon: CreditCard },
     ],

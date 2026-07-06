@@ -11,7 +11,7 @@ import { todayISO, formatDate, formatCurrency } from "@/lib/utils";
 import { ChamadoAtividade } from "@/components/chamado-atividade";
 import { alertarChamadoCritico, fireEvent } from "@/lib/integrations";
 import { garantirOperacaoDeChamado, FASES_COMERCIAL_APROVADO } from "@/lib/quadros";
-import { Receipt, Wrench, Send, Upload, FileText, Trash2 } from "lucide-react";
+import { Wrench, Send, Upload, FileText, Trash2 } from "lucide-react";
 import {
   PRIORIDADES_OPORTUNIDADE, ORIGENS_OPORTUNIDADE, FAIXAS_POTENCIAL,
   REGIOES_PIPELINE, EQUIPES_PIPELINE, STATUS_ANDAMENTO, TIPOS_DEMANDA, STATUS_PROPOSTA, MOTIVOS_RECUSA,
@@ -34,7 +34,6 @@ export function ChamadoModal({
   const { userId, filial, chamadoFases, clientes, refresh } = useData();
   const toast = useToast();
   const [saving, setSaving] = React.useState(false);
-  const [gerando, setGerando] = React.useState(false);
   const [gerandoOp, setGerandoOp] = React.useState(false);
   const editando = !!chamado;
 
@@ -90,25 +89,6 @@ export function ChamadoModal({
     setGerandoOp(false);
     if (r === "sem-pipeline") { toast("Quadro 'Pipeline Operacional' não encontrado.", "error"); return; }
     toast(r === "criado" ? "Operação gerada no Pipeline Operacional." : "Já existe uma Operação para este chamado.");
-  }
-
-  async function gerarConta() {
-    if (!chamado) return;
-    setGerando(true);
-    const { error } = await createClient().from("contas").insert([{
-      tipo: "receber",
-      descricao: `Chamado ${chamado.ticket_ref ?? ""} — ${chamado.cliente ?? chamado.titulo ?? ""}`.trim(),
-      categoria: "Chamado",
-      valor: chamado.valor || 0,
-      vencimento: chamado.prazo ?? todayISO(),
-      cliente: chamado.cliente,
-      filial: filial || "Matriz",
-      created_by: userId,
-    }]);
-    setGerando(false);
-    if (error) { toast("Erro: " + error.message, "error"); return; }
-    await refresh();
-    toast("Conta a receber gerada em Contas.");
   }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -442,10 +422,7 @@ export function ChamadoModal({
         <ModalFooter>
           {editando && (
             <>
-              <Button type="button" variant="outline" onClick={gerarConta} disabled={gerando} className="mr-auto">
-                <Receipt size={15} /> {gerando ? "Gerando..." : "Gerar conta a receber"}
-              </Button>
-              <Button type="button" variant="outline" onClick={gerarOperacao} disabled={gerandoOp}>
+              <Button type="button" variant="outline" onClick={gerarOperacao} disabled={gerandoOp} className="mr-auto">
                 <Wrench size={15} /> {gerandoOp ? "Gerando..." : "Gerar Operação"}
               </Button>
             </>

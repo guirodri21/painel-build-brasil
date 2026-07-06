@@ -307,6 +307,9 @@ export async function garantirOperacaoDeChamado(
   if (existente) return "existente";
 
   const ref = chamado.ticket_ref ? `#${chamado.ticket_ref}` : chamado.id.slice(0, 8);
+  // Prazo padrão da Operação: 3 dias a partir da criação do card (regra do negócio).
+  const prazoOp = new Date();
+  prazoOp.setDate(prazoOp.getDate() + 3);
   const { error } = await supabase.from("quadro_cards").insert([{
     quadro_id: quadroId,
     titulo: chamado.titulo || chamado.cliente || "Operação",
@@ -314,7 +317,7 @@ export async function garantirOperacaoDeChamado(
     valor: chamado.valor || 0,
     responsavel: chamado.responsavel ?? null,
     prioridade: chamado.prioridade ?? null,
-    prazo: chamado.prazo ?? null,
+    prazo: prazoOp.toISOString().slice(0, 10),
     origem: "comercial",
     filial: chamado.filial ?? "Matriz",
     valores: {
