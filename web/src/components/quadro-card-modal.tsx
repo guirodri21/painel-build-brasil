@@ -8,10 +8,15 @@ import { ConfirmDialog } from "@/components/ui/confirm";
 import { Modal, ModalBody, ModalFooter } from "@/components/ui/modal";
 import { Input, Select, Textarea, Label } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
-import { runAutomacoes, runBotao, runCamposAlterados, validarBloqueio, botoesDeAcao, validarObrigatorios, codigoCard } from "@/lib/quadros";
-import { cn } from "@/lib/utils";
-import { Trash2, Zap } from "lucide-react";
+import { runAutomacoes, runBotao, runCamposAlterados, validarBloqueio, botoesDeAcao, validarObrigatorios, codigoCard, NOME_PIPELINE_OPERACIONAL } from "@/lib/quadros";
+import { cn, formatCurrency, formatDate } from "@/lib/utils";
+import { Trash2, Zap, History } from "lucide-react";
 import type { Quadro, QuadroFase, QuadroCampo, QuadroCard, QuadroAutomacao } from "@/lib/types";
+
+/** No Pipeline Operacional o card é enxuto: só estes campos (até "Técnico responsável"). */
+const CAMPOS_OPERACAO = ["origem_com", "situacao", "tecnico"];
+/** E a Situação tem apenas estes 4 status (Material→Suprimentos, Pagamento→Financeiro). */
+const SITUACOES_OPERACAO = ["Em Preparacao", "Analise Tecnica", "Solicitacao de Material", "Solicitacao de Pagamento"];
 
 /** Renderiza o input certo para um campo personalizado. */
 function CampoInput({ campo, value, onChange }: { campo: QuadroCampo; value: unknown; onChange: (v: unknown) => void }) {
@@ -40,6 +45,59 @@ function CampoInput({ campo, value, onChange }: { campo: QuadroCampo; value: unk
     default:
       return <Input value={(value as string) ?? ""} onChange={(e) => onChange(e.target.value)} />;
   }
+}
+
+type PedidoVinculado = { id: string; titulo: string | null; fase: string; valor: number; created_at: string; quadro: string };
+
+/**
+ * Histórico de pedidos gerados a partir de um card (Solicitar Compra → Suprimentos,
+ * Gerar Conta a Pagar / Solicitar Pagamento → Financeiro etc.). Lê os cards-filho
+ * pelo vínculo valores->>card_origem_id. Não renderiza nada se não houver pedidos.
+ */
+function PedidosVinculados({ cardId }: { cardId: string }) {
+  const [itens, setItens] = React.useState<PedidoVinculado[] | null>(null);
+
+  React.useEffect(() => {
+    let ativo = true;
+    createClient()
+      .from("quadro_cards")
+      .select("id, titulo, fase, valor, created_at, quadros(nome)")
+      .eq("valores->>card_origem_id", cardId)
+      .order("created_at", { ascending: false })
+      .then(({ data }) => {
+        if (!ativo) return;
+        const rows: PedidoVinculado[] = ((data ?? []) as unknown[]).map((r) => {
+          const row = r as { id: string; titulo: string | null; fase: string; valor: number; created_at: string; quadros: { nome: string } | { nome: string }[] | null };
+          const q = Array.isArray(row.quadros) ? row.quadros[0] : row.quadros;
+          return { id: row.id, titulo: row.titulo, fase: row.fase, valor: row.valor, created_at: row.created_at, quadro: q?.nome ?? "—" };
+        });
+        setItens(rows);
+      });
+    return () => { ativo = false; };
+  }, [cardId]);
+
+  if (!itens || itens.length === 0) return null;
+
+  return (
+    <div className="border-t border-border pt-4">
+      <Label className="flex items-center gap-1.5"><History size={13} /> Histórico de pedidos</Label>
+      <ul className="space-y-1.5">
+        {itens.map((it) => (
+          <li key={it.id} className="flex items-center justify-between gap-2 rounded-lg border border-border px-2.5 py-1.5 text-xs">
+            <span className="min-w-0 truncate">
+              <span className="font-medium">{it.quadro}</span>
+              {it.titulo ? <span className="text-muted"> · {it.titulo}</span> : null}
+              <span className="text-muted"> · {formatDate(it.created_at)}</span>
+            </span>
+            <span className="flex items-center gap-2 shrink-0">
+              {it.valor > 0 && <span className="tabular-nums text-muted">{formatCurrency(it.valor)}</span>}
+              <span className="rounded-full bg-surface-2 px-2 py-0.5">{it.fase}</span>
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
 }
 
 export function QuadroCardModal({
@@ -73,9 +131,19 @@ export function QuadroCardModal({
     setValores((prev) => ({ ...prev, [chave]: v }));
   }
 
+  // No Pipeline Operacional o card é enxuto: só campos até "Técnico responsável"
+  // e a Situação restrita aos 4 status do fluxo novo.
+  const isOperacao = quadro.nome === NOME_PIPELINE_OPERACIONAL;
+  const camposVisiveis = React.useMemo<QuadroCampo[]>(() => {
+    if (!isOperacao) return campos;
+    return campos
+      .filter((c) => CAMPOS_OPERACAO.includes(c.chave))
+      .map((c) => (c.chave === "situacao" ? { ...c, tipo: "selecao", opcoes: SITUACOES_OPERACAO } : c));
+  }, [campos, isOperacao]);
+
   async function salvar(e: React.FormEvent) {
     e.preventDefault();
-    const erro = validarObrigatorios(campos, valores, titulo);
+    const erro = validarObrigatorios(camposVisiveis, valores, titulo);
     if (erro) { toast(erro, "error"); return; }
     // Gate de fase: ao mudar para uma fase protegida, valida as condições.
     if (fase !== card?.fase) {
@@ -191,9 +259,9 @@ export function QuadroCardModal({
             </div>
           </div>
 
-          {campos.length > 0 && (
+          {camposVisiveis.length > 0 && (
             <div className="border-t border-border pt-4 space-y-4">
-              {campos.map((campo) => (
+              {camposVisiveis.map((campo) => (
                 <div key={campo.id}>
                   <Label>{campo.label}{campo.obrigatorio && " *"}</Label>
                   <CampoInput campo={campo} value={valores[campo.chave]} onChange={(v) => setCampo(campo.chave, v)} />
@@ -201,6 +269,8 @@ export function QuadroCardModal({
               ))}
             </div>
           )}
+          {/* Histórico de pedidos gerados a partir deste card (material + pagamento) */}
+          {editando && <PedidosVinculados cardId={card!.id} />}
           {/* Vínculo de origem (card criado por botão de outro quadro) */}
           {typeof card?.valores?.card_origem === "string" && (
             <p className="text-[11px] text-muted border-t border-border pt-3">
