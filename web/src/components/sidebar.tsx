@@ -8,7 +8,6 @@ import {
   TrendingUp,
   Wrench,
   Wallet,
-  Banknote,
   Package,
   Contact,
   KanbanSquare,
@@ -28,7 +27,6 @@ import {
   HardHat,
   Truck,
   Car,
-  ShoppingCart,
   CalendarCheck,
   Hammer,
   Settings,
@@ -86,7 +84,6 @@ const GROUPS: NavGroup[] = [
     gate: "financeiro",
     items: [
       { href: "/financeiro", label: "Financeiro", icon: TrendingUp },
-      { href: "/financeiro/contas-a-pagar", label: "Contas a Pagar", icon: Banknote },
       { href: "/contas", label: "Contas", icon: Receipt },
       { href: "/assinaturas", label: "Assinaturas", icon: CreditCard },
     ],
@@ -96,7 +93,6 @@ const GROUPS: NavGroup[] = [
     label: "Suprimentos / Estoque",
     icon: Package,
     items: [
-      { href: "/operacoes/suprimentos", label: "Suprimentos (compras)", icon: ShoppingCart },
       { href: "/estoque", label: "Estoque (consumo)", icon: Package },
       { href: "/operacoes/patrimonio", label: "Patrimônio (equip./ferr.)", icon: Hammer },
     ],
