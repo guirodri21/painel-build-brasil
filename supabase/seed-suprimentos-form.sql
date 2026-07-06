@@ -15,37 +15,59 @@
 DO $$
 DECLARE
   v_sup uuid;
+  v_op  uuid;
   v_fases text[] := ARRAY[
-    'Solicitacao','Duvidas / Pedido Incompleto','Cotacao Enviada','Analise',
-    'Logistica','Escritorio Trabalhando','Aprovacao / Dados','Portal a Vista',
-    'Concluido - Pendente NF','Portal Nota','Finalizado'
+    'Solicitação','Dúvidas / Pedido Incompleto','Cotação enviada - Análise',
+    'LOGISTICA','ESCRITORIO - TRABALHANDO','Aprovação / Dados','PORTAL - A VISTA',
+    'CONCLUIDO | PEND. NF','PORTAL - NOTA','FINAL'
   ];
 BEGIN
   SELECT id INTO v_sup FROM quadros WHERE nome = 'Suprimentos' LIMIT 1;
+  SELECT id INTO v_op  FROM quadros WHERE nome = 'Pipeline Operacional' LIMIT 1;
   IF v_sup IS NULL THEN
     RAISE NOTICE 'Board Suprimentos ausente; rode seed-pipeline-operacional.sql antes.';
     RETURN;
   END IF;
 
-  -- ---- Fases (fluxo de compras 2.0) -----------------------------------------
+  -- ---- Migra cards dos nomes antigos -> novos (fase é texto). Merge Cotacao+Analise.
+  UPDATE quadro_cards SET fase = CASE
+    WHEN fase = 'Solicitacao'                 THEN 'Solicitação'
+    WHEN fase = 'Duvidas / Pedido Incompleto' THEN 'Dúvidas / Pedido Incompleto'
+    WHEN fase = 'Cotacao Enviada'             THEN 'Cotação enviada - Análise'
+    WHEN fase = 'Analise'                     THEN 'Cotação enviada - Análise'
+    WHEN fase = 'Logistica'                   THEN 'LOGISTICA'
+    WHEN fase = 'Escritorio Trabalhando'      THEN 'ESCRITORIO - TRABALHANDO'
+    WHEN fase = 'Aprovacao / Dados'           THEN 'Aprovação / Dados'
+    WHEN fase = 'Portal a Vista'              THEN 'PORTAL - A VISTA'
+    WHEN fase = 'Concluido - Pendente NF'     THEN 'CONCLUIDO | PEND. NF'
+    WHEN fase = 'Portal Nota'                 THEN 'PORTAL - NOTA'
+    WHEN fase = 'Finalizado'                  THEN 'FINAL'
+    WHEN fase = ANY (v_fases)                 THEN fase   -- já está num nome novo: mantem
+    ELSE 'Solicitação'
+  END
+  WHERE quadro_id = v_sup;
+
+  -- ---- Fases (exatamente como o print: 10 colunas) --------------------------
   DELETE FROM quadro_fases WHERE quadro_id = v_sup;
   INSERT INTO quadro_fases (quadro_id, nome, ordem, cor, final) VALUES
-    (v_sup,'Solicitacao',                0,'gray',  false),
-    (v_sup,'Duvidas / Pedido Incompleto',1,'yellow',false),
-    (v_sup,'Cotacao Enviada',            2,'orange',false),
-    (v_sup,'Analise',                    3,'blue',  false),
-    (v_sup,'Logistica',                  4,'teal',  false),
-    (v_sup,'Escritorio Trabalhando',     5,'blue',  false),
-    (v_sup,'Aprovacao / Dados',          6,'orange',false),
-    (v_sup,'Portal a Vista',             7,'teal',  false),
-    (v_sup,'Concluido - Pendente NF',    8,'yellow',false),
-    (v_sup,'Portal Nota',                9,'blue',  false),
-    (v_sup,'Finalizado',                10,'green', true);
+    (v_sup,'Solicitação',                 0,'gray',  false),
+    (v_sup,'Dúvidas / Pedido Incompleto', 1,'yellow',false),
+    (v_sup,'Cotação enviada - Análise',   2,'orange',false),
+    (v_sup,'LOGISTICA',                   3,'blue',  false),
+    (v_sup,'ESCRITORIO - TRABALHANDO',    4,'teal',  false),
+    (v_sup,'Aprovação / Dados',           5,'orange',false),
+    (v_sup,'PORTAL - A VISTA',            6,'teal',  false),
+    (v_sup,'CONCLUIDO | PEND. NF',        7,'yellow',false),
+    (v_sup,'PORTAL - NOTA',               8,'blue',  false),
+    (v_sup,'FINAL',                       9,'green', true);
 
-  -- Cards em fases antigas voltam para a entrada (nao ficam orfaos).
-  UPDATE quadro_cards
-     SET fase = 'Solicitacao'
-   WHERE quadro_id = v_sup AND NOT (fase = ANY (v_fases));
+  -- Botao "Solicitar Compra" (card OP) cria na fase de entrada nova.
+  IF v_op IS NOT NULL THEN
+    UPDATE quadro_automacoes
+       SET config = jsonb_set(config, '{acoes,0,fase_destino}', '"Solicitação"', true)
+     WHERE quadro_id = v_op AND nome = 'Solicitar Compra'
+       AND config->'acoes'->0->>'tipo' = 'criar_card';
+  END IF;
 
   -- ---- Campos do formulario (idempotente por chave) -------------------------
   INSERT INTO quadro_campos (quadro_id, chave, label, tipo, obrigatorio, mostrar_no_card, ordem, opcoes)
@@ -72,13 +94,12 @@ BEGIN
     SELECT 1 FROM quadro_campos qc WHERE qc.quadro_id = v_sup AND qc.chave = x.chave
   );
 
-  -- ---- Gate de alcada: fase antiga "Pedido Realizado" nao existe mais --------
-  -- Passa a proteger a colocacao do pedido no portal ("Portal a Vista").
+  -- ---- Gate de alcada: protege a colocacao do pedido no portal ("PORTAL - A VISTA").
   UPDATE quadro_automacoes
-     SET config = jsonb_set(config, '{fase}', '"Portal a Vista"', true)
+     SET config = jsonb_set(config, '{fase}', '"PORTAL - A VISTA"', true)
    WHERE quadro_id = v_sup
      AND gatilho = 'bloqueio_fase'
-     AND config->>'fase' = 'Pedido Realizado';
+     AND config->>'fase' IN ('Pedido Realizado','Portal a Vista');
 
   RAISE NOTICE 'Seed Suprimentos 2.0 aplicado.';
 END $$;

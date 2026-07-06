@@ -110,26 +110,38 @@ async function aplicarAutomacoes(
           break;
         }
         case "criar_card": {
-          if (acao.quadro_destino && acao.fase_destino) {
-            const novo = {
-              quadro_id: acao.quadro_destino,
-              titulo: card.titulo ?? "Solicitação",
-              fase: acao.fase_destino,
-              valor: acao.copiar_valor ? card.valor : 0,
-              responsavel: card.responsavel,
-              prioridade: card.prioridade,
-              prazo: card.prazo,
-              origem: acao.origem ?? "vinculo",
-              filial: card.filial ?? "Matriz",
-              valores: {
-                card_origem: `${quadroNome} · ${card.titulo ?? card.id.slice(0, 8)}`,
-                card_origem_id: card.id,
-                card_origem_quadro: quadroId,
-              },
-              created_by: card.created_by,
-            };
-            const { error } = await supabase.from("quadro_cards").insert([novo]);
-            if (!error) feitos.push(`Criou card vinculado (${a.config.label ?? a.nome})`);
+          if (acao.quadro_destino) {
+            let faseDestino = acao.fase_destino ?? "";
+            // Regra: tudo gerado a partir da Operação (ou sem fase configurada)
+            // nasce SEMPRE na primeira etapa (menor ordem) do board de destino.
+            if (quadroNome === NOME_PIPELINE_OPERACIONAL || !faseDestino) {
+              const { data: fd } = await supabase
+                .from("quadro_fases").select("nome")
+                .eq("quadro_id", acao.quadro_destino)
+                .order("ordem").limit(1).maybeSingle();
+              faseDestino = (fd as { nome: string } | null)?.nome ?? faseDestino;
+            }
+            if (faseDestino) {
+              const novo = {
+                quadro_id: acao.quadro_destino,
+                titulo: card.titulo ?? "Solicitação",
+                fase: faseDestino,
+                valor: acao.copiar_valor ? card.valor : 0,
+                responsavel: card.responsavel,
+                prioridade: card.prioridade,
+                prazo: card.prazo,
+                origem: acao.origem ?? "vinculo",
+                filial: card.filial ?? "Matriz",
+                valores: {
+                  card_origem: `${quadroNome} · ${card.titulo ?? card.id.slice(0, 8)}`,
+                  card_origem_id: card.id,
+                  card_origem_quadro: quadroId,
+                },
+                created_by: card.created_by,
+              };
+              const { error } = await supabase.from("quadro_cards").insert([novo]);
+              if (!error) feitos.push(`Criou card vinculado (${a.config.label ?? a.nome})`);
+            }
           }
           break;
         }
