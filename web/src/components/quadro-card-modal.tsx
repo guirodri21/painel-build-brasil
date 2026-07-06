@@ -15,8 +15,18 @@ import type { Quadro, QuadroFase, QuadroCampo, QuadroCard, QuadroAutomacao } fro
 
 /** No Pipeline Operacional o card é enxuto: só estes campos (até "Técnico responsável"). */
 const CAMPOS_OPERACAO = ["origem_com", "situacao", "tecnico"];
-/** E a Situação tem apenas estes 4 status (Material→Suprimentos, Pagamento→Financeiro). */
+/** Situação padrão (fases sem lista própria). */
 const SITUACOES_OPERACAO = ["Em Preparacao", "Analise Tecnica", "Solicitacao de Material", "Solicitacao de Pagamento"];
+/** Situações específicas por fase do Pipeline Operacional (chave = nome da fase). */
+const SITUACOES_POR_FASE: Record<string, string[]> = {
+  "Em Execucao / Fechamento": [
+    "Técnico em Deslocamento", "Em Execução", "Executado Total", "Executado Parcial",
+    "Pendente Relatório/Fotos", "Aprovado para Faturamento",
+  ],
+  "Solicitacao de Faturamento": [
+    "Ticket analisado", "Relatório enviado no e-mail",
+  ],
+};
 
 /** Renderiza o input certo para um campo personalizado. */
 export function CampoInput({ campo, value, onChange }: { campo: QuadroCampo; value: unknown; onChange: (v: unknown) => void }) {
@@ -141,7 +151,9 @@ export function QuadroCardModal({
     const permitidos = fase === "Agendamento" ? [...CAMPOS_OPERACAO, "ticket_trilogo"] : CAMPOS_OPERACAO;
     return campos
       .filter((c) => permitidos.includes(c.chave))
-      .map((c) => (c.chave === "situacao" ? { ...c, tipo: "selecao", opcoes: SITUACOES_OPERACAO } : c));
+      .map((c) => (c.chave === "situacao"
+        ? { ...c, tipo: "selecao", opcoes: SITUACOES_POR_FASE[fase] ?? SITUACOES_OPERACAO }
+        : c));
   }, [campos, isOperacao, fase]);
 
   // Snapshot congelado dos dados da venda (só leitura), gravado ao criar o card OP.
