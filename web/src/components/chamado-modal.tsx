@@ -11,7 +11,7 @@ import { todayISO, formatDate, formatCurrency } from "@/lib/utils";
 import { ChamadoAtividade } from "@/components/chamado-atividade";
 import { alertarChamadoCritico, fireEvent } from "@/lib/integrations";
 import { garantirOperacaoDeChamado, FASES_COMERCIAL_APROVADO } from "@/lib/quadros";
-import { Wrench, Send, Upload, FileText, Trash2 } from "lucide-react";
+import { Wrench, Send, Upload, FileText, Trash2, ExternalLink } from "lucide-react";
 import {
   PRIORIDADES_OPORTUNIDADE, ORIGENS_OPORTUNIDADE, FAIXAS_POTENCIAL,
   REGIOES_PIPELINE, EQUIPES_PIPELINE, STATUS_ANDAMENTO, TIPOS_DEMANDA, STATUS_PROPOSTA, MOTIVOS_RECUSA,
@@ -19,6 +19,9 @@ import {
   bloqueioMovimentoChamado, codigoChamado,
 } from "@/lib/types";
 import type { Chamado } from "@/lib/types";
+
+/** Formulário público do Goalfy aberto pelo botão da parte Comercial. */
+const GOALFY_COMERCIAL_URL = "https://app.goalfy.com.br/public/form/74339d90-e544-44c1-9494-7b4784efbfcb";
 
 export function ChamadoModal({
   open,
@@ -424,6 +427,13 @@ export function ChamadoModal({
             <>
               <Button type="button" variant="outline" onClick={gerarOperacao} disabled={gerandoOp} className="mr-auto">
                 <Wrench size={15} /> {gerandoOp ? "Gerando..." : "Gerar Operação"}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => window.open(GOALFY_COMERCIAL_URL, "_blank", "noopener,noreferrer")}
+              >
+                <ExternalLink size={15} /> Solicitar Suprimentos
               </Button>
             </>
           )}
