@@ -150,6 +150,13 @@ export function QuadroCardModal({
     return isOperacao && v && typeof v === "object" ? (v as Record<string, unknown>) : null;
   }, [card, isOperacao]);
 
+  // Ticket (Trílogo) já preenchido: fora do Agendamento aparece só leitura.
+  const ticketReadonly = React.useMemo(() => {
+    if (!isOperacao || fase === "Agendamento") return null;
+    const v = valores["ticket_trilogo"];
+    return typeof v === "string" && v.trim() ? v : null;
+  }, [isOperacao, fase, valores]);
+
   async function salvar(e: React.FormEvent) {
     e.preventDefault();
     const erro = validarObrigatorios(camposVisiveis, valores, titulo);
@@ -335,6 +342,13 @@ export function QuadroCardModal({
                   <CampoInput campo={campo} value={valores[campo.chave]} onChange={(v) => setCampo(campo.chave, v)} />
                 </div>
               ))}
+            </div>
+          )}
+          {/* Ticket (Trílogo) já preenchido — só leitura fora do Agendamento */}
+          {ticketReadonly && (
+            <div className="rounded-lg border border-border bg-surface-2/40 p-3">
+              <span className="text-[11px] text-muted block">Ticket (Trílogo)</span>
+              <span className="text-[13px] font-medium">{ticketReadonly}</span>
             </div>
           )}
           {/* Histórico de pedidos gerados a partir deste card (material + pagamento) */}
