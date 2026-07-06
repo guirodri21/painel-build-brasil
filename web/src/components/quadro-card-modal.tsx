@@ -25,6 +25,10 @@ const SITUACOES_POR_FASE: Record<string, string[]> = {
   "Em Preparacao": [
     "Em Preparação", "Com Impedimento", "Pronto para Agendamento",
   ],
+  "Agendamento": [
+    "Agendamento Solicitado", "Aguardando Cliente/Técnico", "Confirmado",
+    "Pronto para Execução", "Reagendado",
+  ],
   "Solicitacao de Faturamento": [
     "Ticket analisado", "Relatório enviado no e-mail",
   ],
