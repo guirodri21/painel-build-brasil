@@ -424,19 +424,19 @@ export function ChamadoModal({
         </ModalBody>
         <ModalFooter>
           {editando && (
-            <>
-              <Button type="button" variant="outline" onClick={gerarOperacao} disabled={gerandoOp} className="mr-auto">
-                <Wrench size={15} /> {gerandoOp ? "Gerando..." : "Gerar Operação"}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => window.open(GOALFY_COMERCIAL_URL, "_blank", "noopener,noreferrer")}
-              >
-                <ExternalLink size={15} /> Solicitar Suprimentos
-              </Button>
-            </>
+            <Button type="button" variant="outline" onClick={gerarOperacao} disabled={gerandoOp} className="mr-auto">
+              <Wrench size={15} /> {gerandoOp ? "Gerando..." : "Gerar Operação"}
+            </Button>
           )}
+          {/* Link para o form de Suprimentos no Goalfy — disponível ao criar e ao editar. */}
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => window.open(GOALFY_COMERCIAL_URL, "_blank", "noopener,noreferrer")}
+            className={editando ? undefined : "mr-auto"}
+          >
+            <ExternalLink size={15} /> Solicitar Suprimentos
+          </Button>
           <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
           <Button type="submit" disabled={saving}>{saving ? "Salvando..." : "Salvar"}</Button>
         </ModalFooter>
