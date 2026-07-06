@@ -23,15 +23,15 @@ BEGIN
 
   DELETE FROM quadro_automacoes WHERE quadro_id = v_op AND gatilho = 'botao';
 
-  IF v_sup IS NOT NULL THEN
-    INSERT INTO quadro_automacoes (quadro_id, nome, gatilho, ordem, config) VALUES
-    (v_op,'Solicitar Suprimentos','botao',0, jsonb_build_object(
-       'label','Solicitar Suprimentos','cor','orange',
-       'acoes', jsonb_build_array(
-         jsonb_build_object('tipo','criar_card','quadro_destino',v_sup::text,'fase_destino','Solicitação','copiar_valor',true),
-         jsonb_build_object('tipo','definir_campo','campo','situacao','valor','Solicitacao de Material')
-       )));
-  END IF;
+  -- "Solicitar Suprimentos" abre o formulario publico do Goalfy (o processo de
+  -- suprimentos vive la). Mantem so a marcacao da Situacao no card OP.
+  INSERT INTO quadro_automacoes (quadro_id, nome, gatilho, ordem, config) VALUES
+  (v_op,'Solicitar Suprimentos','botao',0, jsonb_build_object(
+     'label','Solicitar Suprimentos','cor','orange',
+     'url','https://app.goalfy.com.br/public/form/74339d90-e544-44c1-9494-7b4784efbfcb',
+     'acoes', jsonb_build_array(
+       jsonb_build_object('tipo','definir_campo','campo','situacao','valor','Solicitacao de Material')
+     )));
 
   IF v_fin IS NOT NULL THEN
     INSERT INTO quadro_automacoes (quadro_id, nome, gatilho, ordem, config) VALUES

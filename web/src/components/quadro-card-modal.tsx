@@ -202,6 +202,21 @@ export function QuadroCardModal({
 
   async function clicarBotao(a: QuadroAutomacao) {
     if (!card) return;
+    // Se o botão aponta para uma URL externa (ex.: formulário do Goalfy), abre o
+    // link e roda apenas as ações que não criam card (ex.: marcar a Situação).
+    if (a.config.url) {
+      window.open(a.config.url, "_blank", "noopener,noreferrer");
+      const semCriar = {
+        ...a,
+        config: { ...a.config, acoes: a.config.acoes.filter((ac) => ac.tipo !== "criar_card") },
+      };
+      if (semCriar.config.acoes.length) {
+        await runBotao(quadro.id, quadro.nome, semCriar, card);
+        await onSaved();
+      }
+      onClose();
+      return;
+    }
     // Se a ação cria um card em OUTRO board, abre o formulário inline para a
     // pessoa preencher os dados na hora (em vez de ir até a outra seção fazer).
     const criaEmOutroBoard = a.config.acoes?.some(

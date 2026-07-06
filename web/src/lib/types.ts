@@ -603,6 +603,8 @@ export interface AutomacaoConfig {
   label?: string;
   /** para gatilho botao: cor do botão (chave do mapa DOT) */
   cor?: string;
+  /** para gatilho botao: se preenchido, o botão abre esta URL externa (ex.: Goalfy) */
+  url?: string;
   /** para gatilho campo_alterado: chave do campo observado */
   campo?: string;
   /**
