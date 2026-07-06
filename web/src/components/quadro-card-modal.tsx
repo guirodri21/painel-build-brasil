@@ -19,6 +19,9 @@ const CAMPOS_OPERACAO = ["origem_com", "situacao", "tecnico"];
 const SITUACOES_OPERACAO = ["Em Preparacao", "Analise Tecnica", "Solicitacao de Material", "Solicitacao de Pagamento"];
 /** Situações específicas por fase do Pipeline Operacional (chave = nome da fase). */
 const SITUACOES_POR_FASE: Record<string, string[]> = {
+  "Entrada da Operacao": [
+    "Novo", "Recebido", "Dados Incompletos", "Pronto para Preparação",
+  ],
   "Solicitacao de Faturamento": [
     "Ticket analisado", "Relatório enviado no e-mail",
   ],
