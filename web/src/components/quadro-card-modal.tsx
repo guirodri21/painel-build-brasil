@@ -10,7 +10,7 @@ import { Input, Select, Textarea, Label } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { runAutomacoes, runBotao, runCamposAlterados, validarBloqueio, botoesDeAcao, validarObrigatorios, codigoCard, NOME_PIPELINE_OPERACIONAL } from "@/lib/quadros";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
-import { Trash2, Zap, History } from "lucide-react";
+import { Trash2, Zap, History, Lock } from "lucide-react";
 import type { Quadro, QuadroFase, QuadroCampo, QuadroCard, QuadroAutomacao } from "@/lib/types";
 
 /** No Pipeline Operacional o card é enxuto: só estes campos (até "Técnico responsável"). */
@@ -141,6 +141,12 @@ export function QuadroCardModal({
       .filter((c) => CAMPOS_OPERACAO.includes(c.chave))
       .map((c) => (c.chave === "situacao" ? { ...c, tipo: "selecao", opcoes: SITUACOES_OPERACAO } : c));
   }, [campos, isOperacao]);
+
+  // Snapshot congelado dos dados da venda (só leitura), gravado ao criar o card OP.
+  const venda = React.useMemo(() => {
+    const v = card?.valores?.venda;
+    return isOperacao && v && typeof v === "object" ? (v as Record<string, unknown>) : null;
+  }, [card, isOperacao]);
 
   async function salvar(e: React.FormEvent) {
     e.preventDefault();
@@ -277,10 +283,43 @@ export function QuadroCardModal({
               <Input type="number" step="0.01" min="0" value={valor} onChange={(e) => setValor(e.target.value)} />
             </div>
             <div>
-              <Label>Prazo</Label>
+              <Label>Prazo{isOperacao && " (D+3)"}</Label>
               <Input type="date" value={prazo} onChange={(e) => setPrazo(e.target.value)} />
+              {isOperacao && <p className="text-[11px] text-muted mt-1">Padrão: 3 dias após a criação do card.</p>}
             </div>
           </div>
+
+          {/* Dados da venda (congelado, só leitura) — vindos do card comercial */}
+          {venda && (
+            <div className="rounded-lg border border-border bg-surface-2/40 p-3">
+              <p className="text-xs font-semibold text-muted flex items-center gap-1.5 mb-2">
+                <Lock size={12} /> Dados da venda <span className="font-normal">(congelado)</span>
+              </p>
+              <dl className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[13px]">
+                {([
+                  ["Cliente", venda.cliente],
+                  ["Vendedor", venda.vendedor],
+                  ["Valor", venda.valor != null ? formatCurrency(Number(venda.valor) || 0) : null],
+                  ["Região", venda.regiao],
+                  ["Contato", venda.contato],
+                  ["Ticket", venda.ticket],
+                ] as [string, unknown][])
+                  .filter(([, v]) => v != null && v !== "")
+                  .map(([label, v]) => (
+                    <div key={label} className="min-w-0">
+                      <dt className="text-muted text-[11px]">{label}</dt>
+                      <dd className="truncate">{String(v)}</dd>
+                    </div>
+                  ))}
+                {typeof venda.descricao === "string" && venda.descricao.trim() && (
+                  <div className="col-span-2">
+                    <dt className="text-muted text-[11px]">Descrição</dt>
+                    <dd className="whitespace-pre-wrap">{venda.descricao}</dd>
+                  </div>
+                )}
+              </dl>
+            </div>
+          )}
 
           {camposVisiveis.length > 0 && (
             <div className="border-t border-border pt-4 space-y-4">

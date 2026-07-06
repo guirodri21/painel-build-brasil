@@ -337,6 +337,16 @@ export async function garantirOperacaoDeChamado(
       card_origem: `Chamado ${ref} · ${chamado.cliente ?? chamado.titulo ?? ""}`.trim(),
       card_origem_id: chamado.id,
       regiao: chamado.regiao ?? null,
+      // Snapshot congelado dos dados da venda (só leitura na Operação).
+      venda: {
+        cliente: chamado.cliente ?? null,
+        valor: chamado.valor ?? 0,
+        regiao: chamado.regiao ?? null,
+        vendedor: chamado.responsavel ?? null,
+        contato: chamado.contato_cliente ?? null,
+        ticket: chamado.ticket_ref ?? null,
+        descricao: chamado.descricao ?? null,
+      },
     },
   }]);
   return error ? "existente" : "criado";
