@@ -19,13 +19,14 @@ const CAMPOS_OPERACAO = ["origem_com", "situacao", "tecnico"];
 const SITUACOES_OPERACAO = ["Em Preparacao", "Analise Tecnica", "Solicitacao de Material", "Solicitacao de Pagamento"];
 /** Situações específicas por fase do Pipeline Operacional (chave = nome da fase). */
 const SITUACOES_POR_FASE: Record<string, string[]> = {
-  "Em Execucao / Fechamento": [
-    "Técnico em Deslocamento", "Em Execução", "Executado Total", "Executado Parcial",
-    "Pendente Relatório/Fotos", "Aprovado para Faturamento",
-  ],
   "Solicitacao de Faturamento": [
     "Ticket analisado", "Relatório enviado no e-mail",
   ],
+};
+/** Campos extras liberados por fase (além de origem_com/situacao/tecnico). */
+const CAMPOS_EXTRA_POR_FASE: Record<string, string[]> = {
+  "Agendamento": ["ticket_trilogo"],
+  "Em Execucao / Fechamento": ["status_execucao", "status_avaliacao", "avaliacao_execucao"],
 };
 
 /** Renderiza o input certo para um campo personalizado. */
@@ -147,8 +148,8 @@ export function QuadroCardModal({
   const isOperacao = quadro.nome === NOME_PIPELINE_OPERACIONAL;
   const camposVisiveis = React.useMemo<QuadroCampo[]>(() => {
     if (!isOperacao) return campos;
-    // Na fase Agendamento também libera o campo do ticket (Trílogo).
-    const permitidos = fase === "Agendamento" ? [...CAMPOS_OPERACAO, "ticket_trilogo"] : CAMPOS_OPERACAO;
+    // Cada fase pode liberar campos extras (ticket na Agendamento; status na Execução).
+    const permitidos = [...CAMPOS_OPERACAO, ...(CAMPOS_EXTRA_POR_FASE[fase] ?? [])];
     return campos
       .filter((c) => permitidos.includes(c.chave))
       .map((c) => (c.chave === "situacao"

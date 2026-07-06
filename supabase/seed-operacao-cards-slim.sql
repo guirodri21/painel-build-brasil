@@ -24,16 +24,26 @@ BEGIN
     RETURN;
   END IF;
 
-  -- ---- Campos: mantem so ate "Tecnico responsavel" (+ ticket na Agendamento) --
+  -- ---- Campos: base (ate Tecnico) + extras por fase (ticket / status execucao) --
   DELETE FROM quadro_campos
    WHERE quadro_id = v_op
-     AND chave NOT IN ('origem_com','situacao','tecnico','ticket_trilogo');
+     AND chave NOT IN ('origem_com','situacao','tecnico','ticket_trilogo',
+                       'status_execucao','status_avaliacao','avaliacao_execucao');
 
-  -- Campo para ESCREVER o ticket (Trilogo); o front so mostra na fase Agendamento.
-  IF NOT EXISTS (SELECT 1 FROM quadro_campos WHERE quadro_id = v_op AND chave = 'ticket_trilogo') THEN
-    INSERT INTO quadro_campos (quadro_id, chave, label, tipo, obrigatorio, mostrar_no_card, ordem, opcoes)
-      VALUES (v_op, 'ticket_trilogo', 'Ticket (Trilogo)', 'texto', false, true, 3, '[]'::jsonb);
-  END IF;
+  -- Campos extras liberados por fase no front (Agendamento / Em Execucao):
+  INSERT INTO quadro_campos (quadro_id, chave, label, tipo, obrigatorio, mostrar_no_card, ordem, opcoes)
+  SELECT v_op, x.chave, x.label, x.tipo, x.obrig, x.card, x.ordem, x.opcoes
+  FROM (VALUES
+    ('ticket_trilogo',    'Ticket (Trilogo)',               'texto',   false, true,  3, '[]'::jsonb),
+    ('status_execucao',   'Status da execução',             'selecao', false, false, 4,
+        '["Técnico em Deslocamento","Em Execução","Executado Total","Executado Parcial"]'::jsonb),
+    ('status_avaliacao',  'Status da avaliação do serviço', 'selecao', false, false, 5,
+        '["Pendente Relatório/Fotos","Aprovado para Faturamento"]'::jsonb),
+    ('avaliacao_execucao','Avaliação de execução',          'selecao', false, false, 6, '[]'::jsonb)
+  ) AS x(chave,label,tipo,obrig,card,ordem,opcoes)
+  WHERE NOT EXISTS (
+    SELECT 1 FROM quadro_campos qc WHERE qc.quadro_id = v_op AND qc.chave = x.chave
+  );
 
   -- ---- Situacao: reduz para as 4 opcoes do fluxo novo -----------------------
   UPDATE quadro_campos
