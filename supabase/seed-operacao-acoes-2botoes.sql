@@ -42,4 +42,12 @@ BEGIN
      'acoes', jsonb_build_array(
        jsonb_build_object('tipo','definir_campo','campo','situacao','valor','Solicitacao de Pagamento')
      )));
+
+  -- "Abrir Ticket" abre o Trilogo (link externo).
+  INSERT INTO quadro_automacoes (quadro_id, nome, gatilho, ordem, config) VALUES
+  (v_op,'Abrir Ticket','botao',2, jsonb_build_object(
+     'label','Abrir Ticket','cor','blue',
+     'url','https://buildbrasil.trilogo.app/tickets/?15=1',
+     'acoes', jsonb_build_array()
+  ));
 END $$;
