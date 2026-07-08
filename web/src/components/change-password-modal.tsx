@@ -8,13 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-const RULES: { key: string; label: string; test: (s: string) => boolean }[] = [
-  { key: "len", label: "Mínimo 8 caracteres", test: (s) => s.length >= 8 },
-  { key: "upper", label: "Uma letra maiúscula", test: (s) => /[A-Z]/.test(s) },
-  { key: "lower", label: "Uma letra minúscula", test: (s) => /[a-z]/.test(s) },
-  { key: "num", label: "Um número", test: (s) => /[0-9]/.test(s) },
-];
+import { REGRAS_SENHA, senhaValida } from "@/lib/password-policy";
 
 export function ChangePasswordModal({
   open,
@@ -29,9 +23,10 @@ export function ChangePasswordModal({
   const [error, setError] = React.useState("");
   const [loading, setLoading] = React.useState(false);
 
-  const score = RULES.filter((r) => r.test(senha)).length;
+  const score = REGRAS_SENHA.filter((r) => r.ok(senha)).length;
+  const pct = score / REGRAS_SENHA.length;
   const meterColor =
-    score <= 1 ? "bg-red" : score === 2 ? "bg-orange" : score === 3 ? "bg-yellow" : "bg-green";
+    pct < 0.4 ? "bg-red" : pct < 0.6 ? "bg-orange" : pct < 1 ? "bg-yellow" : "bg-green";
 
   function reset() {
     setSenha("");
@@ -42,7 +37,7 @@ export function ChangePasswordModal({
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     setError("");
-    if (score < 4) {
+    if (!senhaValida(senha)) {
       setError("A senha não atende a todos os requisitos.");
       return;
     }
@@ -86,15 +81,15 @@ export function ChangePasswordModal({
             <div className="mt-2 h-1.5 rounded-full bg-surface-2 overflow-hidden">
               <div
                 className={cn("h-full transition-all", meterColor)}
-                style={{ width: `${(score / 4) * 100}%` }}
+                style={{ width: `${pct * 100}%` }}
               />
             </div>
             <ul className="mt-3 grid grid-cols-2 gap-1.5">
-              {RULES.map((r) => {
-                const ok = r.test(senha);
+              {REGRAS_SENHA.map((r) => {
+                const ok = r.ok(senha);
                 return (
                   <li
-                    key={r.key}
+                    key={r.label}
                     className={cn(
                       "flex items-center gap-1.5 text-xs",
                       ok ? "text-green" : "text-muted",

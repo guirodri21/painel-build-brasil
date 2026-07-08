@@ -4,6 +4,20 @@ import { NextResponse, type NextRequest } from "next/server";
 // "/f/" = formulários públicos de entrada dos Quadros (sem login)
 const PUBLIC_ROUTES = ["/login", "/f/"];
 
+type Secao = "comercial" | "operacional" | "estoque" | "financeiro" | "admin";
+
+/** Descobre a seção de uma rota (para o bloqueio duro por acesso). */
+function secaoDaRota(path: string): Secao | null {
+  const em = (bases: string[]) => bases.some((b) => path === b || path.startsWith(b + "/"));
+  // Estoque tem páginas sob /operacoes — checar antes de "operacional".
+  if (em(["/estoque", "/operacoes/suprimentos", "/operacoes/patrimonio"])) return "estoque";
+  if (em(["/operacoes", "/agenda"])) return "operacional";
+  if (em(["/vendas", "/chamados", "/clientes", "/orcamentos"])) return "comercial";
+  if (em(["/financeiro", "/contas", "/assinaturas"])) return "financeiro";
+  if (em(["/quadros", "/cadastros", "/relatorios", "/integracoes", "/usuarios"])) return "admin";
+  return null;
+}
+
 /** CSP com nonce por requisição. Scripts exigem nonce; estilos seguem
  *  'unsafe-inline' (recharts/inline styles). */
 function buildCsp(nonce: string): string {
@@ -72,6 +86,29 @@ export async function proxy(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = "/";
     return NextResponse.redirect(url);
+  }
+
+  // Bloqueio duro por seção: barra o acesso direto (URL) a áreas sem permissão.
+  const secao = user ? secaoDaRota(path) : null;
+  if (user && secao) {
+    const { data: prof } = await supabase
+      .from("profiles")
+      .select("role, pode_comercial, pode_operacional, pode_estoque, pode_financeiro")
+      .eq("id", user.id)
+      .maybeSingle();
+    const isAdmin = prof?.role === "admin";
+    const permitido =
+      isAdmin ||
+      (secao === "comercial" && prof?.pode_comercial !== false) ||
+      (secao === "operacional" && prof?.pode_operacional !== false) ||
+      (secao === "estoque" && prof?.pode_estoque !== false) ||
+      (secao === "financeiro" && prof?.pode_financeiro !== false);
+    if (!permitido) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/";
+      url.search = "";
+      return NextResponse.redirect(url);
+    }
   }
 
   response.headers.set("content-security-policy", csp);

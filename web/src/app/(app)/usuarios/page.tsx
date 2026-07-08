@@ -14,7 +14,8 @@ import { Modal, ModalBody, ModalFooter } from "@/components/ui/modal";
 import { ConfirmDialog } from "@/components/ui/confirm";
 import { formatDate, cn } from "@/lib/utils";
 import { usuarioParaEmail, emailParaUsuario } from "@/lib/auth-usuario";
-import { Plus, Trash2, ShieldCheck, ShieldOff, Lock, SlidersHorizontal } from "lucide-react";
+import { REGRAS_SENHA, senhaValida } from "@/lib/password-policy";
+import { Plus, Trash2, ShieldCheck, ShieldOff, Lock, SlidersHorizontal, Check } from "lucide-react";
 
 interface AdminUser {
   id: string;
@@ -245,18 +246,16 @@ function NovoUsuarioModal({
   const toast = useToast();
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState("");
+  const [password, setPassword] = React.useState("");
 
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError("");
     const fd = new FormData(e.currentTarget);
     const usuario = String(fd.get("usuario") ?? "").trim();
-    const password = String(fd.get("password") ?? "");
     const role = fd.get("role") as string;
-    if (!usuario || password.length < 8) {
-      setError("Informe usuário e senha de no mínimo 8 caracteres.");
-      return;
-    }
+    if (!usuario) { setError("Informe o usuário."); return; }
+    if (!senhaValida(password)) { setError("A senha não atende às regras."); return; }
     setSaving(true);
     try {
       await onCreate({ action: "create", email: usuarioParaEmail(usuario), password, role });
@@ -280,7 +279,17 @@ function NovoUsuarioModal({
           </div>
           <div>
             <Label>Senha provisória</Label>
-            <Input type="text" name="password" required placeholder="mín. 8 caracteres" />
+            <Input type="text" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="crie uma senha forte" autoComplete="new-password" />
+            <ul className="mt-2 space-y-1">
+              {REGRAS_SENHA.map((r) => {
+                const ok = r.ok(password);
+                return (
+                  <li key={r.label} className={cn("flex items-center gap-1.5 text-[11px]", ok ? "text-green" : "text-muted")}>
+                    <Check size={12} className={ok ? "opacity-100" : "opacity-30"} /> {r.label}
+                  </li>
+                );
+              })}
+            </ul>
           </div>
           <div>
             <Label>Papel</Label>
@@ -294,7 +303,7 @@ function NovoUsuarioModal({
         </ModalBody>
         <ModalFooter>
           <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
-          <Button type="submit" disabled={saving}>{saving ? "Criando..." : "Criar"}</Button>
+          <Button type="submit" disabled={saving || !senhaValida(password)}>{saving ? "Criando..." : "Criar"}</Button>
         </ModalFooter>
       </form>
     </Modal>
