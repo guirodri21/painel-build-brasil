@@ -240,25 +240,35 @@ function NovoUsuarioModal({
   onDone,
 }: {
   onClose: () => void;
-  onCreate: (body: Record<string, unknown>) => Promise<{ error?: string }>;
+  onCreate: (body: Record<string, unknown>) => Promise<{ error?: string; id?: string }>;
   onDone: () => Promise<void>;
 }) {
   const toast = useToast();
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState("");
   const [password, setPassword] = React.useState("");
+  const [role, setRole] = React.useState<"membro" | "admin">("membro");
+  const [acessos, setAcessos] = React.useState<Acessos>(ACESSO_PADRAO);
 
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError("");
     const fd = new FormData(e.currentTarget);
     const usuario = String(fd.get("usuario") ?? "").trim();
-    const role = fd.get("role") as string;
     if (!usuario) { setError("Informe o usuário."); return; }
     if (!senhaValida(password)) { setError("A senha não atende às regras."); return; }
     setSaving(true);
     try {
-      await onCreate({ action: "create", email: usuarioParaEmail(usuario), password, role });
+      const res = await onCreate({ action: "create", email: usuarioParaEmail(usuario), password, role });
+      // Aplica os acessos escolhidos (só faz sentido para membro; admin vê tudo).
+      if (role === "membro" && res?.id) {
+        await createClient().from("profiles").update({
+          pode_comercial: acessos.comercial,
+          pode_operacional: acessos.operacional,
+          pode_estoque: acessos.estoque,
+          pode_financeiro: acessos.financeiro,
+        }).eq("id", res.id);
+      }
       toast("Usuário criado.");
       await onDone();
       onClose();
@@ -293,11 +303,37 @@ function NovoUsuarioModal({
           </div>
           <div>
             <Label>Papel</Label>
-            <Select name="role" defaultValue="membro">
+            <Select value={role} onChange={(e) => setRole(e.target.value as "membro" | "admin")}>
               <option value="membro">Membro</option>
               <option value="admin">Administrador</option>
             </Select>
           </div>
+
+          {/* O que a pessoa vai ver — definido já na criação */}
+          <div className="rounded-lg border border-border bg-surface-2/40 p-3">
+            <p className="text-xs font-medium text-muted mb-2">O que este usuário vai acessar</p>
+            {role === "admin" ? (
+              <p className="text-[13px] flex items-center gap-1.5">
+                <ShieldCheck size={14} className="text-primary" /> Administrador — vê <strong>tudo</strong>, incluindo Admin/Config e gestão de usuários.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {SECOES.map((s) => (
+                  <label key={s.chave} className="flex items-center gap-3 rounded-md border border-border bg-surface px-3 py-2 cursor-pointer hover:bg-surface-2">
+                    <input
+                      type="checkbox"
+                      checked={acessos[s.chave]}
+                      onChange={(e) => setAcessos((prev) => ({ ...prev, [s.chave]: e.target.checked }))}
+                      className="h-4 w-4 rounded border-border"
+                    />
+                    <span className="text-sm">{s.label}</span>
+                  </label>
+                ))}
+                <p className="text-[11px] text-muted">Você pode ajustar depois no botão “Acessos”.</p>
+              </div>
+            )}
+          </div>
+
           {error && <p className="text-sm text-red">{error}</p>}
           <p className="text-xs text-muted">A pessoa pode trocar a senha depois no botão de senha do topo.</p>
         </ModalBody>
