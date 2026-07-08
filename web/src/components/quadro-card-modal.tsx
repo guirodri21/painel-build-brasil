@@ -184,6 +184,10 @@ export function QuadroCardModal({
     return typeof v === "string" && v.trim() ? v : null;
   }, [isOperacao, fase, valores]);
 
+  // Depois que o card sai da 1ª fase do board, os dados principais congelam.
+  const primeiraFase = fases[0]?.nome;
+  const congelarPrincipais = editando && !!primeiraFase && card!.fase !== primeiraFase;
+
   async function salvar(e: React.FormEvent) {
     e.preventDefault();
     const erro = validarObrigatorios(camposVisiveis, valores, titulo);
@@ -293,9 +297,14 @@ export function QuadroCardModal({
     <Modal open={open} onClose={onClose} title={editando ? (codigoCard(quadro.prefixo, card?.numero ?? null) ?? "Editar card") : "Novo card"} className="max-w-xl">
       <form onSubmit={salvar}>
         <ModalBody>
+          {congelarPrincipais && (
+            <p className="text-[11px] text-muted flex items-center gap-1.5">
+              <Lock size={12} /> Dados principais congelados (definidos na entrada do card).
+            </p>
+          )}
           <div>
             <Label>Título *</Label>
-            <Input value={titulo} onChange={(e) => setTitulo(e.target.value)} placeholder="Título do card" autoFocus />
+            <Input value={titulo} onChange={(e) => setTitulo(e.target.value)} placeholder="Título do card" autoFocus disabled={congelarPrincipais} />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -306,7 +315,7 @@ export function QuadroCardModal({
             </div>
             <div>
               <Label>Prioridade</Label>
-              <Select value={prioridade} onChange={(e) => setPrioridade(e.target.value)}>
+              <Select value={prioridade} onChange={(e) => setPrioridade(e.target.value)} disabled={congelarPrincipais}>
                 <option value="">—</option>
                 <option value="Alta">Alta</option>
                 <option value="Média">Média</option>
@@ -315,17 +324,17 @@ export function QuadroCardModal({
             </div>
             <div>
               <Label>Responsável</Label>
-              <Input value={responsavel} onChange={(e) => setResponsavel(e.target.value)} list="quadro-clientes" />
+              <Input value={responsavel} onChange={(e) => setResponsavel(e.target.value)} list="quadro-clientes" disabled={congelarPrincipais} />
               <datalist id="quadro-clientes">{clientes.map((c) => <option key={c} value={c} />)}</datalist>
             </div>
             <div>
               <Label>Valor (R$)</Label>
-              <Input type="number" step="0.01" min="0" value={valor} onChange={(e) => setValor(e.target.value)} />
+              <Input type="number" step="0.01" min="0" value={valor} onChange={(e) => setValor(e.target.value)} disabled={congelarPrincipais} />
             </div>
             <div>
               <Label>Prazo{isOperacao && " (D+3)"}</Label>
-              <Input type="date" value={prazo} onChange={(e) => setPrazo(e.target.value)} />
-              {isOperacao && <p className="text-[11px] text-muted mt-1">Padrão: 3 dias após a criação do card.</p>}
+              <Input type="date" value={prazo} onChange={(e) => setPrazo(e.target.value)} disabled={congelarPrincipais} />
+              {isOperacao && !congelarPrincipais && <p className="text-[11px] text-muted mt-1">Padrão: 3 dias após a criação do card.</p>}
             </div>
           </div>
 
