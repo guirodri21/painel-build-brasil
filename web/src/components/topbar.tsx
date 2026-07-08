@@ -9,6 +9,7 @@ import { useData } from "@/components/data-provider";
 import { useToast } from "@/components/ui/toast";
 import { ChangePasswordModal } from "@/components/change-password-modal";
 import { NotificationBell } from "@/components/notification-bell";
+import { emailParaUsuario } from "@/lib/auth-usuario";
 import { cn } from "@/lib/utils";
 
 export function Topbar({ onMenu }: { onMenu: () => void }) {
@@ -85,7 +86,7 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
 
       {email && (
         <span className="hidden md:inline text-xs text-muted max-w-[180px] truncate">
-          {email}
+          {emailParaUsuario(email)}
         </span>
       )}
 

@@ -6,10 +6,11 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/field";
 import { BrandMark } from "@/components/brand";
+import { usuarioParaEmail } from "@/lib/auth-usuario";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = React.useState("");
+  const [usuario, setUsuario] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [error, setError] = React.useState("");
   const [loading, setLoading] = React.useState(false);
@@ -17,13 +18,13 @@ export default function LoginPage() {
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setError("");
-    if (!email || !password) {
-      setError("Preencha e-mail e senha.");
+    if (!usuario || !password) {
+      setError("Preencha usuário e senha.");
       return;
     }
     setLoading(true);
     const supabase = createClient();
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabase.auth.signInWithPassword({ email: usuarioParaEmail(usuario), password });
     if (error) {
       setError("Credenciais inválidas.");
       setLoading(false);
@@ -47,14 +48,14 @@ export default function LoginPage() {
           className="rounded-xl border border-border bg-surface p-6 shadow-lg space-y-4"
         >
           <div>
-            <Label htmlFor="email">E-mail</Label>
+            <Label htmlFor="usuario">Usuário</Label>
             <Input
-              id="email"
-              type="email"
-              autoComplete="email"
-              placeholder="seu@email.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              id="usuario"
+              type="text"
+              autoComplete="username"
+              placeholder="seu usuário"
+              value={usuario}
+              onChange={(e) => setUsuario(e.target.value)}
             />
           </div>
           <div>

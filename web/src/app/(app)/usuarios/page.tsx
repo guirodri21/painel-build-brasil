@@ -13,6 +13,7 @@ import { Input, Select, Label } from "@/components/ui/field";
 import { Modal, ModalBody, ModalFooter } from "@/components/ui/modal";
 import { ConfirmDialog } from "@/components/ui/confirm";
 import { formatDate, cn } from "@/lib/utils";
+import { usuarioParaEmail, emailParaUsuario } from "@/lib/auth-usuario";
 import { Plus, Trash2, ShieldCheck, ShieldOff, Lock, DollarSign } from "lucide-react";
 
 interface AdminUser {
@@ -128,7 +129,7 @@ export default function UsuariosPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border text-left">
-                    <Th>E-mail</Th>
+                    <Th>Usuário</Th>
                     <Th>Papel</Th>
                     <Th>Último acesso</Th>
                     <Th className="text-right">Ações</Th>
@@ -140,7 +141,7 @@ export default function UsuariosPage() {
                     return (
                       <tr key={u.id} className="border-b border-border last:border-0 hover:bg-surface-2 transition-colors">
                         <Td className="font-medium">
-                          {u.email} {self && <span className="text-xs text-muted">(você)</span>}
+                          {emailParaUsuario(u.email)} {self && <span className="text-xs text-muted">(você)</span>}
                         </Td>
                         <Td>
                           <Badge tone={u.role === "admin" ? "blue" : "gray"}>
@@ -190,7 +191,7 @@ export default function UsuariosPage() {
       <ConfirmDialog
         open={!!delUser}
         title="Excluir usuário"
-        message={`Excluir ${delUser?.email}? Esta ação é permanente.`}
+        message={`Excluir ${delUser ? emailParaUsuario(delUser.email) : ""}? Esta ação é permanente.`}
         confirmLabel="Excluir"
         onConfirm={handleDelete}
         onCancel={() => setDelUser(null)}
@@ -216,16 +217,16 @@ function NovoUsuarioModal({
     e.preventDefault();
     setError("");
     const fd = new FormData(e.currentTarget);
-    const email = String(fd.get("email") ?? "").trim();
+    const usuario = String(fd.get("usuario") ?? "").trim();
     const password = String(fd.get("password") ?? "");
     const role = fd.get("role") as string;
-    if (!email || password.length < 8) {
-      setError("Informe e-mail e senha de no mínimo 8 caracteres.");
+    if (!usuario || password.length < 8) {
+      setError("Informe usuário e senha de no mínimo 8 caracteres.");
       return;
     }
     setSaving(true);
     try {
-      await onCreate({ action: "create", email, password, role });
+      await onCreate({ action: "create", email: usuarioParaEmail(usuario), password, role });
       toast("Usuário criado.");
       await onDone();
       onClose();
@@ -241,8 +242,8 @@ function NovoUsuarioModal({
       <form onSubmit={submit}>
         <ModalBody>
           <div>
-            <Label>E-mail</Label>
-            <Input type="email" name="email" required placeholder="pessoa@buildbrasil.com.br" />
+            <Label>Usuário</Label>
+            <Input type="text" name="usuario" required placeholder="ex.: joao" autoComplete="off" />
           </div>
           <div>
             <Label>Senha provisória</Label>
