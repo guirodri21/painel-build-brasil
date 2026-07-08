@@ -32,6 +32,9 @@ interface DataState extends RawData {
   role: "admin" | "membro" | null;
   isAdmin: boolean;
   podeFinanceiro: boolean;
+  podeComercial: boolean;
+  podeOperacional: boolean;
+  podeEstoque: boolean;
   loading: boolean;
   error: string | null;
   refresh: () => Promise<void>;
@@ -58,9 +61,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     userId: string | null;
     role: "admin" | "membro" | null;
     podeFinanceiro: boolean;
+    podeComercial: boolean;
+    podeOperacional: boolean;
+    podeEstoque: boolean;
     loading: boolean;
     error: string | null;
-  }>({ userId: null, role: null, podeFinanceiro: true, loading: true, error: null });
+  }>({ userId: null, role: null, podeFinanceiro: true, podeComercial: true, podeOperacional: true, podeEstoque: true, loading: true, error: null });
   const [filial, setFilialState] = React.useState<string>("");
 
   // Restaura a filial salva
@@ -93,7 +99,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       supabase.from("contas").select("*").order("vencimento"),
       supabase.from("chamados").select("*").order("created_at", { ascending: false }),
       supabase.from("chamado_fases").select("*").order("ordem"),
-      uid ? supabase.from("profiles").select("role, pode_financeiro").eq("id", uid).single() : Promise.resolve({ data: null }),
+      uid ? supabase.from("profiles").select("role, pode_financeiro, pode_comercial, pode_operacional, pode_estoque").eq("id", uid).single() : Promise.resolve({ data: null }),
     ]);
 
     // Extrai dados de cada resultado sem deixar uma falha derrubar o resto.
@@ -128,15 +134,17 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     });
 
     const profData = prof.status === "fulfilled"
-      ? (prof.value as { data: { role?: string; pode_financeiro?: boolean } | null }).data
+      ? (prof.value as { data: { role?: string; pode_financeiro?: boolean; pode_comercial?: boolean; pode_operacional?: boolean; pode_estoque?: boolean } | null }).data
       : null;
     const role = (profData?.role as "admin" | "membro" | undefined) ?? "membro";
-    const podeFinanceiro = profData?.pode_financeiro !== false;
 
     setMeta({
       userId: uid,
       role,
-      podeFinanceiro,
+      podeFinanceiro: profData?.pode_financeiro !== false,
+      podeComercial: profData?.pode_comercial !== false,
+      podeOperacional: profData?.pode_operacional !== false,
+      podeEstoque: profData?.pode_estoque !== false,
       loading: false,
       error: failures.length ? `Falha ao carregar: ${failures.join(", ")}.` : null,
     });
@@ -204,6 +212,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       role: meta.role,
       isAdmin: meta.role === "admin",
       podeFinanceiro: meta.role === "admin" || meta.podeFinanceiro,
+      podeComercial: meta.role === "admin" || meta.podeComercial,
+      podeOperacional: meta.role === "admin" || meta.podeOperacional,
+      podeEstoque: meta.role === "admin" || meta.podeEstoque,
       loading: meta.loading,
       error: meta.error,
       refresh: load,

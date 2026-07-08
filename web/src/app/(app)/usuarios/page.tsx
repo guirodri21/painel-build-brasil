@@ -14,7 +14,7 @@ import { Modal, ModalBody, ModalFooter } from "@/components/ui/modal";
 import { ConfirmDialog } from "@/components/ui/confirm";
 import { formatDate, cn } from "@/lib/utils";
 import { usuarioParaEmail, emailParaUsuario } from "@/lib/auth-usuario";
-import { Plus, Trash2, ShieldCheck, ShieldOff, Lock, DollarSign } from "lucide-react";
+import { Plus, Trash2, ShieldCheck, ShieldOff, Lock, SlidersHorizontal } from "lucide-react";
 
 interface AdminUser {
   id: string;
@@ -24,14 +24,24 @@ interface AdminUser {
   created_at: string;
 }
 
+type Acessos = { comercial: boolean; operacional: boolean; estoque: boolean; financeiro: boolean };
+const ACESSO_PADRAO: Acessos = { comercial: true, operacional: true, estoque: true, financeiro: true };
+const SECOES: { chave: keyof Acessos; coluna: string; label: string }[] = [
+  { chave: "comercial", coluna: "pode_comercial", label: "Comercial / Vendas" },
+  { chave: "operacional", coluna: "pode_operacional", label: "Operacional" },
+  { chave: "estoque", coluna: "pode_estoque", label: "Suprimentos / Estoque" },
+  { chave: "financeiro", coluna: "pode_financeiro", label: "Financeiro" },
+];
+
 export default function UsuariosPage() {
   const { isAdmin, userId, loading } = useData();
   const toast = useToast();
   const [users, setUsers] = React.useState<AdminUser[] | null>(null);
-  const [fin, setFin] = React.useState<Record<string, boolean>>({});
+  const [acessos, setAcessos] = React.useState<Record<string, Acessos>>({});
   const [busy, setBusy] = React.useState(false);
   const [novoOpen, setNovoOpen] = React.useState(false);
   const [delUser, setDelUser] = React.useState<AdminUser | null>(null);
+  const [acessoUser, setAcessoUser] = React.useState<AdminUser | null>(null);
 
   const call = React.useCallback(async (body: Record<string, unknown>) => {
     const { data, error } = await createClient().functions.invoke("admin-users", { body });
@@ -44,24 +54,38 @@ export default function UsuariosPage() {
     try {
       const data = await call({ action: "list" });
       setUsers(data.users);
-      const { data: profs } = await createClient().from("profiles").select("id, pode_financeiro");
-      const map: Record<string, boolean> = {};
-      for (const p of profs ?? []) map[p.id] = p.pode_financeiro !== false;
-      setFin(map);
+      const { data: profs } = await createClient()
+        .from("profiles")
+        .select("id, pode_comercial, pode_operacional, pode_estoque, pode_financeiro");
+      const map: Record<string, Acessos> = {};
+      for (const p of profs ?? []) {
+        map[p.id] = {
+          comercial: p.pode_comercial !== false,
+          operacional: p.pode_operacional !== false,
+          estoque: p.pode_estoque !== false,
+          financeiro: p.pode_financeiro !== false,
+        };
+      }
+      setAcessos(map);
     } catch (e) {
       toast(e instanceof Error ? e.message : "Erro ao listar.", "error");
       setUsers([]);
     }
   }, [call, toast]);
 
-  async function toggleFin(u: AdminUser) {
-    const novo = !(fin[u.id] ?? true);
+  async function salvarAcessos(u: AdminUser, a: Acessos) {
     setBusy(true);
-    const { error } = await createClient().from("profiles").update({ pode_financeiro: novo }).eq("id", u.id);
+    const { error } = await createClient().from("profiles").update({
+      pode_comercial: a.comercial,
+      pode_operacional: a.operacional,
+      pode_estoque: a.estoque,
+      pode_financeiro: a.financeiro,
+    }).eq("id", u.id);
     setBusy(false);
     if (error) { toast("Erro: " + error.message, "error"); return; }
-    setFin((m) => ({ ...m, [u.id]: novo }));
-    toast(novo ? "Acesso financeiro liberado." : "Acesso financeiro bloqueado.");
+    setAcessos((m) => ({ ...m, [u.id]: a }));
+    setAcessoUser(null);
+    toast("Acessos atualizados.");
   }
 
   React.useEffect(() => {
@@ -154,10 +178,10 @@ export default function UsuariosPage() {
                         <Td className="text-right">
                           <div className="flex justify-end gap-1">
                             {u.role !== "admin" && (
-                              <button disabled={busy} onClick={() => toggleFin(u)}
-                                className={cn("p-1.5 rounded-md hover:bg-surface-2 cursor-pointer", (fin[u.id] ?? true) ? "text-green" : "text-muted")}
-                                title={(fin[u.id] ?? true) ? "Acesso financeiro: liberado (clique p/ bloquear)" : "Acesso financeiro: bloqueado (clique p/ liberar)"}>
-                                <DollarSign size={15} />
+                              <button disabled={busy} onClick={() => setAcessoUser(u)}
+                                className="inline-flex items-center gap-1 p-1.5 rounded-md text-muted hover:text-primary hover:bg-primary-soft cursor-pointer"
+                                title="Definir acessos por seção">
+                                <SlidersHorizontal size={15} /> <span className="text-xs">Acessos</span>
                               </button>
                             )}
                             {u.role === "admin" ? (
@@ -188,6 +212,15 @@ export default function UsuariosPage() {
       </Card>
 
       {novoOpen && <NovoUsuarioModal onClose={() => setNovoOpen(false)} onCreate={call} onDone={load} />}
+      {acessoUser && (
+        <AcessosModal
+          user={acessoUser}
+          inicial={acessos[acessoUser.id] ?? ACESSO_PADRAO}
+          busy={busy}
+          onClose={() => setAcessoUser(null)}
+          onSave={(a) => salvarAcessos(acessoUser, a)}
+        />
+      )}
       <ConfirmDialog
         open={!!delUser}
         title="Excluir usuário"
@@ -264,6 +297,43 @@ function NovoUsuarioModal({
           <Button type="submit" disabled={saving}>{saving ? "Criando..." : "Criar"}</Button>
         </ModalFooter>
       </form>
+    </Modal>
+  );
+}
+
+function AcessosModal({
+  user, inicial, busy, onClose, onSave,
+}: {
+  user: AdminUser;
+  inicial: Acessos;
+  busy: boolean;
+  onClose: () => void;
+  onSave: (a: Acessos) => void;
+}) {
+  const [a, setA] = React.useState<Acessos>(inicial);
+  return (
+    <Modal open onClose={onClose} title={`Acessos — ${emailParaUsuario(user.email)}`} className="max-w-md">
+      <ModalBody>
+        <p className="text-xs text-muted">Marque as seções que este usuário pode acessar no menu.</p>
+        <div className="space-y-2">
+          {SECOES.map((s) => (
+            <label key={s.chave} className="flex items-center gap-3 rounded-lg border border-border px-3 py-2.5 cursor-pointer hover:bg-surface-2">
+              <input
+                type="checkbox"
+                checked={a[s.chave]}
+                onChange={(e) => setA((prev) => ({ ...prev, [s.chave]: e.target.checked }))}
+                className="h-4 w-4 rounded border-border"
+              />
+              <span className="text-sm">{s.label}</span>
+            </label>
+          ))}
+        </div>
+        <p className="text-[11px] text-muted">O menu Admin/Config continua exclusivo de administradores.</p>
+      </ModalBody>
+      <ModalFooter>
+        <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
+        <Button type="button" disabled={busy} onClick={() => onSave(a)}>{busy ? "Salvando..." : "Salvar acessos"}</Button>
+      </ModalFooter>
     </Modal>
   );
 }

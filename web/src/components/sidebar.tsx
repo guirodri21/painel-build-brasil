@@ -43,7 +43,7 @@ type NavGroup = {
   id: string;
   label: string;
   icon: Icon;
-  gate?: "financeiro" | "admin";
+  gate?: "comercial" | "operacional" | "estoque" | "financeiro" | "admin";
   items: NavItem[];
 };
 
@@ -56,6 +56,7 @@ const GROUPS: NavGroup[] = [
     id: "comercial",
     label: "Comercial / Vendas",
     icon: Briefcase,
+    gate: "comercial",
     items: [
       { href: "/vendas", label: "Performance Comercial", icon: BarChart3 },
       { href: "/chamados", label: "Pipeline Comercial", icon: KanbanSquare },
@@ -67,6 +68,7 @@ const GROUPS: NavGroup[] = [
     id: "operacional",
     label: "Operacional",
     icon: HardHat,
+    gate: "operacional",
     items: [
       { href: "/operacoes", label: "Indicadores Operação", icon: GaugeCircle },
       { href: "/operacoes/pipeline", label: "Pipeline Operacional", icon: Wrench },
@@ -92,6 +94,7 @@ const GROUPS: NavGroup[] = [
     id: "estoque",
     label: "Suprimentos / Estoque",
     icon: Package,
+    gate: "estoque",
     items: [
       { href: "/estoque", label: "Estoque (consumo)", icon: Package },
       { href: "/operacoes/patrimonio", label: "Patrimônio (equip./ferr.)", icon: Hammer },
@@ -126,16 +129,21 @@ export function Sidebar({
   onClose: () => void;
 }) {
   const pathname = usePathname();
-  const { isAdmin, podeFinanceiro } = useData();
+  const { isAdmin, podeFinanceiro, podeComercial, podeOperacional, podeEstoque } = useData();
 
   const visibleGroups = React.useMemo(
     () =>
       GROUPS.filter((g) => {
-        if (g.gate === "financeiro") return podeFinanceiro;
-        if (g.gate === "admin") return isAdmin;
-        return true;
+        switch (g.gate) {
+          case "comercial": return podeComercial;
+          case "operacional": return podeOperacional;
+          case "estoque": return podeEstoque;
+          case "financeiro": return podeFinanceiro;
+          case "admin": return isAdmin;
+          default: return true;
+        }
       }),
-    [isAdmin, podeFinanceiro],
+    [isAdmin, podeFinanceiro, podeComercial, podeOperacional, podeEstoque],
   );
 
   // Grupo que contém a rota ativa (para auto-expandir).
