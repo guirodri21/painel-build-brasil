@@ -32,3 +32,27 @@ DROP POLICY IF EXISTS contas_delete ON public.contas;
 CREATE POLICY contas_delete ON public.contas FOR DELETE TO authenticated
   USING (EXISTS (SELECT 1 FROM public.profiles p
     WHERE p.id = (SELECT auth.uid()) AND (p.role = 'admin' OR p.pode_financeiro)));
+
+-- 3) "despesas_gerais" só para admin ou quem tem pode_financeiro ----
+DROP POLICY IF EXISTS despesas_select ON public.despesas_gerais;
+CREATE POLICY despesas_select ON public.despesas_gerais FOR SELECT TO authenticated
+  USING (EXISTS (SELECT 1 FROM public.profiles p
+    WHERE p.id = (SELECT auth.uid()) AND (p.role = 'admin' OR p.pode_financeiro)));
+
+DROP POLICY IF EXISTS despesas_insert ON public.despesas_gerais;
+CREATE POLICY despesas_insert ON public.despesas_gerais FOR INSERT TO authenticated
+  WITH CHECK (((SELECT auth.uid()) = created_by) AND EXISTS (SELECT 1 FROM public.profiles p
+    WHERE p.id = (SELECT auth.uid()) AND (p.role = 'admin' OR p.pode_financeiro)));
+
+DROP POLICY IF EXISTS despesas_update ON public.despesas_gerais;
+CREATE POLICY despesas_update ON public.despesas_gerais FOR UPDATE TO authenticated
+  USING (EXISTS (SELECT 1 FROM public.profiles p
+    WHERE p.id = (SELECT auth.uid()) AND (p.role = 'admin' OR p.pode_financeiro)));
+
+DROP POLICY IF EXISTS despesas_delete ON public.despesas_gerais;
+CREATE POLICY despesas_delete ON public.despesas_gerais FOR DELETE TO authenticated
+  USING (EXISTS (SELECT 1 FROM public.profiles p
+    WHERE p.id = (SELECT auth.uid()) AND (p.role = 'admin' OR p.pode_financeiro)));
+
+-- Front: a Home e o Modo TV escondem Saldo/despesas para quem não é financeiro
+-- (ver web/src/app/(app)/page.tsx e web/src/app/tv/page.tsx).

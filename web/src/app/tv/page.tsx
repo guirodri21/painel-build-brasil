@@ -82,7 +82,7 @@ function loadConfig(): TvConfig {
 
 export default function TvPage() {
   const router = useRouter();
-  const { ordens, despesas, equipes, chamados, chamadoFases, loading } = useData();
+  const { ordens, despesas, equipes, chamados, chamadoFases, loading, podeFinanceiro } = useData();
   const [config, setConfig] = React.useState<TvConfig>(DEFAULT_CONFIG);
   const [pointer, setPointer] = React.useState(0);
   const [paused, setPaused] = React.useState(false);
@@ -95,7 +95,10 @@ export default function TvPage() {
   const active = config.enabled
     .map((on, i) => (on ? i : -1))
     .filter((i) => i >= 0);
-  const activeScenes = active.length ? active : [0, 1, 2, 3, 4, 5];
+  // Cenas 3 (Financeiro) e 4 (Ranking por saldo) só para quem tem acesso financeiro.
+  const semFin = (arr: number[]) => arr.filter((s) => podeFinanceiro || (s !== 3 && s !== 4));
+  const base = active.length ? active : [0, 1, 2, 3, 4, 5];
+  const activeScenes = semFin(base).length ? semFin(base) : [0];
   const scene = activeScenes[pointer % activeScenes.length];
   const isGrid = config.layout === "grade";
 
@@ -157,18 +160,22 @@ export default function TvPage() {
   const tickerItems = React.useMemo(() => {
     const items: string[] = [];
     items.push(`💰 Receita total: ${formatCurrency(recTotal)}`);
-    items.push(`${saldo >= 0 ? "📈" : "📉"} Saldo geral: ${formatCurrency(saldo)}`);
-    items.push(`📊 Margem: ${margem.toFixed(1).replace(".", ",")}%`);
+    if (podeFinanceiro) {
+      items.push(`${saldo >= 0 ? "📈" : "📉"} Saldo geral: ${formatCurrency(saldo)}`);
+      items.push(`📊 Margem: ${margem.toFixed(1).replace(".", ",")}%`);
+    }
     if (op.qualMedia > 0) items.push(`⭐ Qualidade média: ${op.qualMedia.toFixed(0)}`);
     items.push(`📋 ${v.n} ordens · ${op.andamento} em aberto`);
 
-    const entries = Object.entries(res).filter(([, x]) => x.n > 0);
-    if (entries.length) {
-      const lider = [...entries].sort((a, b) => b[1].saldo - a[1].saldo)[0];
-      items.push(`🏆 Líder: ${lider[0]} (${formatCurrency(lider[1].saldo)})`);
-      entries
-        .filter(([, x]) => x.saldo < 0)
-        .forEach(([eq]) => items.push(`⚠️ ${eq}: saldo negativo`));
+    if (podeFinanceiro) {
+      const entries = Object.entries(res).filter(([, x]) => x.n > 0);
+      if (entries.length) {
+        const lider = [...entries].sort((a, b) => b[1].saldo - a[1].saldo)[0];
+        items.push(`🏆 Líder: ${lider[0]} (${formatCurrency(lider[1].saldo)})`);
+        entries
+          .filter(([, x]) => x.saldo < 0)
+          .forEach(([eq]) => items.push(`⚠️ ${eq}: saldo negativo`));
+      }
     }
 
     const porRegiao = Object.entries(groupBy(ordens, (o) => o.regiao))
@@ -177,14 +184,14 @@ export default function TvPage() {
     if (porRegiao.length) items.push(`📍 Região destaque: ${porRegiao[0].name} (${formatCurrency(porRegiao[0].total)})`);
 
     return items;
-  }, [recTotal, saldo, margem, op, v.n, res, ordens]);
+  }, [recTotal, saldo, margem, op, v.n, res, ordens, podeFinanceiro]);
 
   const clock = now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
   const dateStr = now.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" });
 
   function renderScene(s: number) {
     switch (s) {
-      case 0: return <SceneGeral recTotal={recTotal} saldo={saldo} ordens={v.n} qualidade={op.qualMedia} andamento={op.andamento} res={res} />;
+      case 0: return <SceneGeral recTotal={recTotal} saldo={saldo} ordens={v.n} qualidade={op.qualMedia} andamento={op.andamento} res={res} mostrarSaldo={podeFinanceiro} />;
       case 1: return <SceneVendas ordens={ordens} total={v.total} ticket={v.ticket} />;
       case 2: return <SceneOps ordens={ordens} op={op} />;
       case 3: return <SceneFin ordens={ordens} despesas={despesas} recTotal={recTotal} despTotal={despTotal + ddTotal} saldo={saldo} margem={margem} />;
@@ -449,25 +456,28 @@ function BigKpi({ label, value, format, tone = "default" }: {
 }
 
 /* ===== Cena: Visão Geral ===== */
-function SceneGeral({ recTotal, saldo, ordens, qualidade, andamento, res }: {
+function SceneGeral({ recTotal, saldo, ordens, qualidade, andamento, res, mostrarSaldo }: {
   recTotal: number; saldo: number; ordens: number; qualidade: number; andamento: number;
   res: Record<string, { saldo: number; n: number }>;
+  mostrarSaldo: boolean;
 }) {
   const alerts: { tone: string; text: string }[] = [];
-  const entries = Object.entries(res).filter(([, x]) => x.n > 0);
-  if (entries.length) {
-    const lider = [...entries].sort((a, b) => b[1].saldo - a[1].saldo)[0];
-    alerts.push({ tone: "green", text: `Equipe líder: ${lider[0]} (${formatCurrency(lider[1].saldo)})` });
-    entries.forEach(([eq, x]) => { if (x.saldo < 0) alerts.push({ tone: "red", text: `${eq}: saldo negativo` }); });
+  if (mostrarSaldo) {
+    const entries = Object.entries(res).filter(([, x]) => x.n > 0);
+    if (entries.length) {
+      const lider = [...entries].sort((a, b) => b[1].saldo - a[1].saldo)[0];
+      alerts.push({ tone: "green", text: `Equipe líder: ${lider[0]} (${formatCurrency(lider[1].saldo)})` });
+      entries.forEach(([eq, x]) => { if (x.saldo < 0) alerts.push({ tone: "red", text: `${eq}: saldo negativo` }); });
+    }
   }
   if (qualidade > 0 && qualidade < 80) alerts.push({ tone: "yellow", text: `Qualidade média ${qualidade.toFixed(0)}` });
   if (andamento > 3) alerts.push({ tone: "yellow", text: `${andamento} ordens em aberto` });
 
   return (
     <div className="h-full flex flex-col gap-5">
-      <div className="stagger grid grid-cols-5 gap-4 flex-1">
+      <div className={cn("stagger grid gap-4 flex-1", mostrarSaldo ? "grid-cols-5" : "grid-cols-4")}>
         <BigKpi label="Receita Total" value={recTotal} format={(n) => formatCurrency(n)} />
-        <BigKpi label="Saldo Geral" value={saldo} format={(n) => formatCurrency(n)} tone={saldo >= 0 ? "green" : "red"} />
+        {mostrarSaldo && <BigKpi label="Saldo Geral" value={saldo} format={(n) => formatCurrency(n)} tone={saldo >= 0 ? "green" : "red"} />}
         <BigKpi label="Ordens" value={ordens} format={(n) => Math.round(n).toString()} tone="teal" />
         <BigKpi label="Qualidade Média" value={qualidade} format={(n) => n.toFixed(0)} tone={qualidade < 80 ? "orange" : "teal"} />
         <BigKpi label="Em Andamento" value={andamento} format={(n) => Math.round(n).toString()} tone={andamento > 0 ? "orange" : "default"} />

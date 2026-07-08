@@ -23,7 +23,7 @@ import { DollarSign, Wallet, ClipboardList, Star, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function VisaoGeralPage() {
-  const { ordens, despesas, equipes, loading } = useData();
+  const { ordens, despesas, equipes, loading, podeFinanceiro } = useData();
   const { filtros } = useFiltros();
 
   const d = React.useMemo(() => applyFiltros(ordens, filtros), [ordens, filtros]);
@@ -49,21 +49,24 @@ export default function VisaoGeralPage() {
 
   const alerts = React.useMemo(() => {
     const out: { tone: string; text: string }[] = [];
-    const entries = Object.entries(res).filter(([, x]) => x.n > 0);
-    if (entries.length) {
-      const lider = [...entries].sort((a, b) => b[1].saldo - a[1].saldo)[0];
-      out.push({ tone: "green", text: `Equipe líder: ${lider[0]} (${formatCurrency(lider[1].saldo)})` });
-      entries.forEach(([eq, x]) => {
-        if (x.saldo < 0)
-          out.push({ tone: "red", text: `${eq}: saldo negativo (${formatCurrency(x.saldo)})` });
-      });
+    // Alertas de saldo só para quem tem acesso financeiro.
+    if (podeFinanceiro) {
+      const entries = Object.entries(res).filter(([, x]) => x.n > 0);
+      if (entries.length) {
+        const lider = [...entries].sort((a, b) => b[1].saldo - a[1].saldo)[0];
+        out.push({ tone: "green", text: `Equipe líder: ${lider[0]} (${formatCurrency(lider[1].saldo)})` });
+        entries.forEach(([eq, x]) => {
+          if (x.saldo < 0)
+            out.push({ tone: "red", text: `${eq}: saldo negativo (${formatCurrency(x.saldo)})` });
+        });
+      }
     }
     if (op.qualMedia > 0 && op.qualMedia < 80)
       out.push({ tone: "yellow", text: `Qualidade geral abaixo de 80 (${op.qualMedia.toFixed(0)})` });
     if (op.andamento > 3)
       out.push({ tone: "yellow", text: `${op.andamento} ordens em aberto` });
     return out;
-  }, [res, op]);
+  }, [res, op, podeFinanceiro]);
 
   if (loading) return <LoadingState />;
 
@@ -89,7 +92,9 @@ export default function VisaoGeralPage() {
 
       <div className="stagger grid gap-3 mb-5 grid-cols-2 lg:grid-cols-5">
         <KpiCard label="Receita Total" value={recTotal} format={(n) => formatCurrency(n)} icon={DollarSign} trend={trends?.receita} />
-        <KpiCard label="Saldo Geral" value={saldo} format={(n) => formatCurrency(n)} tone={saldo >= 0 ? "green" : "red"} icon={Wallet} trend={trends?.saldo} />
+        {podeFinanceiro && (
+          <KpiCard label="Saldo Geral" value={saldo} format={(n) => formatCurrency(n)} tone={saldo >= 0 ? "green" : "red"} icon={Wallet} trend={trends?.saldo} />
+        )}
         <KpiCard label="Ordens" value={v.n} format={(n) => Math.round(n).toString()} tone="teal" icon={ClipboardList} trend={trends?.ordens} />
         <KpiCard label="Qualidade Média" value={op.qualMedia} format={(n) => n.toFixed(0)} tone={op.qualMedia < 80 ? "orange" : "teal"} icon={Star} />
         <KpiCard label="Em Andamento" value={op.andamento} format={(n) => Math.round(n).toString()} tone={op.andamento > 0 ? "orange" : "default"} icon={Clock} />
@@ -129,16 +134,18 @@ export default function VisaoGeralPage() {
                 <tr className="border-b border-border text-left">
                   <Th>Equipe</Th>
                   <Th className="text-right">Receita</Th>
-                  <Th className="text-right">Desp. Direta</Th>
-                  <Th className="text-right">Desp. Rateada</Th>
-                  <Th className="text-right">Saldo</Th>
+                  {podeFinanceiro && <>
+                    <Th className="text-right">Desp. Direta</Th>
+                    <Th className="text-right">Desp. Rateada</Th>
+                    <Th className="text-right">Saldo</Th>
+                  </>}
                   <Th className="text-right">Ordens</Th>
                   <Th>Qualidade</Th>
                 </tr>
               </thead>
               <tbody>
                 {equipes.length === 0 && (
-                  <tr><td colSpan={7} className="text-center py-12 text-muted text-sm">
+                  <tr><td colSpan={podeFinanceiro ? 7 : 4} className="text-center py-12 text-muted text-sm">
                     Nenhuma equipe cadastrada. Adicione equipes em <strong>Cadastros</strong> para começar.
                   </td></tr>
                 )}
@@ -152,11 +159,13 @@ export default function VisaoGeralPage() {
                     <tr key={eq} className="border-b border-border last:border-0 hover:bg-surface-2 transition-colors">
                       <Td className="font-semibold">{eq}</Td>
                       <Td className="text-right">{formatCurrency(x.rec)}</Td>
-                      <Td className="text-right">{formatCurrency(x.dd)}</Td>
-                      <Td className="text-right">{formatCurrency(x.dr)}</Td>
-                      <Td className={cn("text-right font-semibold", x.saldo >= 0 ? "text-green" : "text-red")}>
-                        {formatCurrency(x.saldo)}
-                      </Td>
+                      {podeFinanceiro && <>
+                        <Td className="text-right">{formatCurrency(x.dd)}</Td>
+                        <Td className="text-right">{formatCurrency(x.dr)}</Td>
+                        <Td className={cn("text-right font-semibold", x.saldo >= 0 ? "text-green" : "text-red")}>
+                          {formatCurrency(x.saldo)}
+                        </Td>
+                      </>}
                       <Td className="text-right">{x.n}</Td>
                       <Td>{qm != null ? <QualityBar value={qm} /> : "—"}</Td>
                     </tr>
