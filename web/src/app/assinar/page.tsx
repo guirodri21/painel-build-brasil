@@ -4,7 +4,7 @@ import * as React from "react";
 import { Input, Label } from "@/components/ui/field";
 import { cn } from "@/lib/utils";
 import {
-  Check, ArrowRight, ArrowLeft, Building2, User, Sparkles, CheckCircle2, Send,
+  Check, ArrowRight, ArrowLeft, Building2, User, Sparkles, CheckCircle2, Send, ShieldCheck,
 } from "lucide-react";
 
 const VALOR = 150;
@@ -15,6 +15,9 @@ const FEATURES = [
   "Pipeline comercial e operacional",
   "Indicadores e relatórios em tempo real",
   "Cobranças e assinaturas",
+  "Banco de dados dedicado, com melhorias contínuas",
+  "Proteção e autenticação de dados",
+  "Armazenamento e hospedagem do site",
   "Usuários ilimitados",
   "Suporte prioritário",
 ];
@@ -92,6 +95,10 @@ export default function AssinarPage() {
                   </li>
                 ))}
               </ul>
+              <p className="mt-4 flex items-start gap-2 text-[11px] text-muted">
+                <ShieldCheck size={13} className="text-foreground shrink-0 mt-0.5" />
+                Infraestrutura segura e escalável em <strong className="text-foreground">Vercel</strong> + <strong className="text-foreground">Supabase</strong> — proteção, autenticação e armazenamento de ponta.
+              </p>
             </div>
           </div>
           <p className="text-center text-[11px] text-muted mt-3">Cobrança recorrente mensal. Cancele quando quiser.</p>
