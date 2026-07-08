@@ -11,7 +11,7 @@ import { todayISO, formatDate, formatCurrency } from "@/lib/utils";
 import { ChamadoAtividade } from "@/components/chamado-atividade";
 import { alertarChamadoCritico, fireEvent } from "@/lib/integrations";
 import { garantirOperacaoDeChamado, FASES_COMERCIAL_APROVADO } from "@/lib/quadros";
-import { Wrench, Send, Upload, FileText, Trash2, ExternalLink } from "lucide-react";
+import { Wrench, Send, Upload, FileText, Trash2, ExternalLink, Lock } from "lucide-react";
 import {
   PRIORIDADES_OPORTUNIDADE, ORIGENS_OPORTUNIDADE, FAIXAS_POTENCIAL,
   REGIOES_PIPELINE, EQUIPES_PIPELINE, STATUS_ANDAMENTO, TIPOS_DEMANDA, STATUS_PROPOSTA, MOTIVOS_RECUSA,
@@ -44,6 +44,8 @@ export function ChamadoModal({
   // liberar progressivamente os campos avançados (só a partir do orçamento).
   const [fase, setFase] = React.useState(chamado?.fase ?? FASE_OPORTUNIDADE);
   const avancado = fase !== FASE_OPORTUNIDADE;
+  // Depois que o card sai da fase inicial, os dados principais congelam (só leitura).
+  const congelarInicio = editando && chamado!.fase !== FASE_OPORTUNIDADE;
   const emAndamento = fase === FASE_ORCAMENTO;
   const emProposta = fase === FASE_PROPOSTA;
   const emAprovada = fase === FASE_APROVADA;
@@ -118,19 +120,20 @@ export function ChamadoModal({
     }
     setSaving(true);
     const rec = {
-      titulo: (fd.get("titulo") as string)?.trim() || null,
-      cliente: (fd.get("cliente") as string)?.trim() || null,
-      regiao: (fd.get("regiao") as string)?.trim() || null,
+      // Dados principais: congelados após a fase inicial — preserva o valor atual.
+      titulo: congelarInicio ? (chamado?.titulo ?? null) : ((fd.get("titulo") as string)?.trim() || null),
+      cliente: congelarInicio ? (chamado?.cliente ?? null) : ((fd.get("cliente") as string)?.trim() || null),
+      regiao: congelarInicio ? (chamado?.regiao ?? null) : ((fd.get("regiao") as string)?.trim() || null),
       descricao: (fd.get("descricao") as string)?.trim() || null,
-      prioridade: (fd.get("prioridade") as string) || null,
-      centro_custo: (fd.get("centro_custo") as string)?.trim() || null,
-      origem_oportunidade: (fd.get("origem_oportunidade") as string) || null,
-      faixa_potencial: (fd.get("faixa_potencial") as string) || null,
+      prioridade: congelarInicio ? (chamado?.prioridade ?? null) : ((fd.get("prioridade") as string) || null),
+      centro_custo: congelarInicio ? (chamado?.centro_custo ?? null) : ((fd.get("centro_custo") as string)?.trim() || null),
+      origem_oportunidade: congelarInicio ? (chamado?.origem_oportunidade ?? null) : ((fd.get("origem_oportunidade") as string) || null),
+      faixa_potencial: congelarInicio ? (chamado?.faixa_potencial ?? null) : ((fd.get("faixa_potencial") as string) || null),
       ticket_ref: (fd.get("ticket_ref") as string)?.trim() || null,
       // Em "Proposta Aprovada"/"Proposta Recusada" o card é concluído ao salvar os campos.
       fase: (emAprovada || emRecusada) ? FASE_CONCLUIDO : (fd.get("fase") as string),
       valor: parseFloat(fd.get("valor") as string) || 0,
-      responsavel: (fd.get("responsavel") as string)?.trim() || null,
+      responsavel: congelarInicio ? (chamado?.responsavel ?? null) : ((fd.get("responsavel") as string)?.trim() || null),
       equipe: (fd.get("equipe") as string)?.trim() || null,
       prazo: (fd.get("prazo") as string) || null,
       custo_real: fd.get("custo_real") ? parseFloat(fd.get("custo_real") as string) : null,
@@ -190,19 +193,24 @@ export function ChamadoModal({
           {editando && codigoChamado(chamado?.numero) && (
             <p className="text-[11px] text-muted font-mono mb-1">ID {codigoChamado(chamado?.numero)}</p>
           )}
+          {congelarInicio && (
+            <p className="text-[11px] text-muted flex items-center gap-1.5">
+              <Lock size={12} /> Dados principais congelados (definidos na abertura da oportunidade).
+            </p>
+          )}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="col-span-2">
               <Label>Título / demanda</Label>
-              <Input name="titulo" defaultValue={chamado?.titulo ?? ""} placeholder="Ex.: Chamado" />
+              <Input name="titulo" defaultValue={chamado?.titulo ?? ""} placeholder="Ex.: Chamado" disabled={congelarInicio} />
             </div>
             <div>
               <Label>Cliente *</Label>
-              <Input name="cliente" list="cha-clientes" required defaultValue={chamado?.cliente ?? ""} />
+              <Input name="cliente" list="cha-clientes" required defaultValue={chamado?.cliente ?? ""} disabled={congelarInicio} />
               <datalist id="cha-clientes">{clientes.map((c) => <option key={c} value={c} />)}</datalist>
             </div>
             <div>
               <Label>Região *</Label>
-              <Select name="regiao" required defaultValue={chamado?.regiao ?? REGIOES_PIPELINE[0]}>
+              <Select name="regiao" required defaultValue={chamado?.regiao ?? REGIOES_PIPELINE[0]} disabled={congelarInicio}>
                 {chamado?.regiao && !REGIOES_PIPELINE.includes(chamado.regiao as (typeof REGIOES_PIPELINE)[number]) && (
                   <option value={chamado.regiao}>{chamado.regiao}</option>
                 )}
@@ -211,29 +219,29 @@ export function ChamadoModal({
             </div>
             <div>
               <Label>Centro de custo *</Label>
-              <Input name="centro_custo" required defaultValue={chamado?.centro_custo ?? ""} />
+              <Input name="centro_custo" required defaultValue={chamado?.centro_custo ?? ""} disabled={congelarInicio} />
             </div>
             <div>
               <Label>Responsável pela oportunidade *</Label>
-              <Input name="responsavel" required defaultValue={chamado?.responsavel ?? ""} />
+              <Input name="responsavel" required defaultValue={chamado?.responsavel ?? ""} disabled={congelarInicio} />
             </div>
             <div>
               <Label>Prioridade</Label>
-              <Select name="prioridade" defaultValue={chamado?.prioridade ?? ""}>
+              <Select name="prioridade" defaultValue={chamado?.prioridade ?? ""} disabled={congelarInicio}>
                 <option value="">—</option>
                 {PRIORIDADES_OPORTUNIDADE.map((p) => <option key={p} value={p}>{p}</option>)}
               </Select>
             </div>
             <div>
               <Label>Origem da oportunidade</Label>
-              <Select name="origem_oportunidade" defaultValue={chamado?.origem_oportunidade ?? ""}>
+              <Select name="origem_oportunidade" defaultValue={chamado?.origem_oportunidade ?? ""} disabled={congelarInicio}>
                 <option value="">—</option>
                 {ORIGENS_OPORTUNIDADE.map((o) => <option key={o} value={o}>{o}</option>)}
               </Select>
             </div>
             <div className="col-span-2">
               <Label>Faixa de potencial *</Label>
-              <Select name="faixa_potencial" required defaultValue={chamado?.faixa_potencial ?? ""}>
+              <Select name="faixa_potencial" required defaultValue={chamado?.faixa_potencial ?? ""} disabled={congelarInicio}>
                 <option value="">—</option>
                 {FAIXAS_POTENCIAL.map((f) => <option key={f.tier} value={f.tier}>{f.label}</option>)}
               </Select>
