@@ -87,7 +87,6 @@ const GROUPS: NavGroup[] = [
     items: [
       { href: "/financeiro", label: "Financeiro", icon: TrendingUp },
       { href: "/contas", label: "Contas", icon: Receipt },
-      { href: "/assinaturas", label: "Assinaturas", icon: CreditCard },
     ],
   },
   {
@@ -108,6 +107,7 @@ const GROUPS: NavGroup[] = [
     items: [
       { href: "/quadros", label: "Quadros", icon: LayoutGrid },
       { href: "/cadastros", label: "Cadastros", icon: Database },
+      { href: "/assinaturas", label: "Assinaturas", icon: CreditCard },
       { href: "/relatorios", label: "Relatórios", icon: FileText },
       { href: "/integracoes", label: "Integrações", icon: Plug },
       { href: "/usuarios", label: "Usuários", icon: Users },

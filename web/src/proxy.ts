@@ -13,8 +13,8 @@ function secaoDaRota(path: string): Secao | null {
   if (em(["/estoque", "/operacoes/suprimentos", "/operacoes/patrimonio"])) return "estoque";
   if (em(["/operacoes", "/agenda"])) return "operacional";
   if (em(["/vendas", "/chamados", "/clientes", "/orcamentos"])) return "comercial";
-  if (em(["/financeiro", "/contas", "/assinaturas"])) return "financeiro";
-  if (em(["/quadros", "/cadastros", "/relatorios", "/integracoes", "/usuarios"])) return "admin";
+  if (em(["/financeiro", "/contas"])) return "financeiro";
+  if (em(["/quadros", "/cadastros", "/assinaturas", "/relatorios", "/integracoes", "/usuarios"])) return "admin";
   return null;
 }
 
