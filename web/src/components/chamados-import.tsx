@@ -251,13 +251,22 @@ export function ChamadosImport({ open, onClose }: { open: boolean; onClose: () =
     setResumo(null);
     setDeParaFases(null);
     const supabase = createClient();
-    const { data, error } = await supabase
-      .from("chamados").delete().not("goalfy_card_id", "is", null).select("id");
+    // Em lotes de 100 e apagando dependentes antes (FK sem cascade).
+    const ids = importados.map((c) => c.id);
+    let ok = 0; let err: string | null = null;
+    for (let i = 0; i < ids.length; i += 100) {
+      const lote = ids.slice(i, i + 100);
+      await supabase.from("chamado_comentarios").delete().in("chamado_id", lote);
+      await supabase.from("chamado_anexos").delete().in("chamado_id", lote);
+      const { data, error } = await supabase.from("chamados").delete().in("id", lote).select("id");
+      if (error) { err = error.message; break; }
+      ok += data?.length ?? 0;
+    }
     setLimpando(false);
-    if (error) { toast("Erro ao apagar: " + error.message, "error"); return; }
+    if (err) { toast("Erro ao apagar: " + err, "error"); return; }
     await refresh();
-    setResumo(`${data?.length ?? 0} chamado(s) importado(s) apagado(s). Pode reimportar do zero.`);
-    toast(`${data?.length ?? 0} chamado(s) apagado(s).`);
+    setResumo(`${ok} chamado(s) importado(s) apagado(s). Pode reimportar do zero.`);
+    toast(`${ok} chamado(s) apagado(s).`);
   }
 
   return (

@@ -58,7 +58,7 @@ export default function ChamadosPage() {
   const [configFases, setConfigFases] = React.useState(false);
   const [dragId, setDragId] = React.useState<string | null>(null);
   const [overFase, setOverFase] = React.useState<string | null>(null);
-  // Modo de seleção (admin): escolher cards no board para excluir em massa.
+  // Modo de seleção (admin): escolher cards no board para mover/excluir em massa.
   const [selMode, setSelMode] = React.useState(false);
   const [sel, setSel] = React.useState<Set<string>>(new Set());
   const [confirmDel, setConfirmDel] = React.useState(false);
@@ -66,13 +66,16 @@ export default function ChamadosPage() {
   const [moverPara, setMoverPara] = React.useState("");
   const [movendo, setMovendo] = React.useState(false);
 
-  function toggleSel(id: string) {
+  // Callbacks estáveis (useCallback) para permitir memoizar os cards do board.
+  const toggleSel = React.useCallback((id: string) => {
     setSel((prev) => {
       const n = new Set(prev);
       if (n.has(id)) n.delete(id); else n.add(id);
       return n;
     });
-  }
+  }, []);
+  const onDragStartCard = React.useCallback((id: string) => setDragId(id), []);
+  const onDragEndCard = React.useCallback(() => { setDragId(null); setOverFase(null); }, []);
   // Marca/desmarca de uma vez todos os cards de uma coluna (fase).
   function toggleColuna(ids: string[]) {
     setSel((prev) => {
@@ -153,13 +156,23 @@ export default function ChamadosPage() {
   const valorTotal = sum(emAberto, (c) => c.valor);
 
   function abrir(c: Chamado | null, fase?: string) { setEdit(c); setFaseNova(fase); setModal(true); }
+  const abrirCard = React.useCallback((c: Chamado) => { setEdit(c); setFaseNova(undefined); setModal(true); }, []);
+
+  // Seleção efetiva = só o que está visível na tela (respeita os filtros). Assim
+  // mover/excluir nunca atinge cards fora da tela e o contador reflete o real.
+  const idsVisiveis = React.useMemo(() => new Set(filtrados.map((c) => c.id)), [filtrados]);
+  const selVisivel = React.useMemo(() => {
+    const s = new Set<string>();
+    for (const id of sel) if (idsVisiveis.has(id)) s.add(id);
+    return s;
+  }, [sel, idsVisiveis]);
 
   // Seleção em massa (admin) — opera sobre os cards visíveis (respeita filtros).
   function selecionarTodos() { setSel(new Set(filtrados.map((c) => c.id))); }
   function limparSel() { setSel(new Set()); }
   async function excluirSelecionados() {
     setConfirmDel(false);
-    const ids = Array.from(sel);
+    const ids = Array.from(selVisivel);
     if (!ids.length) return;
     setExcluindo(true);
     // Lotes de 100 — evita URL longa demais no DELETE ...in(...) ao excluir muitos.
@@ -167,6 +180,9 @@ export default function ChamadosPage() {
     let ok = 0; let err: string | null = null;
     for (let i = 0; i < ids.length; i += 100) {
       const lote = ids.slice(i, i + 100);
+      // Apaga dependentes antes (FK sem cascade): comentários e anexos do card.
+      await supabase.from("chamado_comentarios").delete().in("chamado_id", lote);
+      await supabase.from("chamado_anexos").delete().in("chamado_id", lote);
       const { data, error } = await supabase.from("chamados").delete().in("id", lote).select("id");
       if (error) { err = error.message; break; }
       ok += data?.length ?? 0;
@@ -181,7 +197,7 @@ export default function ChamadosPage() {
 
   // Move em massa os selecionados para uma fase existente (movimento direto de admin).
   async function moverSelecionados() {
-    const ids = Array.from(sel);
+    const ids = Array.from(selVisivel);
     if (!ids.length || !moverPara) return;
     setMovendo(true);
     const supabase = createClient();
@@ -241,20 +257,20 @@ export default function ChamadosPage() {
 
       {isAdmin && selMode && aba === "board" && (
         <div className="flex flex-wrap items-center gap-2 mb-3 rounded-lg border border-primary/40 bg-primary-soft/20 px-3 py-2">
-          <span className="text-sm font-medium">{sel.size} selecionado(s)</span>
+          <span className="text-sm font-medium">{selVisivel.size} selecionado(s)</span>
           <Button variant="secondary" size="sm" onClick={selecionarTodos}>Selecionar todos ({filtrados.length})</Button>
-          <Button variant="secondary" size="sm" onClick={limparSel} disabled={!sel.size}>Limpar</Button>
+          <Button variant="secondary" size="sm" onClick={limparSel} disabled={!selVisivel.size}>Limpar</Button>
           <div className="flex-1" />
           <div className="flex items-center gap-1.5">
-            <Select value={moverPara} onChange={(e) => setMoverPara(e.target.value)} className="h-8 w-44 text-xs" disabled={!sel.size || movendo}>
+            <Select value={moverPara} onChange={(e) => setMoverPara(e.target.value)} className="h-8 w-44 text-xs" disabled={!selVisivel.size || movendo}>
               <option value="">Mover para…</option>
               {chamadoFases.map((f) => <option key={f.id} value={f.nome}>{f.nome}</option>)}
             </Select>
-            <Button variant="secondary" size="sm" onClick={moverSelecionados} disabled={!sel.size || !moverPara || movendo}>
+            <Button variant="secondary" size="sm" onClick={moverSelecionados} disabled={!selVisivel.size || !moverPara || movendo}>
               {movendo ? "Movendo..." : "Mover"}
             </Button>
           </div>
-          <Button variant="danger" size="sm" onClick={() => setConfirmDel(true)} disabled={!sel.size || excluindo}>
+          <Button variant="danger" size="sm" onClick={() => setConfirmDel(true)} disabled={!selVisivel.size || excluindo}>
             <Trash2 size={14} /> {excluindo ? "Excluindo..." : "Excluir selecionados"}
           </Button>
           <Button variant="secondary" size="sm" onClick={sairSelecao}><X size={14} /> Sair</Button>
@@ -297,40 +313,16 @@ export default function ChamadosPage() {
                     </div>
                     <div className="p-2 space-y-2 flex-1 max-h-[64vh] overflow-y-auto">
                       {items.map((c) => (
-                        <button key={c.id} onClick={() => (selMode ? toggleSel(c.id) : abrir(c))}
-                          draggable={!selMode}
-                          onDragStart={() => !selMode && setDragId(c.id)}
-                          onDragEnd={() => { setDragId(null); setOverFase(null); }}
-                          className={cn("w-full text-left rounded-lg border bg-surface p-2.5 transition-all",
-                            selMode ? "cursor-pointer" : "hover:border-border-strong cursor-grab active:cursor-grabbing",
-                            dragId === c.id && "opacity-40",
-                            selMode && sel.has(c.id) ? "border-primary ring-2 ring-primary bg-primary-soft/20"
-                              : atrasado(c) ? "border-l-4 border-l-red border-border" : "border-border")}>
-                          <div className="flex items-center justify-between gap-2 mb-1">
-                            <span className="flex items-center gap-1.5 min-w-0">
-                              {selMode && (sel.has(c.id)
-                                ? <CheckSquare size={14} className="text-primary shrink-0" />
-                                : <Square size={14} className="text-muted shrink-0" />)}
-                              <span className="text-sm font-medium truncate">{c.titulo || "Chamado"}</span>
-                            </span>
-                            {c.prioridade && <Badge tone={prioTone(c.prioridade)}>{c.prioridade}</Badge>}
-                          </div>
-                          {c.cliente && <p className="text-xs font-medium text-foreground truncate">{c.cliente}</p>}
-                          {c.regiao && <p className="text-[11px] text-muted">{c.regiao}</p>}
-                          {c.descricao && <p className="text-[11px] text-muted mt-1 line-clamp-2">{c.descricao}</p>}
-                          <div className="flex items-center justify-between mt-1.5 text-[11px] text-muted">
-                            <span className="flex items-center gap-2">
-                              {c.ticket_ref && <span># {c.ticket_ref}</span>}
-                              {(() => {
-                                const d = diasDesde(c.fase_desde ?? c.created_at);
-                                if (d == null || fasesFinais.has(c.fase)) return null;
-                                const t = agingTone(d);
-                                return <span className={cn("flex items-center gap-0.5", t === "red" && "text-red", t === "orange" && "text-orange", t === "yellow" && "text-yellow")}><Clock size={10} /> {d}d</span>;
-                              })()}
-                            </span>
-                            {c.valor > 0 && <span className="font-medium text-foreground">{formatCurrency(c.valor)}</span>}
-                          </div>
-                        </button>
+                        <CardChamado key={c.id} c={c}
+                          selMode={selMode}
+                          selected={sel.has(c.id)}
+                          atrasado={atrasado(c)}
+                          dias={fasesFinais.has(c.fase) ? null : diasDesde(c.fase_desde ?? c.created_at)}
+                          dragging={dragId === c.id}
+                          onOpen={abrirCard}
+                          onToggle={toggleSel}
+                          onDragStart={onDragStartCard}
+                          onDragEnd={onDragEndCard} />
                       ))}
                       {items.length === 0 && <div className="text-center py-6 text-[11px] text-muted">—</div>}
                     </div>
@@ -355,7 +347,7 @@ export default function ChamadosPage() {
       <ConfirmDialog
         open={confirmDel}
         title="Excluir cards selecionados"
-        message={`Excluir ${sel.size} card(s) selecionado(s)? Não dá para desfazer.`}
+        message={`Excluir ${selVisivel.size} card(s) selecionado(s)? Não dá para desfazer.`}
         confirmLabel="Excluir"
         onConfirm={excluirSelecionados}
         onCancel={() => setConfirmDel(false)}
@@ -363,6 +355,63 @@ export default function ChamadosPage() {
     </>
   );
 }
+
+/**
+ * Card do board, memoizado: só re-renderiza quando muda algo dele (seleção,
+ * atraso, arraste). Sem isso, cada clique de seleção re-renderizava todos os
+ * cards do board (centenas), deixando a interação lenta.
+ */
+const CardChamado = React.memo(function CardChamado({
+  c, selMode, selected, atrasado, dias, dragging, onOpen, onToggle, onDragStart, onDragEnd,
+}: {
+  c: Chamado;
+  selMode: boolean;
+  selected: boolean;
+  atrasado: boolean;
+  dias: number | null;
+  dragging: boolean;
+  onOpen: (c: Chamado) => void;
+  onToggle: (id: string) => void;
+  onDragStart: (id: string) => void;
+  onDragEnd: () => void;
+}) {
+  const t = dias != null ? agingTone(dias) : null;
+  return (
+    <button onClick={() => (selMode ? onToggle(c.id) : onOpen(c))}
+      draggable={!selMode}
+      onDragStart={() => { if (!selMode) onDragStart(c.id); }}
+      onDragEnd={onDragEnd}
+      className={cn("w-full text-left rounded-lg border bg-surface p-2.5 transition-all",
+        selMode ? "cursor-pointer" : "hover:border-border-strong cursor-grab active:cursor-grabbing",
+        dragging && "opacity-40",
+        selMode && selected ? "border-primary ring-2 ring-primary bg-primary-soft/20"
+          : atrasado ? "border-l-4 border-l-red border-border" : "border-border")}>
+      <div className="flex items-center justify-between gap-2 mb-1">
+        <span className="flex items-center gap-1.5 min-w-0">
+          {selMode && (selected
+            ? <CheckSquare size={14} className="text-primary shrink-0" />
+            : <Square size={14} className="text-muted shrink-0" />)}
+          <span className="text-sm font-medium truncate">{c.titulo || "Chamado"}</span>
+        </span>
+        {c.prioridade && <Badge tone={prioTone(c.prioridade)}>{c.prioridade}</Badge>}
+      </div>
+      {c.cliente && <p className="text-xs font-medium text-foreground truncate">{c.cliente}</p>}
+      {c.regiao && <p className="text-[11px] text-muted">{c.regiao}</p>}
+      {c.descricao && <p className="text-[11px] text-muted mt-1 line-clamp-2">{c.descricao}</p>}
+      <div className="flex items-center justify-between mt-1.5 text-[11px] text-muted">
+        <span className="flex items-center gap-2">
+          {c.ticket_ref && <span># {c.ticket_ref}</span>}
+          {dias != null && t && (
+            <span className={cn("flex items-center gap-0.5", t === "red" && "text-red", t === "orange" && "text-orange", t === "yellow" && "text-yellow")}>
+              <Clock size={10} /> {dias}d
+            </span>
+          )}
+        </span>
+        {c.valor > 0 && <span className="font-medium text-foreground">{formatCurrency(c.valor)}</span>}
+      </div>
+    </button>
+  );
+});
 
 function ChamadosDashboard({ chamados, fases, fasesFinais }: { chamados: Chamado[]; fases: string[]; fasesFinais: Set<string> }) {
   const cont = (key: (c: Chamado) => string | null | undefined) => {
