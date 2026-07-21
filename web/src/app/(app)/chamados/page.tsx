@@ -63,6 +63,8 @@ export default function ChamadosPage() {
   const [sel, setSel] = React.useState<Set<string>>(new Set());
   const [confirmDel, setConfirmDel] = React.useState(false);
   const [excluindo, setExcluindo] = React.useState(false);
+  const [moverPara, setMoverPara] = React.useState("");
+  const [movendo, setMovendo] = React.useState(false);
 
   function toggleSel(id: string) {
     setSel((prev) => {
@@ -71,7 +73,17 @@ export default function ChamadosPage() {
       return n;
     });
   }
-  function sairSelecao() { setSelMode(false); setSel(new Set()); }
+  // Marca/desmarca de uma vez todos os cards de uma coluna (fase).
+  function toggleColuna(ids: string[]) {
+    setSel((prev) => {
+      const n = new Set(prev);
+      const todos = ids.length > 0 && ids.every((id) => n.has(id));
+      if (todos) ids.forEach((id) => n.delete(id));
+      else ids.forEach((id) => n.add(id));
+      return n;
+    });
+  }
+  function sairSelecao() { setSelMode(false); setSel(new Set()); setMoverPara(""); }
 
   async function moverFase(fase: string) {
     const id = dragId;
@@ -167,6 +179,27 @@ export default function ChamadosPage() {
     toast(`${ok} card(s) excluído(s).`);
   }
 
+  // Move em massa os selecionados para uma fase existente (movimento direto de admin).
+  async function moverSelecionados() {
+    const ids = Array.from(sel);
+    if (!ids.length || !moverPara) return;
+    setMovendo(true);
+    const supabase = createClient();
+    let ok = 0; let err: string | null = null;
+    for (let i = 0; i < ids.length; i += 100) {
+      const lote = ids.slice(i, i + 100);
+      const { data, error } = await supabase.from("chamados").update({ fase: moverPara }).in("id", lote).select("id");
+      if (error) { err = error.message; break; }
+      ok += data?.length ?? 0;
+    }
+    setMovendo(false);
+    if (err) { toast("Erro ao mover: " + err, "error"); return; }
+    await refresh();
+    setSel(new Set());
+    setMoverPara("");
+    toast(`${ok} card(s) movido(s) para "${moverPara}".`);
+  }
+
   if (loading)
     return (<><PageHeader title="Pipeline Comercial" /><KpiSkeletonRow count={4} /><Skeleton className="h-96" /></>);
 
@@ -212,6 +245,15 @@ export default function ChamadosPage() {
           <Button variant="secondary" size="sm" onClick={selecionarTodos}>Selecionar todos ({filtrados.length})</Button>
           <Button variant="secondary" size="sm" onClick={limparSel} disabled={!sel.size}>Limpar</Button>
           <div className="flex-1" />
+          <div className="flex items-center gap-1.5">
+            <Select value={moverPara} onChange={(e) => setMoverPara(e.target.value)} className="h-8 w-44 text-xs" disabled={!sel.size || movendo}>
+              <option value="">Mover para…</option>
+              {chamadoFases.map((f) => <option key={f.id} value={f.nome}>{f.nome}</option>)}
+            </Select>
+            <Button variant="secondary" size="sm" onClick={moverSelecionados} disabled={!sel.size || !moverPara || movendo}>
+              {movendo ? "Movendo..." : "Mover"}
+            </Button>
+          </div>
           <Button variant="danger" size="sm" onClick={() => setConfirmDel(true)} disabled={!sel.size || excluindo}>
             <Trash2 size={14} /> {excluindo ? "Excluindo..." : "Excluir selecionados"}
           </Button>
@@ -244,6 +286,14 @@ export default function ChamadosPage() {
                         <span className="text-sm font-semibold truncate">{col.nome}</span>
                         <span className="text-xs text-muted tabular-nums">{items.length}</span>
                       </div>
+                      {isAdmin && selMode && items.length > 0 && (
+                        <button type="button" onClick={() => toggleColuna(items.map((c) => c.id))}
+                          className="shrink-0 text-muted hover:text-foreground cursor-pointer" title="Selecionar/limpar esta fase">
+                          {items.every((c) => sel.has(c.id))
+                            ? <CheckSquare size={15} className="text-primary" />
+                            : <Square size={15} />}
+                        </button>
+                      )}
                     </div>
                     <div className="p-2 space-y-2 flex-1 max-h-[64vh] overflow-y-auto">
                       {items.map((c) => (
