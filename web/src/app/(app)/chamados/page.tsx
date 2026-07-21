@@ -14,12 +14,13 @@ import { Input, Select } from "@/components/ui/field";
 import { ChamadoModal } from "@/components/chamado-modal";
 import { ChamadosImport } from "@/components/chamados-import";
 import { ChamadoFasesConfig } from "@/components/chamado-fases-config";
+import { ConfirmDialog } from "@/components/ui/confirm";
 import { sum } from "@/lib/analytics";
 import { garantirOperacaoDeChamado, FASES_COMERCIAL_APROVADO } from "@/lib/quadros";
 import { formatCurrency, formatNumber, todayISO, cn } from "@/lib/utils";
 import { bloqueioMovimentoChamado } from "@/lib/types";
 import type { Chamado } from "@/lib/types";
-import { Plus, Search, Ticket, AlertTriangle, DollarSign, Layers, Upload, Clock, SlidersHorizontal } from "lucide-react";
+import { Plus, Search, Ticket, AlertTriangle, DollarSign, Layers, Upload, Clock, SlidersHorizontal, CheckSquare, Square, Trash2, X } from "lucide-react";
 
 type Tone = "green" | "yellow" | "blue" | "red" | "orange" | "gray" | "teal";
 type Aba = "board" | "dashboard";
@@ -57,6 +58,20 @@ export default function ChamadosPage() {
   const [configFases, setConfigFases] = React.useState(false);
   const [dragId, setDragId] = React.useState<string | null>(null);
   const [overFase, setOverFase] = React.useState<string | null>(null);
+  // Modo de seleção (admin): escolher cards no board para excluir em massa.
+  const [selMode, setSelMode] = React.useState(false);
+  const [sel, setSel] = React.useState<Set<string>>(new Set());
+  const [confirmDel, setConfirmDel] = React.useState(false);
+  const [excluindo, setExcluindo] = React.useState(false);
+
+  function toggleSel(id: string) {
+    setSel((prev) => {
+      const n = new Set(prev);
+      if (n.has(id)) n.delete(id); else n.add(id);
+      return n;
+    });
+  }
+  function sairSelecao() { setSelMode(false); setSel(new Set()); }
 
   async function moverFase(fase: string) {
     const id = dragId;
@@ -127,12 +142,42 @@ export default function ChamadosPage() {
 
   function abrir(c: Chamado | null, fase?: string) { setEdit(c); setFaseNova(fase); setModal(true); }
 
+  // Seleção em massa (admin) — opera sobre os cards visíveis (respeita filtros).
+  function selecionarTodos() { setSel(new Set(filtrados.map((c) => c.id))); }
+  function limparSel() { setSel(new Set()); }
+  async function excluirSelecionados() {
+    setConfirmDel(false);
+    const ids = Array.from(sel);
+    if (!ids.length) return;
+    setExcluindo(true);
+    // Lotes de 100 — evita URL longa demais no DELETE ...in(...) ao excluir muitos.
+    const supabase = createClient();
+    let ok = 0; let err: string | null = null;
+    for (let i = 0; i < ids.length; i += 100) {
+      const lote = ids.slice(i, i + 100);
+      const { data, error } = await supabase.from("chamados").delete().in("id", lote).select("id");
+      if (error) { err = error.message; break; }
+      ok += data?.length ?? 0;
+    }
+    setExcluindo(false);
+    if (err) { toast("Erro ao excluir: " + err, "error"); return; }
+    await refresh();
+    setSel(new Set());
+    setSelMode(false);
+    toast(`${ok} card(s) excluído(s).`);
+  }
+
   if (loading)
     return (<><PageHeader title="Pipeline Comercial" /><KpiSkeletonRow count={4} /><Skeleton className="h-96" /></>);
 
   return (
     <>
       <PageHeader title="Pipeline Comercial" subtitle="Fluxo comercial — board de chamados (espelho do Goalfy)">
+        {isAdmin && aba === "board" && (
+          <Button variant={selMode ? "primary" : "secondary"} onClick={() => (selMode ? sairSelecao() : setSelMode(true))}>
+            <CheckSquare size={16} /> {selMode ? "Cancelar seleção" : "Selecionar"}
+          </Button>
+        )}
         {isAdmin && <Button variant="secondary" onClick={() => setConfigFases(true)}><SlidersHorizontal size={16} /> Fases</Button>}
         <Button variant="secondary" onClick={() => setImportar(true)}><Upload size={16} /> Importar CSV</Button>
         <Button onClick={() => abrir(null)}><Plus size={16} /> Novo Card</Button>
@@ -160,6 +205,19 @@ export default function ChamadosPage() {
           <TabBtn active={aba === "dashboard"} onClick={() => setAba("dashboard")}>Dashboard</TabBtn>
         </div>
       </div>
+
+      {isAdmin && selMode && aba === "board" && (
+        <div className="flex flex-wrap items-center gap-2 mb-3 rounded-lg border border-primary/40 bg-primary-soft/20 px-3 py-2">
+          <span className="text-sm font-medium">{sel.size} selecionado(s)</span>
+          <Button variant="secondary" size="sm" onClick={selecionarTodos}>Selecionar todos ({filtrados.length})</Button>
+          <Button variant="secondary" size="sm" onClick={limparSel} disabled={!sel.size}>Limpar</Button>
+          <div className="flex-1" />
+          <Button variant="danger" size="sm" onClick={() => setConfirmDel(true)} disabled={!sel.size || excluindo}>
+            <Trash2 size={14} /> {excluindo ? "Excluindo..." : "Excluir selecionados"}
+          </Button>
+          <Button variant="secondary" size="sm" onClick={sairSelecao}><X size={14} /> Sair</Button>
+        </div>
+      )}
 
       {aba === "board" ? (
         filtrados.length === 0 ? (
@@ -189,15 +247,22 @@ export default function ChamadosPage() {
                     </div>
                     <div className="p-2 space-y-2 flex-1 max-h-[64vh] overflow-y-auto">
                       {items.map((c) => (
-                        <button key={c.id} onClick={() => abrir(c)}
-                          draggable
-                          onDragStart={() => setDragId(c.id)}
+                        <button key={c.id} onClick={() => (selMode ? toggleSel(c.id) : abrir(c))}
+                          draggable={!selMode}
+                          onDragStart={() => !selMode && setDragId(c.id)}
                           onDragEnd={() => { setDragId(null); setOverFase(null); }}
-                          className={cn("w-full text-left rounded-lg border bg-surface hover:border-border-strong p-2.5 transition-all cursor-grab active:cursor-grabbing",
+                          className={cn("w-full text-left rounded-lg border bg-surface p-2.5 transition-all",
+                            selMode ? "cursor-pointer" : "hover:border-border-strong cursor-grab active:cursor-grabbing",
                             dragId === c.id && "opacity-40",
-                            atrasado(c) ? "border-l-4 border-l-red border-border" : "border-border")}>
+                            selMode && sel.has(c.id) ? "border-primary ring-2 ring-primary bg-primary-soft/20"
+                              : atrasado(c) ? "border-l-4 border-l-red border-border" : "border-border")}>
                           <div className="flex items-center justify-between gap-2 mb-1">
-                            <span className="text-sm font-medium truncate">{c.titulo || "Chamado"}</span>
+                            <span className="flex items-center gap-1.5 min-w-0">
+                              {selMode && (sel.has(c.id)
+                                ? <CheckSquare size={14} className="text-primary shrink-0" />
+                                : <Square size={14} className="text-muted shrink-0" />)}
+                              <span className="text-sm font-medium truncate">{c.titulo || "Chamado"}</span>
+                            </span>
                             {c.prioridade && <Badge tone={prioTone(c.prioridade)}>{c.prioridade}</Badge>}
                           </div>
                           {c.cliente && <p className="text-xs font-medium text-foreground truncate">{c.cliente}</p>}
@@ -237,6 +302,14 @@ export default function ChamadosPage() {
       {modal && <ChamadoModal open={modal} onClose={() => { setModal(false); setEdit(null); setFaseNova(undefined); }} chamado={edit} faseInicial={faseNova} />}
       {importar && <ChamadosImport open={importar} onClose={() => setImportar(false)} />}
       {configFases && <ChamadoFasesConfig open={configFases} onClose={() => setConfigFases(false)} />}
+      <ConfirmDialog
+        open={confirmDel}
+        title="Excluir cards selecionados"
+        message={`Excluir ${sel.size} card(s) selecionado(s)? Não dá para desfazer.`}
+        confirmLabel="Excluir"
+        onConfirm={excluirSelecionados}
+        onCancel={() => setConfirmDel(false)}
+      />
     </>
   );
 }
