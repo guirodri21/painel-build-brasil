@@ -1,8 +1,12 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-// "/f/" = formulários públicos de entrada dos Quadros (sem login)
-const PUBLIC_ROUTES = ["/login", "/f/"];
+// Rotas acessíveis sem login:
+//  "/inicio"  = landing institucional (servida em "/" via rewrite p/ visitantes)
+//  "/assinar" + "/assinatura-confirmada" = fluxo público de assinatura
+//  "/f/"      = formulários públicos de entrada dos Quadros
+//  "/login"   = tela de acesso
+const PUBLIC_ROUTES = ["/login", "/inicio", "/assinar", "/assinatura-confirmada", "/f/"];
 
 type Secao = "comercial" | "operacional" | "estoque" | "financeiro" | "admin";
 
@@ -75,6 +79,24 @@ export async function proxy(request: NextRequest) {
 
   const path = request.nextUrl.pathname;
   const isPublic = PUBLIC_ROUTES.some((r) => path.startsWith(r));
+
+  // Landing na raiz: visitante sem sessão vê "/inicio" mantendo a URL "/".
+  // O rewrite preserva cookies (refresh de sessão) e o CSP com nonce.
+  if (!user && path === "/") {
+    const url = request.nextUrl.clone();
+    url.pathname = "/inicio";
+    const rewrite = NextResponse.rewrite(url, { request: { headers: requestHeaders } });
+    response.cookies.getAll().forEach((c) => rewrite.cookies.set(c));
+    rewrite.headers.set("content-security-policy", csp);
+    return rewrite;
+  }
+
+  // Quem já tem login não precisa da landing — segue direto para o painel.
+  if (user && path === "/inicio") {
+    const url = request.nextUrl.clone();
+    url.pathname = "/";
+    return NextResponse.redirect(url);
+  }
 
   if (!user && !isPublic) {
     const url = request.nextUrl.clone();
