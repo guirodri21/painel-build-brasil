@@ -6,8 +6,10 @@ import { useData } from "@/components/data-provider";
 import { useToast } from "@/components/ui/toast";
 import { Modal, ModalBody, ModalFooter } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
-import { FileSpreadsheet } from "lucide-react";
+import { ConfirmDialog } from "@/components/ui/confirm";
+import { FileSpreadsheet, Trash2 } from "lucide-react";
 import * as XLSX from "xlsx";
+import { indexarFases, casarFase } from "@/lib/fase-match";
 
 const norm = (s: string) =>
   s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
@@ -80,10 +82,25 @@ function parseCSV(text: string): string[][] {
 }
 
 export function ChamadosImport({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { userId, filial, refresh } = useData();
+  const { userId, filial, chamados, chamadoFases, isAdmin, refresh } = useData();
   const toast = useToast();
   const [busy, setBusy] = React.useState(false);
+  const [reorg, setReorg] = React.useState(false);
+  const [limpando, setLimpando] = React.useState(false);
+  const [confirmarLimpar, setConfirmarLimpar] = React.useState(false);
   const [resumo, setResumo] = React.useState<string | null>(null);
+  const [deParaFases, setDeParaFases] = React.useState<[string, string, number][] | null>(null);
+
+  // Cards que vieram de importação (têm goalfy_card_id) — os criados na mão
+  // pelo botão "Novo Card" têm esse campo nulo e são preservados.
+  const importados = React.useMemo(() => chamados.filter((c) => c.goalfy_card_id), [chamados]);
+
+  // Fases já criadas (ordenadas) — destino de todo card importado. A primeira
+  // é a fase de entrada, usada quando o texto da planilha não casa com nenhuma.
+  const fasesOrdenadas = React.useMemo(
+    () => [...chamadoFases].sort((a, b) => a.ordem - b.ordem).map((f) => f.nome),
+    [chamadoFases],
+  );
 
   async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -91,6 +108,7 @@ export function ChamadosImport({ open, onClose }: { open: boolean; onClose: () =
     if (!file) return;
     setBusy(true);
     setResumo(null);
+    setDeParaFases(null);
     try {
       const nome = file.name.toLowerCase();
       const excel = nome.endsWith(".xlsx") || nome.endsWith(".xls");
@@ -118,6 +136,13 @@ export function ChamadosImport({ open, onClose }: { open: boolean; onClose: () =
 
       const num = (v: string) => v ? Number(v.replace(/[^\d.,-]/g, "").replace(/\./g, "").replace(",", ".")) || 0 : 0;
 
+      // De-para de fases: encaixa o texto da planilha numa fase JÁ existente,
+      // em vez de criar coluna nova. Fallback = primeira fase (entrada).
+      const idxFases = indexarFases(fasesOrdenadas);
+      const faseEntrada = fasesOrdenadas[0] ?? "Oportunidade / Demanda";
+      // Conta como cada texto original foi mapeado (para o resumo de-para).
+      const dePara = new Map<string, { destino: string; n: number }>();
+
       const registros = rows.slice(1).map((cols) => {
         const r: Record<string, unknown> = { filial: filial || "Matriz", created_by: userId };
         const tempos: Record<string, string> = {};
@@ -131,7 +156,12 @@ export function ChamadosImport({ open, onClose }: { open: boolean; onClose: () =
           if (tempoCols[i] && raw) tempos[tempoCols[i] as string] = raw;
         });
         if (Object.keys(tempos).length) r.tempos_fase = tempos;
-        if (!r.fase) r.fase = "Oportunidade / Demanda";
+        // Resolve a fase para uma das já criadas. Registra o de-para pelo texto original.
+        const faseOriginal = (r.fase as string | null) || "(sem fase)";
+        const destino = casarFase((r.fase as string) ?? "", idxFases) ?? faseEntrada;
+        r.fase = destino;
+        const dp = dePara.get(faseOriginal) ?? { destino, n: 0 };
+        dp.n++; dePara.set(faseOriginal, dp);
         // Sem coluna de ID no Goalfy → usa o Ticket Trílogo como chave anti-duplicação
         if (!r.goalfy_card_id && r.ticket_ref) r.goalfy_card_id = "tkt:" + String(r.ticket_ref);
         return r;
@@ -162,6 +192,12 @@ export function ChamadosImport({ open, onClose }: { open: boolean; onClose: () =
       setBusy(false);
       if (err) { toast("Erro ao importar: " + err, "error"); return; }
       await refresh();
+      // Mostra só o que foi de fato remapeado (texto da planilha ≠ fase de destino).
+      const remap = Array.from(dePara.entries())
+        .filter(([orig, { destino }]) => norm(orig) !== norm(destino))
+        .map(([orig, { destino, n }]) => [orig, destino, n] as [string, string, number])
+        .sort((a, b) => b[2] - a[2]);
+      setDeParaFases(remap.length ? remap : null);
       setResumo(`${ok} chamado(s) importado(s) de ${registros.length} linha(s).`);
       toast(`${ok} chamado(s) importado(s).`);
     } catch (e) {
@@ -170,13 +206,73 @@ export function ChamadosImport({ open, onClose }: { open: boolean; onClose: () =
     }
   }
 
+  // Cards já existentes cuja fase NÃO é nenhuma das configuradas — são exatamente
+  // as colunas "extra" que aparecem no board depois de uma importação antiga.
+  const foraDaFase = React.useMemo(() => {
+    const nomes = new Set(fasesOrdenadas);
+    return chamados.filter((c) => !nomes.has(c.fase));
+  }, [chamados, fasesOrdenadas]);
+
+  /** Reencaixa os cards fora do padrão nas fases existentes (corrige importações antigas). */
+  async function reorganizar() {
+    if (!foraDaFase.length) { toast("Todos os cards já estão nas fases atuais.", "success"); return; }
+    const entrada = fasesOrdenadas[0];
+    if (!entrada) { toast("Crie ao menos uma fase antes de reorganizar.", "error"); return; }
+    setReorg(true);
+    setResumo(null);
+    setDeParaFases(null);
+    const idx = indexarFases(fasesOrdenadas);
+    const supabase = createClient();
+    // Agrupa por fase de origem: um UPDATE em massa por coluna fora do padrão.
+    const origens = Array.from(new Set(foraDaFase.map((c) => c.fase)));
+    const dePara: [string, string, number][] = [];
+    let ok = 0; let err: string | null = null;
+    for (const origem of origens) {
+      const destino = casarFase(origem, idx) ?? entrada;
+      const { data, error } = await supabase.from("chamados").update({ fase: destino }).eq("fase", origem).select("id");
+      if (error) { err = error.message; break; }
+      const n = data?.length ?? 0;
+      ok += n;
+      if (n) dePara.push([origem, destino, n]);
+    }
+    setReorg(false);
+    if (err) { toast("Erro ao reorganizar: " + err, "error"); return; }
+    await refresh();
+    setDeParaFases(dePara.sort((a, b) => b[2] - a[2]));
+    setResumo(`${ok} card(s) reorganizado(s) em ${origens.length} coluna(s) fora do padrão.`);
+    toast(`${ok} card(s) reorganizado(s).`);
+  }
+
+  /** Apaga TODOS os chamados importados (goalfy_card_id != null). Preserva os criados na mão. */
+  async function apagarImportados() {
+    setConfirmarLimpar(false);
+    if (!importados.length) return;
+    setLimpando(true);
+    setResumo(null);
+    setDeParaFases(null);
+    const supabase = createClient();
+    const { data, error } = await supabase
+      .from("chamados").delete().not("goalfy_card_id", "is", null).select("id");
+    setLimpando(false);
+    if (error) { toast("Erro ao apagar: " + error.message, "error"); return; }
+    await refresh();
+    setResumo(`${data?.length ?? 0} chamado(s) importado(s) apagado(s). Pode reimportar do zero.`);
+    toast(`${data?.length ?? 0} chamado(s) apagado(s).`);
+  }
+
   return (
+    <>
     <Modal open={open} onClose={onClose} title="Importar chamados (CSV / Excel)" className="max-w-lg">
       <ModalBody>
         <p className="text-sm text-muted">
           Exporte o board do Goalfy em <strong>CSV ou Excel</strong> e selecione o arquivo. O painel reconhece
           automaticamente as colunas: cliente, região, descrição, prioridade, ticket, fase, valor, responsável,
           e o <strong>ID do card</strong> (para não duplicar em reimportações).
+        </p>
+        <p className="text-xs text-muted">
+          Os cards são encaixados nas <strong>fases já criadas</strong> do seu board (por nome, ignorando acento,
+          maiúscula e pontuação). Nenhuma coluna nova é criada — o que não casar vai para a fase de entrada
+          (<em>{fasesOrdenadas[0] ?? "primeira fase"}</em>).
         </p>
 
         <label className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border py-8 cursor-pointer hover:bg-surface-2 transition-colors">
@@ -188,14 +284,69 @@ export function ChamadosImport({ open, onClose }: { open: boolean; onClose: () =
 
         {resumo && <p className="text-sm text-green font-medium">✓ {resumo}</p>}
 
+        {deParaFases && (
+          <div className="rounded-lg border border-border bg-surface-2/40 p-3">
+            <p className="text-xs font-medium mb-1.5">Fases encaixadas (planilha → board):</p>
+            <ul className="space-y-1 text-[11px] text-muted max-h-40 overflow-y-auto">
+              {deParaFases.map(([orig, destino, n]) => (
+                <li key={orig} className="flex items-center gap-1.5">
+                  <span className="truncate max-w-[45%]" title={orig}>{orig}</span>
+                  <span className="text-muted">→</span>
+                  <span className="truncate font-medium text-foreground" title={destino}>{destino}</span>
+                  <span className="ml-auto tabular-nums shrink-0">{n}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         <p className="text-[11px] text-muted">
           Dica: no Goalfy, abra o board → <em>Ações em massa</em> ou o menu de exportação → exportar como Excel/CSV.
           Pode soltar o <strong>.xlsx</strong> direto aqui — não precisa converter.
         </p>
+
+        {isAdmin && foraDaFase.length > 0 && (
+          <div className="rounded-lg border border-yellow/40 bg-yellow/5 p-3">
+            <p className="text-xs font-medium text-foreground">
+              {foraDaFase.length} card(s) estão em colunas fora das fases atuais
+            </p>
+            <p className="text-[11px] text-muted mt-0.5 mb-2">
+              De importações anteriores. Reorganize para encaixá-los nas fases já criadas — sem apagar nada.
+            </p>
+            <Button variant="secondary" size="sm" onClick={reorganizar} disabled={reorg || busy}>
+              {reorg ? "Reorganizando..." : "Reorganizar cards nas fases atuais"}
+            </Button>
+          </div>
+        )}
+
+        {isAdmin && importados.length > 0 && (
+          <div className="rounded-lg border border-red/40 bg-red/5 p-3">
+            <p className="text-xs font-medium text-foreground">
+              Zona de teste — apagar {importados.length} chamado(s) importado(s)
+            </p>
+            <p className="text-[11px] text-muted mt-0.5 mb-2">
+              Remove tudo que veio de planilha para você reimportar do zero. Cards criados na mão
+              (botão &quot;Novo Card&quot;) são preservados. Não dá para desfazer.
+            </p>
+            <Button variant="danger" size="sm" onClick={() => setConfirmarLimpar(true)} disabled={limpando || busy || reorg}>
+              <Trash2 size={14} /> {limpando ? "Apagando..." : "Apagar chamados importados"}
+            </Button>
+          </div>
+        )}
       </ModalBody>
       <ModalFooter>
         <Button variant="secondary" onClick={onClose}>Fechar</Button>
       </ModalFooter>
     </Modal>
+
+    <ConfirmDialog
+      open={confirmarLimpar}
+      title="Apagar chamados importados"
+      message={`Isso apaga ${importados.length} chamado(s) importado(s) (todos com ID do Goalfy). Os criados na mão são mantidos. Não dá para desfazer. Confirmar?`}
+      confirmLabel="Apagar tudo"
+      onConfirm={apagarImportados}
+      onCancel={() => setConfirmarLimpar(false)}
+    />
+    </>
   );
 }
