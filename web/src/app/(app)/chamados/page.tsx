@@ -192,7 +192,11 @@ export default function ChamadosPage() {
     await refresh();
     setSel(new Set());
     setSelMode(false);
-    toast(`${ok} card(s) excluído(s).`);
+    // Sem admin, a RLS só apaga os cards do próprio usuário — avisa o que ficou.
+    const faltou = ids.length - ok;
+    toast(faltou > 0
+      ? `${ok} excluído(s); ${faltou} sem permissão (só o autor ou admin apaga).`
+      : `${ok} card(s) excluído(s).`);
   }
 
   // Move em massa os selecionados para uma fase existente (movimento direto de admin).
@@ -222,7 +226,7 @@ export default function ChamadosPage() {
   return (
     <>
       <PageHeader title="Pipeline Comercial" subtitle="Fluxo comercial — board de chamados (espelho do Goalfy)">
-        {isAdmin && aba === "board" && (
+        {aba === "board" && (
           <Button variant={selMode ? "primary" : "secondary"} onClick={() => (selMode ? sairSelecao() : setSelMode(true))}>
             <CheckSquare size={16} /> {selMode ? "Cancelar seleção" : "Selecionar"}
           </Button>
@@ -255,7 +259,7 @@ export default function ChamadosPage() {
         </div>
       </div>
 
-      {isAdmin && selMode && aba === "board" && (
+      {selMode && aba === "board" && (
         <div className="flex flex-wrap items-center gap-2 mb-3 rounded-lg border border-primary/40 bg-primary-soft/20 px-3 py-2">
           <span className="text-sm font-medium">{selVisivel.size} selecionado(s)</span>
           <Button variant="secondary" size="sm" onClick={selecionarTodos}>Selecionar todos ({filtrados.length})</Button>
@@ -302,7 +306,7 @@ export default function ChamadosPage() {
                         <span className="text-sm font-semibold truncate">{col.nome}</span>
                         <span className="text-xs text-muted tabular-nums">{items.length}</span>
                       </div>
-                      {isAdmin && selMode && items.length > 0 && (
+                      {selMode && items.length > 0 && (
                         <button type="button" onClick={() => toggleColuna(items.map((c) => c.id))}
                           className="shrink-0 text-muted hover:text-foreground cursor-pointer" title="Selecionar/limpar esta fase">
                           {items.every((c) => sel.has(c.id))
