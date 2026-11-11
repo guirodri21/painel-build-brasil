@@ -322,7 +322,7 @@ export default function EstoquePage() {
         <ProdutoModal open={prodModal} onClose={() => setProdModal(false)} produto={editProd} />
       )}
       {movModal && (
-        <MovimentoModal open={movModal} onClose={() => setMovModal(false)} produto={movProd} />
+        <MovimentoModal key={movModal ? `mov-${movProd?.id ?? "novo"}` : "fechado"} open={movModal} onClose={() => setMovModal(false)} produto={movProd} />
       )}
       <ConfirmDialog
         open={!!delProd}

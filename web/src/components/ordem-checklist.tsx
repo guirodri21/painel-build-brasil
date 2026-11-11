@@ -3,9 +3,9 @@
 import * as React from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useData } from "@/components/data-provider";
-import { useToast } from "@/components/ui/toast";
 import type { ChecklistTemplate, OrdemChecklistItem } from "@/lib/types";
 import { ListChecks } from "lucide-react";
+import { useCarregar } from "@/lib/use-carregar";
 
 /** Checklist da ordem, baseado no template da linha de serviço. */
 export function OrdemChecklist({
@@ -18,7 +18,6 @@ export function OrdemChecklist({
   filial: string | null;
 }) {
   const { userId } = useData();
-  const toast = useToast();
   const supabase = React.useMemo(() => createClient(), []);
   const [tpl, setTpl] = React.useState<ChecklistTemplate[]>([]);
   const [itens, setItens] = React.useState<OrdemChecklistItem[]>([]);
@@ -34,7 +33,7 @@ export function OrdemChecklist({
     setLoading(false);
   }, [supabase, linhaServico, ordemId]);
 
-  React.useEffect(() => { carregar(); }, [carregar]);
+  useCarregar(carregar);
 
   const estado = React.useMemo(() => new Map(itens.map((i) => [i.item, i])), [itens]);
 

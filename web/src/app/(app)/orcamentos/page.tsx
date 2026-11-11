@@ -18,6 +18,7 @@ import { formatCurrency, formatDate, formatMoney, todayISO, cn } from "@/lib/uti
 import { ORCAMENTO_STATUS_LABELS } from "@/lib/types";
 import type { Orcamento, OrcamentoItem, OrcamentoStatus } from "@/lib/types";
 import { Plus, FileText, FileDown, ArrowRightCircle, Pencil, Trash2 } from "lucide-react";
+import { useCarregar } from "@/lib/use-carregar";
 
 const TONE: Record<OrcamentoStatus, "gray" | "blue" | "green" | "red"> = {
   rascunho: "gray", enviado: "blue", aprovado: "green", recusado: "red",
@@ -41,7 +42,7 @@ export default function OrcamentosPage() {
     setLoading(false);
   }, [supabase, filial]);
 
-  React.useEffect(() => { carregar(); }, [carregar]);
+  useCarregar(carregar);
 
   const totalAberto = sum(orcs.filter((o) => o.status === "enviado"), (o) => o.valor_total);
   const aprovados = orcs.filter((o) => o.status === "aprovado");

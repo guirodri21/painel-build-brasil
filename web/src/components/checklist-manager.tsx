@@ -9,6 +9,7 @@ import { Input, Select } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import type { ChecklistTemplate } from "@/lib/types";
 import { Plus, Trash2 } from "lucide-react";
+import { useCarregar } from "@/lib/use-carregar";
 
 export function ChecklistManager() {
   const { linhas } = useData();
@@ -24,7 +25,7 @@ export function ChecklistManager() {
     setTpl((data as ChecklistTemplate[]) ?? []);
   }, [supabase]);
 
-  React.useEffect(() => { carregar(); }, [carregar]);
+  useCarregar(carregar);
 
   async function adicionar(e: React.FormEvent) {
     e.preventDefault();

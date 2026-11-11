@@ -34,22 +34,20 @@ export function AnimatedNumber({
   React.useEffect(() => {
     const from = currentRef.current;
     const to = Number.isFinite(value) ? value : 0;
-    if (from === to) {
-      currentRef.current = to;
-      setDisplay(to);
-      return;
-    }
+    if (from === to) return;
 
     const reduce =
       typeof window !== "undefined" &&
       window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    let raf = 0;
     if (reduce) {
-      currentRef.current = to;
-      setDisplay(to);
-      return;
+      raf = requestAnimationFrame(() => {
+        currentRef.current = to;
+        setDisplay(to);
+      });
+      return () => cancelAnimationFrame(raf);
     }
 
-    let raf = 0;
     let start = 0;
     const tick = (t: number) => {
       if (!start) start = t;

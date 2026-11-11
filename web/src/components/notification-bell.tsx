@@ -7,6 +7,7 @@ import { cn, formatDate } from "@/lib/utils";
 import type { Notificacao } from "@/lib/types";
 import { Bell, Check, CheckCheck } from "lucide-react";
 import Link from "next/link";
+import { useCarregar } from "@/lib/use-carregar";
 
 export function NotificationBell() {
   const { userId } = useData();
@@ -22,7 +23,7 @@ export function NotificationBell() {
     setItens((data as Notificacao[]) ?? []);
   }, [supabase, userId]);
 
-  React.useEffect(() => { carregar(); }, [carregar]);
+  useCarregar(carregar);
 
   // Realtime das notificações do usuário
   React.useEffect(() => {

@@ -47,8 +47,8 @@ export default function RelatoriosPage() {
   const toast = useToast();
 
   const [tipo, setTipo] = React.useState<Tipo>("receita_equipe");
-  const [mesA, setMesA] = React.useState("");
-  const [mesB, setMesB] = React.useState("");
+  const [mesASel, setMesA] = React.useState("");
+  const [mesBSel, setMesB] = React.useState("");
 
   const d = React.useMemo(() => applyFiltros(ordens, filtros), [ordens, filtros]);
 
@@ -57,12 +57,9 @@ export default function RelatoriosPage() {
     return Array.from(set).sort().reverse();
   }, [d]);
 
-  React.useEffect(() => {
-    if (meses.length) {
-      if (!mesA || !meses.includes(mesA)) setMesA(meses[0]);
-      if (!mesB || !meses.includes(mesB)) setMesB(meses[1] ?? meses[0]);
-    }
-  }, [meses, mesA, mesB]);
+  // Mês escolhido, ou o mais recente disponível quando a escolha sai do filtro.
+  const mesA = meses.includes(mesASel) ? mesASel : (meses[0] ?? "");
+  const mesB = meses.includes(mesBSel) ? mesBSel : (meses[1] ?? meses[0] ?? "");
 
   const isComparativo = tipo === "receita_equipe" || tipo === "receita_regiao" || tipo === "receita_linha";
 

@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { formatDate } from "@/lib/utils";
 import { MessageSquare, Paperclip, Send, Trash2, Upload, FileText } from "lucide-react";
+import { useCarregar } from "@/lib/use-carregar";
 
 const BUCKET = "ordens-anexos";
 
@@ -15,14 +16,13 @@ type Coment = { id: string; texto: string; autor_nome: string | null; created_by
 type Anexo = { id: string; path: string; legenda: string | null; created_by: string | null; created_at: string };
 
 export function ChamadoAtividade({ chamadoId }: { chamadoId: string }) {
-  const { userId } = useData();
+  const { userId, email } = useData();
   const toast = useToast();
   const supabase = React.useMemo(() => createClient(), []);
   const [coments, setComents] = React.useState<Coment[]>([]);
   const [anexos, setAnexos] = React.useState<Anexo[]>([]);
   const [urls, setUrls] = React.useState<Record<string, string>>({});
   const [texto, setTexto] = React.useState("");
-  const [email, setEmail] = React.useState<string>("");
   const [busy, setBusy] = React.useState(false);
 
   const carregar = React.useCallback(async () => {
@@ -41,10 +41,7 @@ export function ChamadoAtividade({ chamadoId }: { chamadoId: string }) {
     }
   }, [supabase, chamadoId]);
 
-  React.useEffect(() => {
-    carregar();
-    supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? ""));
-  }, [carregar, supabase]);
+  useCarregar(carregar);
 
   async function comentar() {
     if (!texto.trim()) return;
