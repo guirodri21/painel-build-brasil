@@ -42,7 +42,7 @@ export default async function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   const nonce = (await headers()).get("x-nonce") ?? undefined;
   return (
-    <html lang="pt-BR" className={`${inter.variable} ${mono.variable}`}>
+    <html lang="pt-BR" className={`${inter.variable} ${mono.variable}`} suppressHydrationWarning>
       <head>
         <script nonce={nonce} dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>

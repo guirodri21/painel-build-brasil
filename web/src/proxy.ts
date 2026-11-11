@@ -72,10 +72,12 @@ export async function proxy(request: NextRequest) {
     },
   );
 
-  // IMPORTANTE: getUser revalida o token e atualiza os cookies.
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // getClaims valida a assinatura do token (localmente quando o projeto usa
+  // chaves assimétricas; senão cai no getUser) e renova os cookies se preciso.
+  // Evita uma ida ao servidor de auth a cada clique de navegação.
+  const { data: claimsData } = await supabase.auth.getClaims();
+  const claims = claimsData?.claims;
+  const user = claims?.sub ? { id: claims.sub } : null;
 
   const path = request.nextUrl.pathname;
   const isPublic = PUBLIC_ROUTES.some((r) => path.startsWith(r));

@@ -1,7 +1,7 @@
 # Build Brasil — Painel de Resultados
 
 Painel interno para gestão de vendas, operações e financeiro.
-Stack: HTML/CSS/JS puro + Supabase (banco + auth) + hospedagem estática gratuita.
+Stack: Next.js (pasta `web/`) + Supabase (banco + auth) + Vercel.
 
 ---
 
@@ -20,12 +20,16 @@ Stack: HTML/CSS/JS puro + Supabase (banco + auth) + hospedagem estática gratuit
 3. Cole o conteúdo inteiro do arquivo `supabase/schema.sql` e clique **Run**.
 4. Deve aparecer "Success" — as tabelas, políticas RLS e dados de exemplo foram criados.
 
-### 3. [VOCÊ FAZ] Copiar credenciais para config.js
+### 3. [VOCÊ FAZ] Variáveis de ambiente
 
-1. No Supabase, vá em **Settings → API**.
-2. Copie a **Project URL** (ex.: `https://abc123.supabase.co`).
-3. Copie a **anon (public) key**.
-4. Abra o arquivo `config.js` e substitua os valores de `SUPABASE_URL` e `SUPABASE_ANON_KEY`.
+O app fica em `web/` (Next.js). Crie `web/.env.local` com:
+
+```
+NEXT_PUBLIC_SUPABASE_URL=https://abc123.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+```
+
+Na Vercel, cadastre as mesmas duas variáveis em **Settings → Environment Variables**.
 
 > **Nunca** use a `service_role key` no frontend. A `anon key` é segura com RLS ativado.
 
@@ -41,23 +45,15 @@ Stack: HTML/CSS/JS puro + Supabase (banco + auth) + hospedagem estática gratuit
 > podem criar usuários pelo painel do Supabase. Alternativamente, crie uma trigger SQL que
 > verifica o domínio do e-mail (ex.: `@buildbrasil.com.br`).
 
-### 5. Testar localmente
-
-Qualquer servidor HTTP estático funciona. Exemplos:
+### 5. Rodar localmente
 
 ```bash
-# Opção 1: npx
-npx serve .
-
-# Opção 2: Python
-python -m http.server 8000
-
-# Opção 3: VS Code
-# Instale a extensão "Live Server" e clique em "Go Live"
+cd web
+npm install
+npm run dev
 ```
 
-Abra o navegador, faça login com o usuário criado no passo 4.
-O painel deve aparecer com os dados de exemplo (10 ordens + 6 despesas).
+Abra http://localhost:3000 e faça login com o usuário criado no passo 4.
 
 ### 6. Deploy automático (CI/CD)
 
@@ -72,11 +68,9 @@ Este repositório está configurado para publicar **sozinho** a cada `git push` 
 
 1. Em [vercel.com](https://vercel.com) → **Add New → Project** e importe o repositório
    `guirodri21/painel-build-brasil`.
-2. **Framework Preset: Other**. Build command: vazio. Output directory: vazio (raiz).
+2. **Root Directory: `web`**, Framework Preset: **Next.js** (build padrão).
 3. **Deploy**. Pronto: a partir daí, todo push no `main` republica em produção
    (`https://seu-projeto.vercel.app`); pushes em outros branches/PRs geram previews.
-
-O arquivo [`vercel.json`](vercel.json) já traz a configuração do site estático.
 
 #### 6.2. [VOCÊ FAZ — uma vez] Cadastrar os secrets do Supabase no GitHub
 
@@ -93,7 +87,7 @@ do resto.
 
 #### 6.3. Como funciona no dia a dia
 
-- **Mudar o site:** edite `index.html` / `app.js` / `styles.css`, faça commit e push.
+- **Mudar o site:** edite o código em `web/src/`, faça commit e push.
   O Vercel republica em segundos.
 - **Mudar o banco:** crie um arquivo em `supabase/migrations/` (veja
   [supabase/migrations/README.md](supabase/migrations/README.md)) e faça push. O Action
@@ -105,19 +99,16 @@ do resto.
 > das edge functions. Edite o código das functions **aqui no repo**, não pelo painel do
 > Supabase — senão o próximo deploy sobrescreve a edição feita no painel.
 
-> Hospedagem alternativa (sem auto-deploy): também dá para usar o **Cloudflare Pages**
-> (Workers & Pages → Create → Pages → conectar o repo, framework **None**, output `/`).
-
 ---
 
 ## Estrutura de arquivos
 
 ```
-index.html                       Tela de login + app (página única)
-app.js                           Supabase client, auth, CRUD, filtros, cálculos, render
-styles.css                       Identidade visual (prancha de engenharia)
-config.js                        URL e anon key do Supabase
-vercel.json                      Config do deploy estático no Vercel
+web/                             App Next.js (painel, login, landing, modo TV)
+web/src/app/                     Rotas (páginas)
+web/src/components/              Componentes de interface
+web/src/lib/                     Tipos, cálculos, navegação, cliente Supabase
+web/src/proxy.ts                 Sessão, CSP e bloqueio de rotas por permissão
 supabase/config.toml             Config do Supabase CLI (project_id, verify_jwt)
 supabase/schema.sql              Tabelas, RLS, dados de exemplo
 supabase/migrations/             Migrações novas (auto-aplicadas no push)
@@ -140,4 +131,4 @@ README.md                        Este arquivo
 
 - **Despesa direta:** vai para a equipe da ordem.
 - **Despesas gerais:** rateadas entre as equipes proporcionalmente à receita de cada uma.
-- Essa regra está isolada na função `calcRateio()` em `app.js`. Validar com o financeiro antes de oficializar.
+- Essa regra está isolada na função `calcRateio()` em `web/src/lib/analytics.ts`. Validar com o financeiro antes de oficializar.
