@@ -27,13 +27,6 @@ export function MovimentoModal({
   const [tipo, setTipo] = React.useState<MovimentoTipo>("entrada");
   const [produtoId, setProdutoId] = React.useState(produto?.id ?? "");
 
-  React.useEffect(() => {
-    if (open) {
-      setTipo("entrada");
-      setProdutoId(produto?.id ?? "");
-    }
-  }, [open, produto]);
-
   const ativos = React.useMemo(
     () => produtos.filter((p) => p.ativo || p.id === produto?.id),
     [produtos, produto],

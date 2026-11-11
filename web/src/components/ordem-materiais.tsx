@@ -10,6 +10,7 @@ import { formatMoney, formatNumber } from "@/lib/utils";
 import { alertarSeEstoqueBaixo } from "@/lib/integrations";
 import type { OrdemMaterial } from "@/lib/types";
 import { Plus, Trash2, Package } from "lucide-react";
+import { useCarregar } from "@/lib/use-carregar";
 
 /** Materiais consumidos numa ordem — baixa automática no estoque. */
 export function OrdemMateriais({ ordemId, filial }: { ordemId: string; filial: string | null }) {
@@ -33,7 +34,7 @@ export function OrdemMateriais({ ordemId, filial }: { ordemId: string; filial: s
     setLoading(false);
   }, [ordemId]);
 
-  React.useEffect(() => { carregar(); }, [carregar]);
+  useCarregar(carregar);
 
   async function adicionar() {
     const quantidade = parseFloat(qtd);

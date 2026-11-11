@@ -10,6 +10,7 @@ import { AssinaturaPad } from "@/components/assinatura-pad";
 import { ANEXO_TIPO_LABELS } from "@/lib/types";
 import type { OrdemAnexo, AnexoTipo } from "@/lib/types";
 import { Paperclip, Upload, Trash2, FileText } from "lucide-react";
+import { useCarregar } from "@/lib/use-carregar";
 
 const BUCKET = "ordens-anexos";
 
@@ -40,7 +41,7 @@ export function OrdemAnexos({ ordemId, filial }: { ordemId: string; filial: stri
     }
   }, [supabase, ordemId]);
 
-  React.useEffect(() => { carregar(); }, [carregar]);
+  useCarregar(carregar);
 
   async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];

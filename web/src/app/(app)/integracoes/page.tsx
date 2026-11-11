@@ -13,7 +13,7 @@ import { Input, Select, Label } from "@/components/ui/field";
 import { Modal, ModalBody, ModalFooter } from "@/components/ui/modal";
 import { ConfirmDialog } from "@/components/ui/confirm";
 import { EVENTOS, ingestUrl, whatsappInboundUrl } from "@/lib/integrations";
-import { formatDate, cn } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import {
   INTEGRACAO_TIPO_LABELS, type Integracao, type IntegracaoLog, type IntegracaoTipo,
   type WhatsappConfig, type WhatsappProvider,
@@ -21,6 +21,7 @@ import {
 import {
   Plus, Pencil, Trash2, Lock, Plug, Send, RefreshCw, Power, Copy, Webhook, Download, KeyRound, MessageCircle,
 } from "lucide-react";
+import { useCarregar } from "@/lib/use-carregar";
 
 export default function IntegracoesPage() {
   const { isAdmin, loading } = useData();
@@ -43,7 +44,7 @@ export default function IntegracoesPage() {
     setLogs((lg as IntegracaoLog[]) ?? []);
   }, [supabase]);
 
-  React.useEffect(() => { if (isAdmin) load(); }, [isAdmin, load]);
+  useCarregar(load, isAdmin);
 
   async function toggleAtivo(i: Integracao) {
     const { error } = await supabase.from("integracoes").update({ ativo: !i.ativo }).eq("id", i.id);

@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { EMPTY_FILTROS, type Filtros } from "@/lib/analytics";
+import { usePersisted } from "@/lib/use-persisted";
 
 interface FiltersCtx {
   filtros: Filtros;
@@ -18,43 +19,43 @@ export function useFiltros() {
   return ctx;
 }
 
+const KEY = "bb-filtros";
+
+function parse(raw: string): Filtros {
+  try {
+    return raw ? { ...EMPTY_FILTROS, ...JSON.parse(raw) } : EMPTY_FILTROS;
+  } catch {
+    return EMPTY_FILTROS;
+  }
+}
+
 export function FiltersProvider({ children }: { children: React.ReactNode }) {
-  const [filtros, setFiltros] = React.useState<Filtros>(EMPTY_FILTROS);
+  // Filtros salvos no navegador e compartilhados entre as telas.
+  const [raw, setRaw] = usePersisted(KEY, "");
+  const filtros = React.useMemo(() => parse(raw), [raw]);
 
-  React.useEffect(() => {
+  // Lê o valor salvo na hora da chamada: duas mudanças seguidas não se atropelam.
+  const atual = React.useCallback(() => {
     try {
-      const saved = localStorage.getItem("bb-filtros");
-      if (saved) setFiltros({ ...EMPTY_FILTROS, ...JSON.parse(saved) });
-    } catch {}
-  }, []);
-
-  const persist = React.useCallback((next: Filtros) => {
-    setFiltros(next);
-    try {
-      localStorage.setItem("bb-filtros", JSON.stringify(next));
-    } catch {}
+      return parse(localStorage.getItem(KEY) ?? "");
+    } catch {
+      return EMPTY_FILTROS;
+    }
   }, []);
 
   const setFiltro = React.useCallback(
-    (key: keyof Filtros, value: string) =>
-      persist({ ...filtrosRef.current, [key]: value }),
-    [persist],
+    (key: keyof Filtros, value: string) => setRaw(JSON.stringify({ ...atual(), [key]: value })),
+    [atual, setRaw],
   );
 
   const setMany = React.useCallback(
-    (partial: Partial<Filtros>) => persist({ ...filtrosRef.current, ...partial }),
-    [persist],
+    (partial: Partial<Filtros>) => setRaw(JSON.stringify({ ...atual(), ...partial })),
+    [atual, setRaw],
   );
 
-  // ref para evitar stale closure
-  const filtrosRef = React.useRef(filtros);
-  filtrosRef.current = filtros;
+  const clear = React.useCallback(() => setRaw(JSON.stringify(EMPTY_FILTROS)), [setRaw]);
 
-  const clear = React.useCallback(() => persist(EMPTY_FILTROS), [persist]);
+  const value = React.useMemo(() => ({ filtros, setFiltro, setMany, clear }), [filtros, setFiltro, setMany, clear]);
 
-  return (
-    <Ctx.Provider value={{ filtros, setFiltro, setMany, clear }}>
-      {children}
-    </Ctx.Provider>
-  );
+  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

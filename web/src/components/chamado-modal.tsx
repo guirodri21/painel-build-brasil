@@ -4,14 +4,14 @@ import * as React from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useData } from "@/components/data-provider";
 import { useToast } from "@/components/ui/toast";
-import { Modal, ModalBody, ModalFooter } from "@/components/ui/modal";
+import { Modal, ModalBody, ModalFooter, AtalhoSalvar } from "@/components/ui/modal";
 import { Input, Select, Textarea, Label } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
-import { todayISO, formatDate, formatCurrency } from "@/lib/utils";
+import { cn, todayISO, formatDate, formatCurrency } from "@/lib/utils";
 import { ChamadoAtividade } from "@/components/chamado-atividade";
 import { alertarChamadoCritico, fireEvent } from "@/lib/integrations";
 import { garantirOperacaoDeChamado, FASES_COMERCIAL_APROVADO } from "@/lib/quadros";
-import { Wrench, Send, Upload, FileText, Trash2, ExternalLink, Lock } from "lucide-react";
+import { Wrench, Send, Upload, FileText, Trash2, ExternalLink, Lock, Check } from "lucide-react";
 import {
   PRIORIDADES_OPORTUNIDADE, ORIGENS_OPORTUNIDADE, FAIXAS_POTENCIAL,
   REGIOES_PIPELINE, EQUIPES_PIPELINE, STATUS_ANDAMENTO, TIPOS_DEMANDA, STATUS_PROPOSTA, MOTIVOS_RECUSA,
@@ -98,20 +98,28 @@ export function ChamadoModal({
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const fd = new FormData(e.currentTarget);
+    const form = e.currentTarget;
+    const fd = new FormData(form);
+    // Mostra o erro e leva o cursor até o campo que falta.
+    const falta = (campo: string, msg: string) => {
+      toast(msg, "error");
+      const el = form.elements.namedItem(campo) as HTMLElement | null;
+      el?.scrollIntoView({ block: "center", behavior: "smooth" });
+      el?.focus({ preventScroll: true });
+    };
     // Obrigatórios da fase "Proposta Enviada": valor, anexo e data de envio.
     if (emProposta) {
-      if ((parseFloat(fd.get("valor") as string) || 0) <= 0) { toast("Informe o Valor da proposta.", "error"); return; }
-      if (!fd.get("data_envio_proposta")) { toast("Informe a Data de envio da proposta.", "error"); return; }
+      if ((parseFloat(fd.get("valor") as string) || 0) <= 0) { falta("valor", "Informe o Valor da proposta."); return; }
+      if (!fd.get("data_envio_proposta")) { falta("data_envio_proposta", "Informe a Data de envio da proposta."); return; }
       if (!propostaAnexo) { toast("Anexe a proposta antes de salvar.", "error"); return; }
     }
     // Fase "Proposta Aprovada": motivo do desconto é obrigatório quando há desconto.
     if (emAprovada && temDesconto && !((fd.get("motivo_desconto") as string)?.trim())) {
-      toast("Informe o Motivo do desconto.", "error"); return;
+      falta("motivo_desconto", "Informe o Motivo do desconto."); return;
     }
     // Fase "Proposta Recusada": motivo da recusa é obrigatório.
     if (emRecusada && !((fd.get("motivo_perda") as string)?.trim())) {
-      toast("Informe o Motivo da recusa.", "error"); return;
+      falta("motivo_perda", "Informe o Motivo da recusa."); return;
     }
     // Gate de movimentação: obrigatórios bloqueiam a mudança de fase pelo modal.
     if (editando && chamado && chamado.fase !== fase) {
@@ -178,11 +186,11 @@ export function ChamadoModal({
       const r = await garantirOperacaoDeChamado(salvo);
       if (r === "criado") opMsg = " Operação gerada.";
     }
-    await refresh();
     toast(emAprovada ? "Proposta aprovada. Card concluído."
       : emRecusada ? "Proposta recusada. Card concluído."
       : ((editando ? "Chamado atualizado." : "Chamado criado.") + opMsg));
     onClose();
+    void refresh();
   }
 
   return (
@@ -193,13 +201,14 @@ export function ChamadoModal({
           {editando && codigoChamado(chamado?.numero) && (
             <p className="text-[11px] text-muted font-mono mb-1">ID {codigoChamado(chamado?.numero)}</p>
           )}
+          <FaseStepper fase={fase} />
           {congelarInicio && (
             <p className="text-[11px] text-muted flex items-center gap-1.5">
               <Lock size={12} /> Dados principais congelados (definidos na abertura da oportunidade).
             </p>
           )}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="col-span-2">
+            <div className="col-span-full">
               <Label>Título / demanda</Label>
               <Input name="titulo" defaultValue={chamado?.titulo ?? ""} placeholder="Ex.: Chamado" disabled={congelarInicio} />
             </div>
@@ -239,7 +248,7 @@ export function ChamadoModal({
                 {ORIGENS_OPORTUNIDADE.map((o) => <option key={o} value={o}>{o}</option>)}
               </Select>
             </div>
-            <div className="col-span-2">
+            <div className="col-span-full">
               <Label>Faixa de potencial *</Label>
               <Select name="faixa_potencial" required defaultValue={chamado?.faixa_potencial ?? ""} disabled={congelarInicio}>
                 <option value="">—</option>
@@ -266,7 +275,7 @@ export function ChamadoModal({
             {/* Fase "Em Andamento": sub-status do trabalho + envio à operação.
                 O prazo de entrega (+3 dias) é definido automaticamente ao entrar nesta fase. */}
             {emAndamento && (
-              <div className="col-span-2 rounded-lg border border-border bg-surface-2/40 p-3 space-y-3">
+              <div className="col-span-full rounded-lg border border-border bg-surface-2/40 p-3 space-y-3">
                 <div>
                   <Label>Status (Em Andamento)</Label>
                   <Select name="status_andamento" defaultValue={chamado?.status_andamento ?? STATUS_ANDAMENTO[0]}>
@@ -286,7 +295,7 @@ export function ChamadoModal({
             {/* Fase "Proposta Enviada": dados da negociação. Valor (campo abaixo),
                 anexo e data de envio são obrigatórios; follow-up (+3 dias) automático. */}
             {emProposta && (
-              <div className="col-span-2 rounded-lg border border-border bg-surface-2/40 p-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="col-span-full rounded-lg border border-border bg-surface-2/40 p-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="sm:col-span-2 text-xs font-semibold text-muted">Proposta Enviada</div>
                 {editando && chamado?.fase_desde && (
                   <p className="sm:col-span-2 text-[11px] text-muted">
@@ -336,7 +345,7 @@ export function ChamadoModal({
             {/* Fase "Proposta Aprovada": valor automático + desconto opcional.
                 Ao salvar, o card é concluído. */}
             {emAprovada && (
-              <div className="col-span-2 rounded-lg border border-border bg-surface-2/40 p-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="col-span-full rounded-lg border border-border bg-surface-2/40 p-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="sm:col-span-2 text-xs font-semibold text-muted">Proposta Aprovada</div>
                 <div className="sm:col-span-2 flex items-center justify-between rounded-lg border border-border bg-surface px-3 py-2">
                   <span className="text-sm text-muted">Valor da proposta (automático)</span>
@@ -361,7 +370,7 @@ export function ChamadoModal({
             {/* Fase "Proposta Recusada": valor replicado + motivo da recusa obrigatório.
                 Ao salvar, o card é concluído. */}
             {emRecusada && (
-              <div className="col-span-2 rounded-lg border border-border bg-surface-2/40 p-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="col-span-full rounded-lg border border-border bg-surface-2/40 p-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="sm:col-span-2 text-xs font-semibold text-muted">Proposta Recusada</div>
                 <div className="sm:col-span-2 flex items-center justify-between rounded-lg border border-border bg-surface px-3 py-2">
                   <span className="text-sm text-muted">Valor da proposta (automático)</span>
@@ -383,7 +392,7 @@ export function ChamadoModal({
             {/* Campos avançados: só liberam a partir do orçamento. Ficam montados
                 (display:none) enquanto bloqueados para não perder valores ao salvar. */}
             {!avancado && (
-              <p className="col-span-2 text-[11px] text-muted rounded-lg border border-dashed border-border bg-surface-2/40 p-2.5">
+              <p className="col-span-full text-[11px] text-muted rounded-lg border border-dashed border-border bg-surface-2/40 p-2.5">
                 Os campos de orçamento (valor, custo, equipe, prazo, faturamento…) são liberados ao mover o card para <strong>“Em Orçamento/Em Andamento”</strong>.
               </p>
             )}
@@ -414,12 +423,12 @@ export function ChamadoModal({
                 <Input name="status_faturamento" defaultValue={chamado?.status_faturamento ?? ""} />
               </div>
               {!emRecusada && (
-                <div className="col-span-2">
+                <div className="col-span-full">
                   <Label>Motivo da perda (se recusado)</Label>
                   <Input name="motivo_perda" defaultValue={chamado?.motivo_perda ?? ""} />
                 </div>
               )}
-              <div className="col-span-2">
+              <div className="col-span-full">
                 <Label>Descrição</Label>
                 <Textarea name="descricao" defaultValue={chamado?.descricao ?? ""} />
               </div>
@@ -441,10 +450,10 @@ export function ChamadoModal({
             type="button"
             variant="outline"
             onClick={() => window.open(GOALFY_COMERCIAL_URL, "_blank", "noopener,noreferrer")}
-            className={editando ? undefined : "mr-auto"}
           >
             <ExternalLink size={15} /> Solicitar Suprimentos
           </Button>
+          {!editando && <AtalhoSalvar />}
           <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
           <Button type="submit" disabled={saving}>{saving ? "Salvando..." : "Salvar"}</Button>
         </ModalFooter>
@@ -477,12 +486,15 @@ function PropostaAnexo({ chamadoId, value, onChange }: { chamadoId: string; valu
   const toast = useToast();
   const supabase = React.useMemo(() => createClient(), []);
   const [busy, setBusy] = React.useState(false);
-  const [url, setUrl] = React.useState<string | null>(null);
+  const [assinada, setAssinada] = React.useState<{ path: string; url: string | null } | null>(null);
+  const url = value && assinada?.path === value ? assinada.url : null;
 
   React.useEffect(() => {
+    if (!value) return;
     let active = true;
-    if (!value) { setUrl(null); return; }
-    supabase.storage.from(BUCKET_ANEXOS).createSignedUrl(value, 3600).then(({ data }) => { if (active) setUrl(data?.signedUrl ?? null); });
+    supabase.storage.from(BUCKET_ANEXOS).createSignedUrl(value, 3600).then(({ data }) => {
+      if (active) setAssinada({ path: value, url: data?.signedUrl ?? null });
+    });
     return () => { active = false; };
   }, [value, supabase]);
 
@@ -525,5 +537,48 @@ function PropostaAnexo({ chamadoId, value, onChange }: { chamadoId: string; valu
       <Upload size={15} /> {busy ? "Enviando..." : "Anexar proposta"}
       <input type="file" accept="image/*,application/pdf" className="hidden" onChange={onPick} disabled={busy} />
     </label>
+  );
+}
+
+/** Linha do tempo do funil comercial: mostra onde o card está e o que vem depois. */
+const ETAPAS = [
+  { fase: FASE_OPORTUNIDADE, label: "Oportunidade" },
+  { fase: FASE_ORCAMENTO, label: "Orçamento" },
+  { fase: FASE_PROPOSTA, label: "Proposta" },
+  { fase: FASE_APROVADA, label: "Decisão" },
+];
+
+function FaseStepper({ fase }: { fase: string }) {
+  const atual =
+    fase === FASE_RECUSADA || fase === FASE_APROVADA ? 3
+    : fase === FASE_CONCLUIDO ? 4
+    : ETAPAS.findIndex((e) => e.fase === fase);
+  if (atual < 0) return null; // fase personalizada fora do funil padrão
+  const recusada = fase === FASE_RECUSADA;
+  return (
+    <ol className="flex items-center gap-1.5 text-[11px] font-medium" aria-label="Etapas do chamado">
+      {ETAPAS.map((e, i) => {
+        const feito = i < atual;
+        const agora = i === atual;
+        const label = i === 3 && recusada ? "Recusada" : i === 3 && (fase === FASE_APROVADA || atual === 4) ? "Aprovada" : e.label;
+        return (
+          <li key={e.fase} className="flex flex-1 items-center gap-1.5 min-w-0">
+            <span
+              className={cn(
+                "grid h-5 w-5 shrink-0 place-items-center rounded-full border text-[10px]",
+                feito && "border-green bg-green text-white",
+                agora && (recusada ? "border-red bg-red-soft text-red" : "border-primary bg-primary-soft text-primary"),
+                !feito && !agora && "border-border text-muted",
+              )}
+              aria-current={agora ? "step" : undefined}
+            >
+              {feito ? <Check size={11} strokeWidth={3} /> : i + 1}
+            </span>
+            <span className={cn("truncate", agora ? "text-foreground" : "text-muted")}>{label}</span>
+            {i < ETAPAS.length - 1 && <span className={cn("h-px flex-1 min-w-2", feito ? "bg-green" : "bg-border")} />}
+          </li>
+        );
+      })}
+    </ol>
   );
 }

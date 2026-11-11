@@ -20,6 +20,7 @@ import {
 } from "@/lib/analytics";
 import { formatCurrency, monthLabel, cn } from "@/lib/utils";
 import type { Ordem, Chamado, ChamadoFase } from "@/lib/types";
+import { usePersisted } from "@/lib/use-persisted";
 import {
   Maximize, Minimize, X, Settings, ChevronLeft, ChevronRight,
   Pause, Play, Sun, Moon,
@@ -52,10 +53,8 @@ const DEFAULT_CONFIG: TvConfig = {
   animMs: 900,
 };
 
-function loadConfig(): TvConfig {
-  if (typeof window === "undefined") return DEFAULT_CONFIG;
+function loadConfig(raw: string): TvConfig {
   try {
-    const raw = localStorage.getItem("bb-tv-config");
     if (raw) {
       const c = JSON.parse(raw);
       // migra configs antigas (4 cenas) preenchendo as novas como ativas
@@ -83,14 +82,14 @@ function loadConfig(): TvConfig {
 export default function TvPage() {
   const router = useRouter();
   const { ordens, despesas, equipes, chamados, chamadoFases, loading, podeFinanceiro } = useData();
-  const [config, setConfig] = React.useState<TvConfig>(DEFAULT_CONFIG);
+  const [configRaw, setConfigRaw] = usePersisted("bb-tv-config", "");
+  const config = React.useMemo(() => loadConfig(configRaw), [configRaw]);
   const [pointer, setPointer] = React.useState(0);
   const [paused, setPaused] = React.useState(false);
   const [now, setNow] = React.useState(() => new Date());
   const [fs, setFs] = React.useState(false);
   const [showCfg, setShowCfg] = React.useState(false);
 
-  React.useEffect(() => setConfig(loadConfig()), []);
 
   const active = config.enabled
     .map((on, i) => (on ? i : -1))
@@ -144,9 +143,8 @@ export default function TvPage() {
   }
 
   function updateConfig(next: TvConfig) {
-    setConfig(next);
+    setConfigRaw(JSON.stringify(next));
     setPointer(0);
-    try { localStorage.setItem("bb-tv-config", JSON.stringify(next)); } catch {}
   }
 
   const v = calcVendas(ordens);

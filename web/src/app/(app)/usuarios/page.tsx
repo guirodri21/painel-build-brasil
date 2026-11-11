@@ -16,6 +16,7 @@ import { formatDate, cn } from "@/lib/utils";
 import { usuarioParaEmail, emailParaUsuario } from "@/lib/auth-usuario";
 import { REGRAS_SENHA, senhaValida } from "@/lib/password-policy";
 import { Plus, Trash2, ShieldCheck, ShieldOff, Lock, SlidersHorizontal, Check } from "lucide-react";
+import { useCarregar } from "@/lib/use-carregar";
 
 interface AdminUser {
   id: string;
@@ -89,9 +90,7 @@ export default function UsuariosPage() {
     toast("Acessos atualizados.");
   }
 
-  React.useEffect(() => {
-    if (isAdmin) load();
-  }, [isAdmin, load]);
+  useCarregar(load, isAdmin);
 
   async function setRole(u: AdminUser, role: "admin" | "membro") {
     setBusy(true);

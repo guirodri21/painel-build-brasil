@@ -96,6 +96,8 @@
 
 html {
   scroll-behavior: smooth;
+  /* Reserva a barra de rolagem: a tela não "pula" ao trocar de página. */
+  scrollbar-gutter: stable;
 }
 
 body {
@@ -177,7 +179,24 @@ h1, h2, h3, p, span, td, th, a, div {
   }
 }
 .animate-in {
-  animation: fadeInUp 0.3s ease both;
+  animation: fadeInUp 0.18s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.animate-fade {
+  animation: fadeIn 0.15s ease-out backwards;
+}
+
+/* Troca de página: entrada curta e discreta (não atrasa a leitura). */
+@keyframes pageIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+.page-in {
+  animation: pageIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) backwards;
 }
 
 /* Entrada com leve "pop" (escala) — para KPIs e cards de cena */
@@ -192,21 +211,20 @@ h1, h2, h3, p, span, td, th, a, div {
   }
 }
 .animate-pop {
-  animation: popIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: popIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) backwards;
 }
 
 /* Atraso escalonado (stagger) para listas/grades */
 .stagger > * {
-  animation: popIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: popIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) backwards;
 }
-.stagger > *:nth-child(1) { animation-delay: 0.04s; }
-.stagger > *:nth-child(2) { animation-delay: 0.10s; }
-.stagger > *:nth-child(3) { animation-delay: 0.16s; }
-.stagger > *:nth-child(4) { animation-delay: 0.22s; }
-.stagger > *:nth-child(5) { animation-delay: 0.28s; }
-.stagger > *:nth-child(6) { animation-delay: 0.34s; }
-.stagger > *:nth-child(7) { animation-delay: 0.40s; }
-.stagger > *:nth-child(8) { animation-delay: 0.46s; }
+.stagger > *:nth-child(2) { animation-delay: 0.03s; }
+.stagger > *:nth-child(3) { animation-delay: 0.06s; }
+.stagger > *:nth-child(4) { animation-delay: 0.09s; }
+.stagger > *:nth-child(5) { animation-delay: 0.12s; }
+.stagger > *:nth-child(6) { animation-delay: 0.15s; }
+.stagger > *:nth-child(7) { animation-delay: 0.18s; }
+.stagger > *:nth-child(n + 8) { animation-delay: 0.21s; }
 
 /* Brilho pulsante para o selo "AO VIVO" */
 @keyframes livePulse {
@@ -226,7 +244,7 @@ h1, h2, h3, p, span, td, th, a, div {
   from { width: 0; }
 }
 .animate-bar {
-  animation: growBar 1.1s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: growBar 1.1s cubic-bezier(0.16, 1, 0.3, 1) backwards;
 }
 
 /* Letreiro/ticker rolando (marquee) */
@@ -246,6 +264,8 @@ h1, h2, h3, p, span, td, th, a, div {
 
 @media (prefers-reduced-motion: reduce) {
   .animate-in,
+  .animate-fade,
+  .page-in,
   .animate-pop,
   .stagger > *,
   .live-pulse,

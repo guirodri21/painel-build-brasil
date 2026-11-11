@@ -16,6 +16,7 @@ import { DOT, CORES } from "@/lib/quadros";
 import { cn } from "@/lib/utils";
 import type { Quadro } from "@/lib/types";
 import { KanbanSquare, Plus, ChevronRight } from "lucide-react";
+import { useCarregar } from "@/lib/use-carregar";
 
 /** Fases padrão criadas junto com um quadro novo. */
 const FASES_PADRAO = [
@@ -47,7 +48,7 @@ export default function QuadrosPage() {
     setLoading(false);
   }, []);
 
-  React.useEffect(() => { carregar(); }, [carregar]);
+  useCarregar(carregar);
 
   async function criar(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();

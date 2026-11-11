@@ -7,6 +7,7 @@ import { cn, formatDate } from "@/lib/utils";
 import type { Notificacao } from "@/lib/types";
 import { Bell, Check, CheckCheck } from "lucide-react";
 import Link from "next/link";
+import { useCarregar } from "@/lib/use-carregar";
 
 export function NotificationBell() {
   const { userId } = useData();
@@ -22,7 +23,7 @@ export function NotificationBell() {
     setItens((data as Notificacao[]) ?? []);
   }, [supabase, userId]);
 
-  React.useEffect(() => { carregar(); }, [carregar]);
+  useCarregar(carregar);
 
   // Realtime das notificações do usuário
   React.useEffect(() => {
@@ -56,7 +57,7 @@ export function NotificationBell() {
   return (
     <div className="relative" ref={ref}>
       <button onClick={() => setOpen((o) => !o)} title="Notificações"
-        className="relative inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border text-muted hover:text-foreground hover:bg-surface-2 transition-colors cursor-pointer">
+        className="relative inline-flex h-9 w-9 items-center justify-center rounded-lg text-muted hover:text-foreground hover:bg-surface-2 transition-colors cursor-pointer">
         <Bell size={16} />
         {naoLidas > 0 && (
           <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-red text-white text-[10px] font-bold flex items-center justify-center">
